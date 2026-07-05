@@ -13,6 +13,7 @@
 - [x] feat-002 PM OS plugin — skill, 21 templates, 7 agent archetypes, 5 references, 3 commands
 - [x] feat-003 Marketplace packaging — manifest, README, LICENSE + attribution
 - [x] feat-004 Repo self-harness — CLAUDE.md, trackers, init.sh verification pipeline
+- [x] feat-006 Migration commands — /harness:migrate + /pm-os:migrate, generic staged flow (scan → reflect-back confirm → plan → additive apply → per-group backup → verify)
 
 ### What's In Progress
 
@@ -20,7 +21,7 @@
 
 ### What's Next
 
-1. feat-005: install both plugins (`/plugin marketplace add ~/ai-system`), run `/harness:setup` in a real code repo and `/pm-os:setup` in a vault; fix friction found
+1. feat-005: install both plugins (`/plugin marketplace add ~/ai-system`), run `/harness:setup` in a real code repo and `/pm-os:setup` in a vault; fix friction found — also exercise `/harness:migrate` on a repo with an existing setup and `/pm-os:migrate` on legacy PM notes
 2. Optional: push to GitHub for teammate installs
 
 ## Blockers / Risks
@@ -34,10 +35,12 @@
   - Alternatives considered: allocate numbers on main (ceremony), author-prefixed counters (non-global ordering)
 - **Agents ship as archetypes, scaffolded per project** into `.claude/agents/`, not locked in the plugin — matches the template-instance pattern used everywhere else
 - **Scoring engine reuses upstream's 25 checks for both layouts** via a normalization layer (team files synthesized into solo shapes) + separate team hygiene findings — keeps upstream's proven scoring untouched
+- **Migration is generic and staged, not shape-matching** (feat-006): scan classifies files by role (instructions / trackers / verification / logs), known origins are hints only; three read-only phases (scan, reflect-back confirm, plan) precede the first write; removal = move to `.migration-backup/<date>/` after per-group confirmation, never delete. Prompt-driven commands, no scripts — so init.sh coverage is unchanged and real validation lands in feat-005
 
 ## Files Modified This Session
 
 - Initial build: entire repository (see `git log`)
+- feat-006 session (2026-07-05): `plugins/harness/commands/migrate.md` + `plugins/pm-os/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 
 ## Evidence of Completion
 

@@ -39,6 +39,14 @@
       "dependencies": ["feat-003"],
       "status": "not-started",
       "evidence": ""
+    },
+    {
+      "id": "feat-006",
+      "name": "Migration commands",
+      "description": "Generic /harness:migrate and /pm-os:migrate: role-based scan of any existing setup (no assumed repo shape), reflect-back confirmation of the reading, source→destination plan approved before any write, additive apply behind a checkpoint, per-group move-to-backup cleanup (never delete), then validate",
+      "dependencies": ["feat-001", "feat-002"],
+      "status": "done",
+      "evidence": "2026-07-05: both migrate.md commands written; README command tables + usage sections and pm-os SKILL.md no-vault path updated; ./init.sh passes (prompt-driven commands — no script or template changes, round-trip unaffected). Behavioral validation folds into feat-005's smoke test."
     }
   ]
 }

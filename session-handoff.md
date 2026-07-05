@@ -9,6 +9,7 @@
 ## Completed This Session
 
 - [x] feat-001 … feat-004 (see feature_list.json evidence fields)
+- [x] feat-006 Migration commands — `/harness:migrate` + `/pm-os:migrate` (generic staged flow; behavioral validation folds into feat-005)
 
 ## Verification Evidence
 

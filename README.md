@@ -4,8 +4,8 @@ Two Claude Code plugins, one marketplace. Install once, use in any repo.
 
 | Plugin | What it is | Commands |
 |--------|-----------|----------|
-| **harness** | Engineering harness for AI coding agents: five subsystems (instructions, state, verification, scope, session lifecycle), solo and team layouts | `/harness:setup` · `/harness:validate` · `/harness:score` |
-| **pm-os** | Product-manager operating system: PM vault, 19 routed workflows (PRD, RICE, JTBD, GTM, tracking plans, weekly updates), per-product agent teams | `/pm-os:setup` · `/pm-os:validate` · `/pm-os:score` |
+| **harness** | Engineering harness for AI coding agents: five subsystems (instructions, state, verification, scope, session lifecycle), solo and team layouts | `/harness:setup` · `/harness:migrate` · `/harness:validate` · `/harness:score` |
+| **pm-os** | Product-manager operating system: PM vault, 19 routed workflows (PRD, RICE, JTBD, GTM, tracking plans, weekly updates), per-product agent teams | `/pm-os:setup` · `/pm-os:migrate` · `/pm-os:validate` · `/pm-os:score` |
 
 ## Install (once)
 
@@ -19,9 +19,9 @@ Enable per project or globally when prompted. After pushing this repo to GitHub,
 
 ## Use (in any repo)
 
-**Engineering repo** → `/harness:setup`. Answers solo (one committer) or team (parallel humans: one directory per feature under `features/`, date- or Jira-keyed IDs — no running-number merge conflicts). Daily ritual lives in the scaffolded `CLAUDE.md`: startup workflow → one feature → verify → end of session. Health checks: `/harness:validate` (pass/fail + claim hygiene), `/harness:score` (five-subsystem grades).
+**Engineering repo** → `/harness:setup`. Answers solo (one committer) or team (parallel humans: one directory per feature under `features/`, date- or Jira-keyed IDs — no running-number merge conflicts). Daily ritual lives in the scaffolded `CLAUDE.md`: startup workflow → one feature → verify → end of session. Health checks: `/harness:validate` (pass/fail + claim hygiene), `/harness:score` (five-subsystem grades). Repo already has a hand-rolled setup, an upstream harness, or a solo layout that needs to go team? → `/harness:migrate` converts it in place: reads what exists, shows a source → destination plan, and moves nothing to backup without your per-group confirmation.
 
-**PM vault or product repo** → `/pm-os:setup`. Interview builds `ABOUT-ME/`, `PROJECTS/<product>/`, `TEMPLATES/`, `CLAUDE-OUTPUTS/`, `pm-os.config.md`, and your agent team in `.claude/agents/` (archetypes: customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst). Then just ask — "draft a PRD for X", "prioritize these", "review this PRD" — the pm-os skill routes and writes date-stamped artifacts to `CLAUDE-OUTPUTS/`. Integrations (Jira, Confluence, Drive, BigQuery) are per-project switches; nothing blocks when a tool is absent.
+**PM vault or product repo** → `/pm-os:setup`. Interview builds `ABOUT-ME/`, `PROJECTS/<product>/`, `TEMPLATES/`, `CLAUDE-OUTPUTS/`, `pm-os.config.md`, and your agent team in `.claude/agents/` (archetypes: customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst). Then just ask — "draft a PRD for X", "prioritize these", "review this PRD" — the pm-os skill routes and writes date-stamped artifacts to `CLAUDE-OUTPUTS/`. Integrations (Jira, Confluence, Drive, BigQuery) are per-project switches; nothing blocks when a tool is absent. Existing PM notes in another structure (course vault, Obsidian folder, `docs/` tree)? → `/pm-os:migrate` carries your content into the vault under the same plan-first, confirm-before-removal rules.
 
 The two connect: a PRD from pm-os feeds the prototype-builder agent, which builds inside a `/harness:setup` repo.
 
