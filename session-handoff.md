@@ -4,7 +4,7 @@
 
 - Goal: ship v1 of the blvck-ai-os marketplace (blvck-harness + blvck-pm plugins)
 - Current status: built and verified; awaiting first real installation (feat-005)
-- Branch / commit: main (initial commit)
+- Branch / commit: main, tracking origin/main (private: https://github.com/Canvas-xxx/blvck-ai-os)
 
 ## Completed This Session
 

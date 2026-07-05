@@ -23,7 +23,7 @@
 ### What's Next
 
 1. feat-005: install both plugins (`/plugin marketplace add ~/blvck-ai-os`), run `/blvck-harness:setup` in a real code repo and `/blvck-pm:setup` in a vault; fix friction found — also exercise `/blvck-harness:migrate` on a repo with an existing setup and `/blvck-pm:migrate` on legacy PM notes
-2. Optional: push to GitHub for teammate installs
+2. ~~Optional: push to GitHub~~ — done 2026-07-05: private repo at https://github.com/Canvas-xxx/blvck-ai-os (flip to public or invite teammates before they can install from the URL)
 
 ## Blockers / Risks
 
