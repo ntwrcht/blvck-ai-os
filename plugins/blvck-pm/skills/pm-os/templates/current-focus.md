@@ -1,6 +1,6 @@
 # Current Focus
 
-**Updated:** {{DATE}}  ← update weekly; `/pm-os:score` flags this file when stale
+**Updated:** {{DATE}}  ← update weekly; `/blvck-pm:score` flags this file when stale
 
 ## This Week's Top Priority
 {{TOP_PRIORITY}}

@@ -12,7 +12,7 @@ Migrate the current repository's existing agent-workflow setup into the harness-
 
 Known origins (upstream learn-harness-engineering, this plugin's own solo layout) are classification hints, not requirements. A file that fits no role is **unknown** — ask the user what it is; never guess.
 
-**Phase 2 — Reflect back and confirm (read-only).** Present your reading of the existing setup: what it is, what each classified file does, and what maps where. Recommend a target layout the same way `/harness:setup` does (`git shortlog -sn --no-merges | head -5`; one committer → solo, several → team). The user corrects or confirms this reading before you plan anything.
+**Phase 2 — Reflect back and confirm (read-only).** Present your reading of the existing setup: what it is, what each classified file does, and what maps where. Recommend a target layout the same way `/blvck-harness:setup` does (`git shortlog -sn --no-merges | head -5`; one committer → solo, several → team). The user corrects or confirms this reading before you plan anything.
 
 **Phase 3 — Plan (read-only).** One table, `source → action → destination`, action ∈ **keep** / **convert** / **relocate** / **superseded**, followed by the net-new files that come from templates. Rules:
 
@@ -25,4 +25,4 @@ Get explicit approval of the plan before touching anything.
 
 **Phase 5 — Clean up (per-group confirm).** Group superseded originals by role ("these 3 tracker files are superseded by `feature_list.json`") and ask about each group separately. Default is **keep**. On confirmation, **move** the group to `.migration-backup/<YYYY-MM-DD>/` preserving relative paths — never `rm`. Add `.migration-backup/` to `.gitignore`, and tell the user the backup directory is theirs to delete once confident.
 
-**Phase 6 — Verify.** Run `./init.sh`; if converted verification commands fail, repair them before finishing. Run the `/harness:validate` logic and report. Close with the migration summary: what was created, what was converted, what moved to backup and where.
+**Phase 6 — Verify.** Run `./init.sh`; if converted verification commands fail, repair them before finishing. Run the `/blvck-harness:validate` logic and report. Close with the migration summary: what was created, what was converted, what moved to backup and where.

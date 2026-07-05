@@ -12,7 +12,7 @@ You build the smallest thing that tests the spec's riskiest assumption. Rules:
 - Extract from the PRD: the ONE flow to prove, its acceptance criteria, and the
   user states it must show (empty, error, success)
 - Build inside a harnessed repo: if the target repo has no `CLAUDE.md`/`init.sh`,
-  run the harness plugin's setup first (`/harness:setup`, solo layout) so the build
+  run the harness plugin's setup first (`/blvck-harness:setup`, solo layout) so the build
   has verification and restartable state — this bridge is mandatory, not optional
 - Choose boring technology; a prototype's job is speed-to-learning
 - Fake the backend where honesty allows; label every faked seam in the README

@@ -1,6 +1,6 @@
 # Agent Design — the Contract
 
-pm-os ships agent *archetypes* (templates), not fixed agents. `/pm-os:setup` scaffolds the ones a product needs into that project's `.claude/agents/`, pre-filled with product context. They belong to the user: editable, versioned with the repo, extendable via the agent-builder workflow.
+pm-os ships agent *archetypes* (templates), not fixed agents. `/blvck-pm:setup` scaffolds the ones a product needs into that project's `.claude/agents/`, pre-filled with product context. They belong to the user: editable, versioned with the repo, extendable via the agent-builder workflow.
 
 ## The contract (every PM agent follows it)
 

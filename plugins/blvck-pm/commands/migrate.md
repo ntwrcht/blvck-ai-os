@@ -14,7 +14,7 @@ Migrate existing PM material in the current directory into the pm-os vault struc
 
 Known origins (ai-native-pm-os course vaults) are classification hints, not requirements. A file that fits no role is **unknown** — ask the user what it is; never guess.
 
-**Phase 2 — Reflect back and confirm (read-only).** Present your reading: what the existing setup is, what each group contains, and what maps where. Existing filled content counts as pre-answered interview sections — plan to interview only for what is genuinely missing, exactly like `/pm-os:setup`'s gap mode. The user corrects or confirms this reading before you plan anything.
+**Phase 2 — Reflect back and confirm (read-only).** Present your reading: what the existing setup is, what each group contains, and what maps where. Existing filled content counts as pre-answered interview sections — plan to interview only for what is genuinely missing, exactly like `/blvck-pm:setup`'s gap mode. The user corrects or confirms this reading before you plan anything.
 
 **Phase 3 — Plan (read-only).** One table, `source → action → destination`, action ∈ **keep** / **convert** / **relocate** / **superseded**, followed by the net-new files that come from templates. Rules:
 
@@ -27,4 +27,4 @@ Get explicit approval of the plan before touching anything.
 
 **Phase 5 — Clean up (per-group confirm).** Group superseded originals by role ("these 4 identity notes are superseded by `ABOUT-ME/`") and ask about each group separately — learning content is always its own question. Default is **keep**. On confirmation, **move** the group to `.migration-backup/<YYYY-MM-DD>/` preserving relative paths — never `rm`. Add `.migration-backup/` to `.gitignore` if a git repo, and tell the user the backup directory is theirs to delete once confident.
 
-**Phase 6 — Verify.** Run the `/pm-os:validate` checks on the migrated vault; repair failures the migration caused before finishing. Close with the vault tree, the migration summary (created / converted / moved to backup and where), and the daily entry points: just ask for any artifact, `/pm-os:validate` monthly, `/pm-os:score` when the vault feels messy.
+**Phase 6 — Verify.** Run the `/blvck-pm:validate` checks on the migrated vault; repair failures the migration caused before finishing. Close with the vault tree, the migration summary (created / converted / moved to backup and where), and the daily entry points: just ask for any artifact, `/blvck-pm:validate` monthly, `/blvck-pm:score` when the vault feels messy.

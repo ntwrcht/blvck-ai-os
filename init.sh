@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-echo "=== Harness Initialization: ai-system ==="
+echo "=== Harness Initialization: blvck-ai-os ==="
 
-SCRIPTS="plugins/harness/skills/harness-engineering/scripts"
+SCRIPTS="plugins/blvck-harness/skills/harness-engineering/scripts"
 
 echo "=== 1/3 Script syntax ==="
 node --check "$SCRIPTS/create-harness.mjs"
@@ -26,7 +26,7 @@ echo "solo: scaffold + validate exit 0"
 
 node "$SCRIPTS/create-harness.mjs" --target "$TMP/team" --layout team --owner ci >/dev/null
 FEAT_DIR="$(find "$TMP/team/features" -mindepth 1 -maxdepth 1 -type d | head -1)"
-cp plugins/harness/skills/harness-engineering/templates/team/progress-entry.md \
+cp plugins/blvck-harness/skills/harness-engineering/templates/team/progress-entry.md \
    "$FEAT_DIR/progress/$(date +%F)-ci.md"
 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/team" >/dev/null
 echo "team: clean scaffold + validate exit 0"

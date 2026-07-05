@@ -1,6 +1,6 @@
 # PM OS Config — {{PRODUCT_NAME}}
 
-Machine-read by every pm-os workflow. Edit by hand or re-run `/pm-os:setup`.
+Machine-read by every pm-os workflow. Edit by hand or re-run `/blvck-pm:setup`.
 
 ## Paths
 - Vault root: {{VAULT_ROOT}}

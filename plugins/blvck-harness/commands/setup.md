@@ -12,4 +12,4 @@ Set up an engineering harness in the current repository. Follow the harness-engi
    - What are the first 2–4 concrete features? Replace the placeholder entries (solo: `feature_list.json`; team: create one `features/<id>/` directory per feature via the script's `--feature-slug`, or by copying `templates/team/status.json` conventions).
    - Confirm the verification commands in `init.sh` match how this project actually builds and tests; fix them if not.
 5. **Verify the harness itself.** Run `./init.sh`. If it fails, repair the commands before finishing — a harness whose verification entrypoint fails teaches the agent to skip verification.
-6. **Report.** List created files, the layout, and the one-line ritual for daily use: start sessions by following the Startup Workflow in `CLAUDE.md`; end them by following End of Session. Suggest `/harness:validate` as the periodic health check.
+6. **Report.** List created files, the layout, and the one-line ritual for daily use: start sessions by following the Startup Workflow in `CLAUDE.md`; end them by following End of Session. Suggest `/blvck-harness:validate` as the periodic health check.

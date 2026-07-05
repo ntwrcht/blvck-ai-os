@@ -3,7 +3,7 @@ description: Interview + scaffold the PM vault (identity, product context, integ
 ---
 Set up a PM OS vault in the current directory (a dedicated vault repo or a product repo — both work). Follow the pm-os skill's conventions; templates live in `${CLAUDE_PLUGIN_ROOT}/skills/pm-os/templates/`.
 
-**Detect mode first.** If `ABOUT-ME/CLAUDE.md` or `pm-os.config.md` exists: say "Found an existing PM OS — I'll validate it and fill gaps", run the `/pm-os:validate` logic, and only interview for the missing sections. Never overwrite existing content without explicit approval.
+**Detect mode first.** If `ABOUT-ME/CLAUDE.md` or `pm-os.config.md` exists: say "Found an existing PM OS — I'll validate it and fill gaps", run the `/blvck-pm:validate` logic, and only interview for the missing sections. Never overwrite existing content without explicit approval.
 
 **Interview** — one section at a time, batch each section's questions in ONE message, confirm before moving on. Skip anything already answered by `~/.claude/CLAUDE.md` (global config) — present those as pre-filled and ask only for confirmation:
 
@@ -23,4 +23,4 @@ Set up a PM OS vault in the current directory (a dedicated vault repo or a produ
 - `.claude/agents/` ← the chosen archetypes from `templates/agents/`, ALL `{{PLACEHOLDERS}}` resolved with interview answers
 - `pm-os.config.md` ← paths, integration switches, agent roster
 
-**Finish**: run the `/pm-os:validate` checks on what you just built; fix anything failing. Then show the vault tree, the agent roster, and the three daily entry points: just ask for any artifact (the skill routes), `/pm-os:validate` monthly, `/pm-os:score` when the vault feels messy.
+**Finish**: run the `/blvck-pm:validate` checks on what you just built; fix anything failing. Then show the vault tree, the agent roster, and the three daily entry points: just ask for any artifact (the skill routes), `/blvck-pm:validate` monthly, `/blvck-pm:score` when the vault feels messy.

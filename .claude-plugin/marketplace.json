@@ -1,5 +1,5 @@
 {
-  "name": "ai-system",
+  "name": "blvck-ai-os",
   "metadata": {
     "description": "Personal PM + engineering operating system: an engineering harness for reliable AI coding sessions and a product-manager OS with vault, workflows, and agent teams.",
     "version": "1.0.0"
@@ -10,14 +10,14 @@
   },
   "plugins": [
     {
-      "name": "harness",
-      "source": "./plugins/harness",
-      "description": "Engineering harness for AI coding agents — five subsystems, solo/team layouts, setup·validate·score."
+      "name": "blvck-harness",
+      "source": "./plugins/blvck-harness",
+      "description": "Engineering harness for AI coding agents — five subsystems, solo/team layouts, setup·migrate·validate·score."
     },
     {
-      "name": "pm-os",
-      "source": "./plugins/pm-os",
-      "description": "Product-manager operating system — PM vault, 19 workflows, per-product agent teams, setup·validate·score."
+      "name": "blvck-pm",
+      "source": "./plugins/blvck-pm",
+      "description": "Product-manager operating system — PM vault, 19 workflows, per-product agent teams, setup·migrate·validate·score."
     }
   ]
 }

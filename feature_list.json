@@ -14,7 +14,7 @@
       "description": "PM operating system plugin: pm-os skill (session ritual, vault rules, 19-workflow router), 21 doc/context templates, 7 agent archetype templates, 5 references, setup/validate/score commands",
       "dependencies": [],
       "status": "done",
-      "evidence": "2026-07-05: all 37 files written; placeholder convention consistent ({{machine}} vs [human]); plugin.json JSON-valid via ./init.sh step 2/3. Behavioral validation happens at first /pm-os:setup run (feat-005)."
+      "evidence": "2026-07-05: all 37 files written; placeholder convention consistent ({{machine}} vs [human]); plugin.json JSON-valid via ./init.sh step 2/3. Behavioral validation happens at first /blvck-pm:setup run (feat-005)."
     },
     {
       "id": "feat-003",
@@ -35,7 +35,7 @@
     {
       "id": "feat-005",
       "name": "Install smoke test",
-      "description": "First real installation: /plugin marketplace add ~/ai-system, install both plugins, run /harness:setup in a code repo and /pm-os:setup in a vault, and fix any friction found",
+      "description": "First real installation: /plugin marketplace add ~/blvck-ai-os, install both plugins, run /blvck-harness:setup in a code repo and /blvck-pm:setup in a vault, and fix any friction found",
       "dependencies": ["feat-003"],
       "status": "not-started",
       "evidence": ""
@@ -43,10 +43,18 @@
     {
       "id": "feat-006",
       "name": "Migration commands",
-      "description": "Generic /harness:migrate and /pm-os:migrate: role-based scan of any existing setup (no assumed repo shape), reflect-back confirmation of the reading, source→destination plan approved before any write, additive apply behind a checkpoint, per-group move-to-backup cleanup (never delete), then validate",
+      "description": "Generic /blvck-harness:migrate and /blvck-pm:migrate: role-based scan of any existing setup (no assumed repo shape), reflect-back confirmation of the reading, source→destination plan approved before any write, additive apply behind a checkpoint, per-group move-to-backup cleanup (never delete), then validate",
       "dependencies": ["feat-001", "feat-002"],
       "status": "done",
       "evidence": "2026-07-05: both migrate.md commands written; README command tables + usage sections and pm-os SKILL.md no-vault path updated; ./init.sh passes (prompt-driven commands — no script or template changes, round-trip unaffected). Behavioral validation folds into feat-005's smoke test."
+    },
+    {
+      "id": "feat-007",
+      "name": "Rebrand to blvck",
+      "description": "Rename marketplace ai-system → blvck-ai-os and plugins harness → blvck-harness, pm-os → blvck-pm: plugin directories, all three manifests, command prefixes in every doc/command/template, README, CLAUDE.md, trackers, and the repo folder itself (~/ai-system → ~/blvck-ai-os)",
+      "dependencies": ["feat-003"],
+      "status": "done",
+      "evidence": "2026-07-05: git mv of both plugin dirs; ordered global replace + manifest name fields; grep confirms zero stale ai-system//harness://pm-os: references (ai-native-pm-os provenance mentions intentionally kept); ./init.sh passes end to end after rename. Folder rename done last, after commit."
     }
   ]
 }

@@ -2,14 +2,15 @@
 
 ## Current Objective
 
-- Goal: ship v1 of the ai-system marketplace (harness + pm-os plugins)
+- Goal: ship v1 of the blvck-ai-os marketplace (blvck-harness + blvck-pm plugins)
 - Current status: built and verified; awaiting first real installation (feat-005)
 - Branch / commit: main (initial commit)
 
 ## Completed This Session
 
 - [x] feat-001 … feat-004 (see feature_list.json evidence fields)
-- [x] feat-006 Migration commands — `/harness:migrate` + `/pm-os:migrate` (generic staged flow; behavioral validation folds into feat-005)
+- [x] feat-006 Migration commands — `/blvck-harness:migrate` + `/blvck-pm:migrate` (generic staged flow; behavioral validation folds into feat-005)
+- [x] feat-007 Rebrand to blvck — repo/marketplace `blvck-ai-os`, plugins `blvck-harness` + `blvck-pm`; folder is now `~/blvck-ai-os` (restart Claude Code there)
 
 ## Verification Evidence
 
@@ -39,4 +40,4 @@
 
 ## Recommended Next Step
 
-- feat-005: `/plugin marketplace add ~/ai-system`, install both plugins, run both setups in real repos, fix friction.
+- feat-005: `/plugin marketplace add ~/blvck-ai-os`, install both plugins, run both setups in real repos, fix friction.

@@ -13,7 +13,8 @@
 - [x] feat-002 PM OS plugin — skill, 21 templates, 7 agent archetypes, 5 references, 3 commands
 - [x] feat-003 Marketplace packaging — manifest, README, LICENSE + attribution
 - [x] feat-004 Repo self-harness — CLAUDE.md, trackers, init.sh verification pipeline
-- [x] feat-006 Migration commands — /harness:migrate + /pm-os:migrate, generic staged flow (scan → reflect-back confirm → plan → additive apply → per-group backup → verify)
+- [x] feat-006 Migration commands — /blvck-harness:migrate + /blvck-pm:migrate, generic staged flow (scan → reflect-back confirm → plan → additive apply → per-group backup → verify)
+- [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 
 ### What's In Progress
 
@@ -21,7 +22,7 @@
 
 ### What's Next
 
-1. feat-005: install both plugins (`/plugin marketplace add ~/ai-system`), run `/harness:setup` in a real code repo and `/pm-os:setup` in a vault; fix friction found — also exercise `/harness:migrate` on a repo with an existing setup and `/pm-os:migrate` on legacy PM notes
+1. feat-005: install both plugins (`/plugin marketplace add ~/blvck-ai-os`), run `/blvck-harness:setup` in a real code repo and `/blvck-pm:setup` in a vault; fix friction found — also exercise `/blvck-harness:migrate` on a repo with an existing setup and `/blvck-pm:migrate` on legacy PM notes
 2. Optional: push to GitHub for teammate installs
 
 ## Blockers / Risks
@@ -40,7 +41,8 @@
 ## Files Modified This Session
 
 - Initial build: entire repository (see `git log`)
-- feat-006 session (2026-07-05): `plugins/harness/commands/migrate.md` + `plugins/pm-os/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
+- feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
+- feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
 
 ## Evidence of Completion
 
@@ -49,4 +51,4 @@
 
 ## Notes for Next Session
 
-Run feat-005 before editing anything else — real installation is the only untested layer. If `/pm-os:setup` interview feels long, batching per section (as specced in the command) is the intended mitigation; resist splitting into more commands.
+Run feat-005 before editing anything else — real installation is the only untested layer. If `/blvck-pm:setup` interview feels long, batching per section (as specced in the command) is the intended mitigation; resist splitting into more commands.

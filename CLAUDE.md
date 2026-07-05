@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Plugin marketplace repo: two Claude Code plugins (`harness`, `pm-os`). This repo runs its own solo harness — the files you edit here are templates and prompts other repos will scaffold from, so precision matters more than speed.
+Plugin marketplace repo ("blvck-ai-os"): two Claude Code plugins (`blvck-harness`, `blvck-pm`). This repo runs its own solo harness — the files you edit here are templates and prompts other repos will scaffold from, so precision matters more than speed.
 
 ## Startup Workflow
 
@@ -21,7 +21,7 @@ If baseline verification is failing, repair that first before adding new scope.
 - **Update artifacts**: Before ending session, update `progress.md` and `feature_list.json`
 - **Stay in scope**: Don't modify files unrelated to the current feature
 - **Leave clean state**: Next session must be able to run `./init.sh` immediately
-- **Template discipline**: `{{PLACEHOLDER}}` tokens are machine-filled by scripts/commands; `[bracketed]` text is human-filled. Never break that convention — `create-harness.mjs` and `/pm-os:setup` depend on it
+- **Template discipline**: `{{PLACEHOLDER}}` tokens are machine-filled by scripts/commands; `[bracketed]` text is human-filled. Never break that convention — `create-harness.mjs` and `/blvck-pm:setup` depend on it
 - **Both layouts stay in sync**: a change to harness scoring or templates must keep BOTH the solo and team scaffold paths passing in `init.sh`'s round-trip test
 
 ## Required Artifacts

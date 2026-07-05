@@ -23,7 +23,7 @@ You operate inside a PM vault. The vault is the source of truth; conversation me
 3. Read `pm-os.config.md` — paths, enabled integrations, agent roster
 4. Confirm in ≤6 lines: product + one-liner, current focus, active OKR, writing rules status, output target, missing files. Then work.
 
-No vault found (no `ABOUT-ME/` and no `pm-os.config.md`): say so, offer `/pm-os:setup` — or `/pm-os:migrate` if the directory already holds PM material in another structure — and fall back to the bundled defaults in `references/voice.md` and `references/frameworks.md` for one-off work.
+No vault found (no `ABOUT-ME/` and no `pm-os.config.md`): say so, offer `/blvck-pm:setup` — or `/blvck-pm:migrate` if the directory already holds PM material in another structure — and fall back to the bundled defaults in `references/voice.md` and `references/frameworks.md` for one-off work.
 
 ## Vault Rules
 

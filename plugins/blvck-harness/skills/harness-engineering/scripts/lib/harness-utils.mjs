@@ -460,7 +460,7 @@ export async function loadHarnessFilesAuto(root, explicitLayout) {
 
 // Team hygiene findings that only make sense in the sharded layout.
 // File-based only — branch existence and unpushed claims are checked by the
-// /harness:validate command prompt, which can run git.
+// /blvck-harness:validate command prompt, which can run git.
 export async function teamFindings(root, { staleDays = 14, now = new Date() } = {}) {
   const findings = { danglingDependencies: [], duplicateSlugs: [], staleClaims: [], unclaimedInProgress: [], invalidStatusFiles: [] };
   const featureDirs = await listFeatureDirs(root);
