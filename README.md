@@ -93,7 +93,7 @@ The two plugins also compose: a PRD written in a **blvck-pm** vault feeds the pr
 Add the marketplace, then install one or both plugins from inside Claude Code:
 
 ```text
-/plugin marketplace add Canvas-xxx/blvck-ai-os
+/plugin marketplace add ntwrcht/blvck-ai-os
 /plugin install blvck-harness@blvck-ai-os
 /plugin install blvck-pm@blvck-ai-os
 ```
