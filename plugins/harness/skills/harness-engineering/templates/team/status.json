@@ -1,0 +1,13 @@
+{
+  "id": "{{FEATURE_ID}}",
+  "name": "{{FEATURE_NAME}}",
+  "project": "{{PROJECT}}",
+  "description": "{{FEATURE_DESCRIPTION}}",
+  "dependencies": [],
+  "status": "not-started",
+  "phase": "planned",
+  "owner": "{{OWNER}}",
+  "branch": "{{BRANCH}}",
+  "created": "{{CREATED}}",
+  "evidence": ""
+}

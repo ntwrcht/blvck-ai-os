@@ -1,0 +1,43 @@
+# ai-system
+
+Two Claude Code plugins, one marketplace. Install once, use in any repo.
+
+| Plugin | What it is | Commands |
+|--------|-----------|----------|
+| **harness** | Engineering harness for AI coding agents: five subsystems (instructions, state, verification, scope, session lifecycle), solo and team layouts | `/harness:setup` · `/harness:validate` · `/harness:score` |
+| **pm-os** | Product-manager operating system: PM vault, 19 routed workflows (PRD, RICE, JTBD, GTM, tracking plans, weekly updates), per-product agent teams | `/pm-os:setup` · `/pm-os:validate` · `/pm-os:score` |
+
+## Install (once)
+
+```
+/plugin marketplace add ~/ai-system
+/plugin install harness@ai-system
+/plugin install pm-os@ai-system
+```
+
+Enable per project or globally when prompted. After pushing this repo to GitHub, teammates use the same commands with the repo URL.
+
+## Use (in any repo)
+
+**Engineering repo** → `/harness:setup`. Answers solo (one committer) or team (parallel humans: one directory per feature under `features/`, date- or Jira-keyed IDs — no running-number merge conflicts). Daily ritual lives in the scaffolded `CLAUDE.md`: startup workflow → one feature → verify → end of session. Health checks: `/harness:validate` (pass/fail + claim hygiene), `/harness:score` (five-subsystem grades).
+
+**PM vault or product repo** → `/pm-os:setup`. Interview builds `ABOUT-ME/`, `PROJECTS/<product>/`, `TEMPLATES/`, `CLAUDE-OUTPUTS/`, `pm-os.config.md`, and your agent team in `.claude/agents/` (archetypes: customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst). Then just ask — "draft a PRD for X", "prioritize these", "review this PRD" — the pm-os skill routes and writes date-stamped artifacts to `CLAUDE-OUTPUTS/`. Integrations (Jira, Confluence, Drive, BigQuery) are per-project switches; nothing blocks when a tool is absent.
+
+The two connect: a PRD from pm-os feeds the prototype-builder agent, which builds inside a `/harness:setup` repo.
+
+## Update
+
+Edit here (or `git pull` after pushing to a remote); reinstall/update via `/plugin`. Verify changes with `./init.sh` — it syntax-checks the scripts, JSON-validates every manifest and template, and runs a full solo + team scaffold/validate round-trip in a temp directory.
+
+## Layout
+
+```
+.claude-plugin/marketplace.json     # this marketplace
+plugins/harness/                    # commands/ + skills/harness-engineering/{SKILL.md,templates,scripts,references}
+plugins/pm-os/                      # commands/ + skills/pm-os/{SKILL.md,templates,references}
+CLAUDE.md feature_list.json progress.md init.sh    # this repo runs its own harness
+```
+
+## Provenance
+
+`plugins/harness` internals are adapted from [`harness-creator`](https://github.com/walkinglabs/learn-harness-engineering) (MIT — see LICENSE). `pm-os` vault patterns follow the ai-native-pm-os course structure, rebuilt as operational tooling. Course/learning content from both sources is intentionally excluded.

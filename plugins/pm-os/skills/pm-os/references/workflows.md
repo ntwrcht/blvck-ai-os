@@ -1,0 +1,53 @@
+# PM OS Workflow Catalog
+
+Routing table for the pm-os skill. Every workflow: (1) runs the session ritual first if not already done, (2) reads `pm-os.config.md` for paths and integrations, (3) writes only to `CLAUDE-OUTPUTS/<type>/` with date-stamped names, (4) uses the vault's `TEMPLATES/` copy of a template if present, else the bundled one.
+
+## Docs & Specs
+
+**spec-or-prd** — "should this be a ticket, spec, or PRD?" Ask the 5 questions one at a time: sprint-weeks of effort; platform-touch (auth/API/schema); needs design review; compliance/legal/security; cross-team dependencies. Recommend exactly one: TICKET (<1 sprint-week, no platform touch, no design review), LIGHTWEIGHT SPEC (1–3 sprint-weeks, single team), FULL PRD (>3 sprint-weeks OR platform OR multi-team OR compliance). Name which answers drove it. No file output unless asked.
+
+**prd** — "draft a PRD for X." Confirm the JTBD and success metric before writing; challenge missing evidence. Template: `prd.md` → `CLAUDE-OUTPUTS/prds/prd-[feature]-v1-[date].md`. New version = new file (v2), old one moves to `_archive/`. Offer `/tracking-plan` next (a PRD without instrumentation is unfinished) and Jira ticket creation if enabled.
+
+**lightweight-spec** — for 1–3 sprint-week work. Template: `lightweight-spec.md` → `prds/spec-[feature]-[date].md`.
+
+**one-pager** — decision documents. Template: `one-pager.md` → `strategy-docs/`. The ask goes first; refuse to bury it.
+
+**prfaq** — working-backwards docs. Template: `prfaq.md` → `strategy-docs/`. Press release stays one page.
+
+**prd-review** — "review this PRD." Target: latest version in `prds/` unless named. If `.claude/agents/blind-reviewer.md` exists: spawn it 3× in parallel (engineer / designer / executive lens), each blind; then synthesize — the highest-priority fix (appears in ≥2 reviews or is a showstopper), 3 changes before engineering handoff, 1 thing to preserve. Fallback without agents: run the three lenses sequentially inline, then synthesize. Output: `prds/[feature]-multi-review-[date].md`. Ask which perspective to address first.
+
+## Prioritization & Metrics
+
+**rice** — "prioritize these." Inputs: a list, a file, or Jira issues (if enabled, pull by filter/JQL the user confirms). State scoring rules before scoring; effort comes from engineering, not invented. Confidence <50% → route to discovery instead. Template: `rice.md` → `strategy-docs/rice-[scope]-[date].md`. Log the resulting decision in the decision log.
+
+**metrics-tree** — "define our metrics / NSM tree." Socratic first: what value does the product deliver, which behavior shows it, what correlates with revenue. Build NSM → L1 → L2 with formulas and sources; include counter-metrics. If BigQuery enabled, verify each metric's source table exists. Template: `metrics-tree.md` → `strategy-docs/`.
+
+## Discovery & Research
+
+**jtbd-interview** — "prep interviews for X." Template: `jtbd-interview.md` → `research/guide-[segment]-[date].md`. Past behavior only; no "would you" questions.
+
+**research-synthesis** — "synthesize these interviews/tickets." Sources from named files or Drive (if enabled). >3 sources AND `.claude/agents/research-analyst.md` exists → spawn one per source in parallel, synthesize over their structured summaries; ≤3 sources → read directly. Insight rule: ≥2 independent sources; contradictions reported. Template: `research-synthesis.md` → `research/synthesis-[topic]-[date].md`.
+
+**competitor-teardown** — "tear down competitor X." Delegate to `.claude/agents/competitive-intel.md` when present, else inline. Template: `competitor-teardown.md` → `research/teardown-[competitor]-[date].md`.
+
+## Comms & Rituals
+
+**weekly-update** — "write my weekly update." Compare with the most recent update in `stakeholder-comms/`; pull metrics from BigQuery when enabled, else mark `[manual]` and ask. Flag ±15% moves with cause or "investigating". 200–300 words, Slack-ready. Template: `weekly-update.md` → `stakeholder-comms/update-[date].md`. Nudge `current-focus.md` update while at it.
+
+**launch-checklist** — "prep the launch of X." Template: `launch-checklist.md` → `stakeholder-comms/launch-[feature]-[date].md`. Every unchecked gate gets an owner.
+
+**decision-log** — "log this decision." Append to the vault's decision log (create from `decision-log.md` template at `strategy-docs/decision-log.md` if missing). Newest first; capture alternatives and revisit-when.
+
+**onboard** — "brief a new PM / brief me on this product." Read `ABOUT-ME/` (theirs, not yours), product CLAUDE.md, roadmap, latest weekly update, decision log. Deliver: company/product in 3 bullets, NSM and why, stakeholder map with framing, top 3 process rules, data caveats, the open question of the quarter, files and commands they'll use most.
+
+## GTM & Analytics
+
+**gtm-brief** — "GTM plan for X." Positioning first — refuse channel talk until the positioning statement stands. Template: `gtm-brief.md` → `strategy-docs/gtm-[feature]-[date].md`.
+
+**tracking-plan** — "instrument feature X." Read the PRD first; every event answers a stated question. Template: `tracking-plan.md` → `data-analysis/tracking-[feature]-[date].md`. If BigQuery enabled, note the destination tables.
+
+**funnel-analysis** — "why do users drop at X?" BigQuery enabled: write the query, save SQL alongside the doc. Else: ask for an export. Check Data Caveats before any claim. Template: `funnel-analysis.md` → `data-analysis/funnel-[name]-[date].md`.
+
+## Meta
+
+**agent-builder** — "I need an agent that does X." Read `references/agent-design.md`, then: define the job in one sentence, the spawn moments, the single output folder; draft the agent file following the contract (grounding ritual → lens/rules → output contract → escalation); fill product placeholders from the vault; write to `.claude/agents/[name].md`; register it in `pm-os.config.md`'s roster. Refuse agents whose job overlaps an existing one — extend that one instead.

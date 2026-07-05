@@ -1,0 +1,44 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Harness plugin",
+      "description": "Engineering-harness plugin: vendored harness-creator skill (MIT, attributed) with solo layout byte-compatible with upstream, plus team layout (features/<id>/ directories, date/Jira-keyed IDs, claim fields) and setup/validate/score commands",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "2026-07-05: node --check clean on all 3 scripts. Scratch solo scaffold scored 100/100, exit 0. Scratch team scaffold + session entry scored 100/100; seeded fixtures fired all three finding types (dangling dep feat-999, duplicate slug project-setup, stale claim 34 days) and exited 1. Round-trip re-verified by ./init.sh step 3/3."
+    },
+    {
+      "id": "feat-002",
+      "name": "PM OS plugin",
+      "description": "PM operating system plugin: pm-os skill (session ritual, vault rules, 19-workflow router), 21 doc/context templates, 7 agent archetype templates, 5 references, setup/validate/score commands",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "2026-07-05: all 37 files written; placeholder convention consistent ({{machine}} vs [human]); plugin.json JSON-valid via ./init.sh step 2/3. Behavioral validation happens at first /pm-os:setup run (feat-005)."
+    },
+    {
+      "id": "feat-003",
+      "name": "Marketplace packaging",
+      "description": "Repo as a Claude Code plugin marketplace: .claude-plugin/marketplace.json listing both plugins, README with install/use/update, MIT LICENSE with WalkingLab third-party notice",
+      "dependencies": ["feat-001", "feat-002"],
+      "status": "done",
+      "evidence": "2026-07-05: marketplace.json and both plugin.json parse clean (./init.sh step 2/3); install commands documented in README."
+    },
+    {
+      "id": "feat-004",
+      "name": "Repo self-harness",
+      "description": "This repo runs its own solo harness: CLAUDE.md working rules, feature_list.json, progress.md, and an init.sh that syntax-checks scripts, JSON-validates everything, and runs the solo+team scaffold/validate round-trip including negative-path findings",
+      "dependencies": ["feat-001"],
+      "status": "done",
+      "evidence": "2026-07-05: ./init.sh passes end to end (see progress.md for output summary)."
+    },
+    {
+      "id": "feat-005",
+      "name": "Install smoke test",
+      "description": "First real installation: /plugin marketplace add ~/ai-system, install both plugins, run /harness:setup in a code repo and /pm-os:setup in a vault, and fix any friction found",
+      "dependencies": ["feat-003"],
+      "status": "not-started",
+      "evidence": ""
+    }
+  ]
+}

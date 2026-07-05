@@ -1,0 +1,8 @@
+{
+  "id": "t01",
+  "type": "test | implement | config | docs",
+  "ac": 1,
+  "project": "",
+  "description": "One task per acceptance criterion. Write the verification task (type: test) before the implementation task it proves. Running numbers (t01, t02, …) are safe here: a claimed feature directory has exactly one owner.",
+  "status": "not-started"
+}
