@@ -172,5 +172,3 @@ Bug reports and workflow ideas are as valuable as code — file them as issues w
 ## License
 
 Released under the **MIT License** — see [LICENSE](LICENSE) for the full text.
-
-**Third-party notice:** `plugins/blvck-harness` internals are adapted from [`harness-creator`](https://github.com/walkinglabs/learn-harness-engineering) (MIT, attributed in LICENSE). `blvck-pm` vault patterns follow the ai-native-pm-os course structure, rebuilt as operational tooling. Course and learning content from both sources is intentionally excluded.

@@ -24,7 +24,7 @@ SOFTWARE.
 
 Third-party notice
 
-Portions of plugins/harness (templates, scripts, and reference patterns under
+Portions of plugins/blvck-harness (templates, scripts, and reference patterns under
 skills/harness-engineering/) are adapted from "harness-creator" in
 walkinglabs/learn-harness-engineering, Copyright (c) 2025 WalkingLab,
 licensed under the MIT License.
