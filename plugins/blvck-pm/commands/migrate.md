@@ -1,5 +1,6 @@
 ---
 description: Convert existing PM material (any structure) into the PM OS vault — plan shown first, removal only with per-group confirmation
+disable-model-invocation: true
 ---
 Migrate existing PM material in the current directory into the pm-os vault structure. Sources are generic — a course-built vault, an Obsidian folder, a `docs/` tree, loose markdown. Templates live in `${CLAUDE_PLUGIN_ROOT}/skills/pm-os/templates/`. This is a staged, gated operation: three read-only phases before the first write, and nothing is ever deleted.
 

@@ -1,9 +1,8 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "blvck-ai-os",
-  "metadata": {
-    "description": "Personal PM + engineering operating system: an engineering harness for reliable AI coding sessions and a product-manager OS with vault, workflows, and agent teams.",
-    "version": "1.0.0"
-  },
+  "description": "Personal PM + engineering operating system: an engineering harness for reliable AI coding sessions and a product-manager OS with vault, workflows, and agent teams.",
+  "version": "1.1.0",
   "owner": {
     "name": "Worachote Suwanyothin",
     "email": "s.worachote01@gmail.com"
@@ -12,12 +11,28 @@
     {
       "name": "blvck-harness",
       "source": "./plugins/blvck-harness",
-      "description": "Engineering harness for AI coding agents — five subsystems, solo/team layouts, setup·migrate·validate·score."
+      "description": "Engineering harness for AI coding agents — five subsystems, solo/team layouts, setup·migrate·validate·score.",
+      "category": "development",
+      "keywords": ["harness", "agent-reliability", "verification", "session-continuity"],
+      "author": {
+        "name": "Worachote Suwanyothin"
+      },
+      "homepage": "https://github.com/ntwrcht/blvck-ai-os",
+      "repository": "https://github.com/ntwrcht/blvck-ai-os",
+      "license": "MIT"
     },
     {
       "name": "blvck-pm",
       "source": "./plugins/blvck-pm",
-      "description": "Product-manager operating system — PM vault, 19 workflows, per-product agent teams, setup·migrate·validate·score."
+      "description": "Product-manager operating system — PM vault, 19 workflows, per-product agent teams, setup·migrate·validate·score.",
+      "category": "productivity",
+      "keywords": ["product-management", "pm-vault", "prd", "rice", "jtbd", "gtm", "agents"],
+      "author": {
+        "name": "Worachote Suwanyothin"
+      },
+      "homepage": "https://github.com/ntwrcht/blvck-ai-os",
+      "repository": "https://github.com/ntwrcht/blvck-ai-os",
+      "license": "MIT"
     }
   ]
 }

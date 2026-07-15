@@ -10,6 +10,7 @@ description: >-
   "roadmap", "north star", "interview", "synthesis", "competitor", "weekly update", "launch",
   "GTM", "tracking plan", "funnel", or any product-management request — even if the user
   never says "pm-os".
+allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 ---
 
 # PM OS

@@ -9,6 +9,7 @@ description: >-
   or starts each session inconsistently — or when creating or assessing CLAUDE.md, AGENTS.md,
   feature_list.json, features/*/status.json, init.sh, or progress files. Reach for it even
   if the user never says the word "harness."
+allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 license: MIT
 ---
 
@@ -50,8 +51,8 @@ Every useful coding-agent harness has five subsystems:
 ### Create a harness
 
 ```bash
-node scripts/create-harness.mjs --target /path/to/project                # solo (default)
-node scripts/create-harness.mjs --target /path/to/project --layout team  # team
+node ${CLAUDE_SKILL_DIR}/scripts/create-harness.mjs --target /path/to/project                # solo (default)
+node ${CLAUDE_SKILL_DIR}/scripts/create-harness.mjs --target /path/to/project --layout team  # team
 ```
 
 Options: `--agent-file AGENTS.md`, `--package-manager npm|pnpm|yarn|bun`, `--commands "cmd one,cmd two"`, `--feature-slug first-feature`, `--jira-key KEY-123`, `--owner name`, `--force` (only after confirming overwrites are acceptable).
@@ -61,7 +62,7 @@ Then replace placeholder feature entries with the project's real first features.
 ### Audit an existing harness
 
 ```bash
-node scripts/validate-harness.mjs --target /path/to/project [--json]
+node ${CLAUDE_SKILL_DIR}/scripts/validate-harness.mjs --target /path/to/project [--json]
 ```
 
 Reports five subsystem scores plus, in team layout, hygiene findings: dangling dependency IDs, duplicate slugs, stale claims, in-progress features with no owner. Treat the lowest score as a candidate bottleneck; confirm with failures, logs, or task outcomes before claiming causality.

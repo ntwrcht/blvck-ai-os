@@ -1,5 +1,6 @@
 ---
 description: Convert an existing setup (any shape) to this harness structure — plan shown first, removal only with per-group confirmation
+disable-model-invocation: true
 ---
 Migrate the current repository's existing agent-workflow setup into the harness-engineering skill's conventions. Sources are generic — an upstream harness-creator repo, a hand-rolled CLAUDE.md with ad-hoc trackers, or this plugin's solo layout moving to team. This is a staged, gated operation: three read-only phases before the first write, and nothing is ever deleted.
 

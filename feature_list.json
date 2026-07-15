@@ -37,8 +37,8 @@
       "name": "Install smoke test",
       "description": "First real installation: /plugin marketplace add ~/blvck-ai-os, install both plugins, run /blvck-harness:setup in a code repo and /blvck-pm:setup in a vault, and fix any friction found",
       "dependencies": ["feat-003"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-07-15: marketplace add + install blvck-harness@blvck-ai-os both exit 0. `claude plugin details` renders displayName 'blvck · harness', version 1.1.0, 5 skills, 0 hooks/MCP/LSP, ~392 tok always-on. Scaffold from the installed plugin path: create-harness.mjs exit 0, all 5 artifacts written, the scaffolded repo's own ./init.sh exits 0, validate-harness.mjs scores 100/100 exit 0. FRICTION FOUND (fixed in feat-008): every skill reference/template Read was permission-denied because plugin files live outside the user's workspace — user-confirmed symptom, root-caused via --output-format stream-json, fixed with allowed-tools and re-verified interactively by the user after /reload-plugins."
     },
     {
       "id": "feat-006",
@@ -55,6 +55,14 @@
       "dependencies": ["feat-003"],
       "status": "done",
       "evidence": "2026-07-05: git mv of both plugin dirs; ordered global replace + manifest name fields; grep confirms zero stale ai-system//harness://pm-os: references (ai-native-pm-os provenance mentions intentionally kept); ./init.sh passes end to end after rename. Folder rename done last, after commit."
+    },
+    {
+      "id": "feat-008",
+      "name": "Official-grade packaging",
+      "description": "Close the gap between 'passes claude plugin validate' and 'publishable': fix the permission wall that made skill references/templates unreadable, gate the write commands from model invocation, establish semver release discipline (bump + CHANGELOG + tag) so updates actually reach installed users, restore GitHub MIT license detection, and add CI + community files + repo discovery metadata",
+      "dependencies": ["feat-003", "feat-005"],
+      "status": "done",
+      "evidence": "2026-07-15: (1) PERMISSION WALL — root cause of user-reported 'references and templates not proactive': plugin skill files live outside the user's workspace, so every Read was denied ('you haven't granted it yet'); relative links were never the problem, they resolve correctly. Fixed with allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**) on both SKILL.md; user verified interactively after /reload-plugins. NOTE: any skill with allowed-tools fails to launch under `claude -p` regardless of permission mode (proved with a local canary skill), so this is untestable headlessly. Also fixed bare `node scripts/*.mjs` -> ${CLAUDE_SKILL_DIR}/scripts/ in harness SKILL.md (bare paths resolve against the user's cwd, where the script does not exist). (2) VERSION TRAP — 1.0.0 was pinned while 5 commits shipped, so installed users could never receive the rebrand; bumped both to 1.1.0, added per-plugin CHANGELOG.md and a Release Checklist in CLAUDE.md. (3) Gated setup+migrate with disable-model-invocation (they write files); validate+score stay model-invocable. Token saving from gating NOT confirmed — `plugin details` still counts them in always-on. (4) LICENSE restored to verbatim MIT (GitHub reported 'Other' because of the appended notice); attribution moved verbatim to NOTICE. (5) CI: .github/workflows/validate.yml runs init.sh + `claude plugin validate --strict` (verified it needs no auth: clean HOME/empty env exits 0; broken manifest exits 1) plus a guard that fails if a marketplace entry pins version. (6) CONTRIBUTING.md, SECURITY.md, repo topics + homepage. Verified: ./init.sh passes; all 3 manifests pass --strict; scaffold round-trip 100/100. CAVEAT: `claude plugin validate --strict` PASSED frontmatter that broke the skill at runtime — schema validation is not a substitute for invocation."
     }
   ]
 }

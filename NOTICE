@@ -1,0 +1,14 @@
+blvck-ai-os
+Copyright (c) 2026 Worachote Suwanyothin
+
+This product includes software developed by third parties, as noted below.
+The full text of this project's own license is in LICENSE.
+
+---
+
+Third-party notice
+
+Portions of plugins/blvck-harness (templates, scripts, and reference patterns under
+skills/harness-engineering/) are adapted from "harness-creator" in
+walkinglabs/learn-harness-engineering, Copyright (c) 2025 WalkingLab,
+licensed under the MIT License.

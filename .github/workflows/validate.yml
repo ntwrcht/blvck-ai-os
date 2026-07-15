@@ -1,0 +1,64 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  harness:
+    name: Harness round-trip (init.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Syntax-checks the three harness scripts, JSON-parses every manifest,
+      # template and tracker, and runs the solo + team scaffold/validate
+      # round-trip including the negative path (seeded hygiene findings must
+      # make the validator exit 1).
+      - name: ./init.sh
+        run: ./init.sh
+
+  plugins:
+    name: Plugin + marketplace manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      # `plugin validate` is a local schema check: it needs no auth and exits
+      # nonzero on a bad manifest. --strict turns unrecognized-field warnings
+      # into errors, catching typos and leftovers from other manifest formats
+      # before they reach users.
+      - name: Validate marketplace
+        run: claude plugin validate . --strict
+
+      - name: Validate blvck-harness
+        run: claude plugin validate ./plugins/blvck-harness --strict
+
+      - name: Validate blvck-pm
+        run: claude plugin validate ./plugins/blvck-pm --strict
+
+      # Guards the release trap: plugin.json pins `version`, so it is the cache
+      # key users compare against. A marketplace entry that also sets `version`
+      # silently drifts from it.
+      - name: Marketplace entries must not pin version
+        run: |
+          if node -e "process.exit(require('./.claude-plugin/marketplace.json').plugins.some(p => 'version' in p) ? 1 : 0)"; then
+            echo "OK: version lives only in plugin.json"
+          else
+            echo "::error::A marketplace entry sets 'version'. Keep it only in plugin.json (see CLAUDE.md Release Checklist)."
+            exit 1
+          fi

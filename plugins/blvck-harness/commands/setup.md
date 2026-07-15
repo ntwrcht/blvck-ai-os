@@ -1,5 +1,7 @@
 ---
 description: Scaffold the five harness artifacts in this repo (solo or team layout)
+argument-hint: [solo|team]
+disable-model-invocation: true
 ---
 Set up an engineering harness in the current repository. Follow the harness-engineering skill's conventions.
 

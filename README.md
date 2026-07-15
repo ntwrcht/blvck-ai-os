@@ -7,7 +7,7 @@
 Two plugins, one install: an engineering harness that keeps AI coding agents reliable across sessions, and a product-management operating system that turns your PM context into routed workflows and agent teams.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-black.svg)](.claude-plugin/marketplace.json)
+[![Version](https://img.shields.io/badge/version-1.1.0-black.svg)](plugins/blvck-harness/CHANGELOG.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin%20marketplace-black.svg)](https://claude.com/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-black.svg)](#contributing)
 
@@ -167,8 +167,16 @@ Contributions are welcome — this repo eats its own cooking, so the workflow wi
 4. **Respect the placeholder contract.** `{{TOKEN}}` is machine-filled, `[bracketed]` is human-filled; scripts depend on the distinction.
 5. **Open a pull request** describing what changed and why, with the `./init.sh` result in the description.
 
+Full details, including how to test plugin changes and the release process, are in
+[CONTRIBUTING.md](CONTRIBUTING.md). Security issues go to [SECURITY.md](SECURITY.md) — please
+don't file those as public issues.
+
 Bug reports and workflow ideas are as valuable as code — file them as issues with reproduction steps or a concrete use case.
 
 ## License
 
 Released under the **MIT License** — see [LICENSE](LICENSE) for the full text.
+
+Portions of `blvck-harness` are adapted from `harness-creator` in
+[walkinglabs/learn-harness-engineering](https://github.com/walkinglabs/learn-harness-engineering)
+(MIT). Third-party attributions are recorded in [NOTICE](NOTICE).

@@ -1,5 +1,6 @@
 ---
 description: Interview + scaffold the PM vault (identity, product context, integrations, agent team)
+disable-model-invocation: true
 ---
 Set up a PM OS vault in the current directory (a dedicated vault repo or a product repo — both work). Follow the pm-os skill's conventions; templates live in `${CLAUDE_PLUGIN_ROOT}/skills/pm-os/templates/`.
 

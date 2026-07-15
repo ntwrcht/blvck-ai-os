@@ -49,6 +49,24 @@ Before ending a session:
 4. Commit with descriptive message once work is in safe state
 5. Leave repo clean enough for next session to run `./init.sh` immediately
 
+## Release Checklist
+
+`version` is pinned in each `plugin.json`, so it is the cache key Claude Code compares
+against. **Pushing commits without bumping it ships nothing** — installed users stay on the
+old copy and `/plugin update` tells them they are already current. Never let user-visible
+changes land without a bump.
+
+For each plugin with user-visible changes:
+
+1. Bump `version` in `plugins/<plugin>/.claude-plugin/plugin.json` (semver: MAJOR breaking,
+   MINOR features, PATCH fixes)
+2. Add the matching entry to `plugins/<plugin>/CHANGELOG.md`
+3. Never add `version` to the marketplace entry — `plugin.json` is the single source of truth
+   (both are legal and `plugin.json` wins, but two copies drift silently)
+4. Run `./init.sh` and `claude plugin validate . --strict`
+5. Commit, then `cd plugins/<plugin> && claude plugin tag --push`
+6. Verify a real install picks up the new version: `claude plugin details <plugin>`
+
 ## Verification Commands
 
 ```bash
