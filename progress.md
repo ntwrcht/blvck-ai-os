@@ -3,7 +3,9 @@
 ## Current State
 
 **Last Updated:** 2026-07-15
-**Active Feature:** none — clean state at v1.1.0
+**Active Feature:** none — clean state, v1.1.0 released
+
+**Released:** v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.0`, `v1.1.0`; CI green; GitHub license detects MIT; repo topics set. https://github.com/ntwrcht/blvck-ai-os/releases/tag/v1.1.0
 
 ## Status
 
@@ -25,7 +27,7 @@
 ### What's Next
 
 1. Exercise the two paths feat-005 did **not** cover: `/blvck-pm:setup` in a real vault, `/blvck-harness:migrate` on a repo with an existing setup, and `/blvck-pm:migrate` on legacy PM notes
-2. Cut the GitHub release for v1.1.0 and confirm a fresh install from the GitHub source (not a local directory source) resolves references without a prompt
+2. Confirm a fresh install from the **GitHub source** (not the local directory source used so far) resolves references without a prompt — `${CLAUDE_PLUGIN_ROOT}` points at `~/.claude/plugins/cache/…` there
 
 ## Blockers / Risks
 
