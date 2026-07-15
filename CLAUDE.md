@@ -76,8 +76,14 @@ For each plugin with user-visible changes:
 
 Required checks:
 - `node --check` on all three harness scripts
-- JSON parse of every manifest, template, and tracker in the repo
+- JSON parse of every manifest, template, tracker, and fixture in the repo
 - Solo + team scaffold and validate round-trip in a temp directory (validate must exit 0 for solo, and team must report the seeded hygiene findings)
+- Adapted layout: the foreign-shaped fixture scores (exit 0), and team layout re-expressed as a user map scores identically to native team — if those two ever diverge, the map has stopped being a generalization of the layouts and has become a parallel implementation
+- Adapted layout cannot be gamed: a declared path that does not exist fails, flat prose does not pass the structured gate, an invalid or out-of-tree map exits 2, and an empty directory reports `unscored` rather than its floor score
+
+Three layouts, one check set. A change to scoring must keep solo, team, **and** adapted passing — and `scoreHarness` must stay layout-agnostic. If you find yourself adding a branch on layout inside it, that is the signal the change belongs in an adapter instead.
+
+Never commit a `.harness-map.json` at this repo's root — discovery is root-only, so it would flip blvck-ai-os's own validate to `adapted`. Fixtures live under `tests/`.
 
 ## Escalation
 

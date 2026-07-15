@@ -22,6 +22,14 @@ Worth knowing about this one:
 - **`blvck-harness` bundles executable scripts.** `create-harness.mjs` and
   `validate-harness.mjs` run via Node against a `--target` directory you name. They write
   harness artifacts to that target.
+- **A `.harness-map.json` directs what the validator reads.** If a repo has one, it names the
+  files the validator opens, and `--json` echoes their content back. That matters when you run
+  `validate` on code you did not write — an untrusted pull request, for example. Two limits
+  apply: declared paths are resolved with `realpath` and must stay inside `--target`, so a map
+  cannot reach `~/.ssh` or anything else outside the repo (symlinks are resolved, not
+  followed blindly); and a map can only ever cause **reads** — there is no field that runs a
+  command, and none will be added, which is why YAML trackers are unsupported rather than
+  shelled out to `yq`. A map that fails validation exits 2 without scoring.
 - **Skills can read their own bundled files without prompting.** Both skills declare
   `allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)`, scoped to the plugin's own directory so
   references and templates load without a permission prompt. This grants no access to your
