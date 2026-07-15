@@ -28,9 +28,9 @@
 
 ### What's Next
 
-1. Tag and release v1.2.0: `cd plugins/<plugin> && claude plugin tag --push`, then a GitHub release from the CHANGELOGs
-2. Exercise the paths no test covers: `/blvck-harness:migrate` taking the **adapt** fork on a real foreign repo, `/blvck-pm:setup` in a real vault, `/blvck-pm:migrate` on legacy PM notes
-3. Confirm a fresh install from the **GitHub source** (not the local directory source used so far) resolves references without a prompt — `${CLAUDE_PLUGIN_ROOT}` points at `~/.claude/plugins/cache/…` there
+1. Exercise the paths still uncovered: `/blvck-pm:setup` in a real vault, `/blvck-pm:migrate` on legacy PM notes, and `/blvck-harness:migrate` typed as an actual slash command (its adapt *rules* were exercised in feat-009; the command dispatch was not)
+2. Confirm a fresh install from the **GitHub source** (not the local directory source used so far) resolves references without a prompt — `${CLAUDE_PLUGIN_ROOT}` points at `~/.claude/plugins/cache/…` there
+3. Consider guidance against reusing one phrase as the synonym for two different checks — see feat-009's evidence; defensible today but unaddressed by the prompt
 
 ## Blockers / Risks
 
@@ -78,6 +78,8 @@
 
 ## Notes for Next Session
 
-Two things `init.sh` cannot prove, and neither should be claimed until someone runs them: the **adapt fork of `/blvck-harness:migrate`** has never been exercised interactively (the resolver it writes for is thoroughly tested; the prompt that writes it is not), and **blvck-pm's whole path** remains model-behavior only.
+The adapt fork's **rules** were exercised before release (feat-009 evidence): an untuned foreign repo went 20/100 unscored → 100/100 adapted by following `migrate.md` literally, and the three honesty properties re-proved on that repo rather than only on the tuned fixture. What remains unexercised is the **command dispatch** — `/blvck-harness:migrate` has never been typed, because it is `disable-model-invocation` and cannot be self-invoked. Low risk, but not zero, and not the same claim.
+
+**blvck-pm's whole path** remains model-behavior only — no script, no exit code, no CI.
 
 Do not ship an example `.harness-map.json` at this repo's root — map discovery is root-only, so it would flip blvck-ai-os's own validate to `adapted`. The fixture lives under `tests/` for exactly this reason.
