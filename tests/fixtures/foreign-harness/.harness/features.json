@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "key": "feat-001",
+      "title": "Ingest pipeline",
+      "summary": "Read source files and normalise them into the store",
+      "state": "done",
+      "blockedBy": [],
+      "evidence": "2026-07-01: make verify green, 42 files ingested"
+    },
+    {
+      "key": "feat-002",
+      "title": "Query API",
+      "summary": "Expose the store over HTTP with cursor pagination",
+      "state": "in-progress",
+      "blockedBy": ["feat-001"]
+    }
+  ]
+}

@@ -16,9 +16,10 @@ Set up a PM OS vault in the current directory (a dedicated vault repo or a produ
 6. **Integrations for THIS project**: Jira / Confluence / Google Drive / BigQuery — enable only what this project actually uses. Probe: if an enabled tool's MCP isn't connected in this session, note it but still record the choice.
 7. **Agent team**: recommend by stage — early/zero-to-one → customer-voice + prototype-builder; growth → business-analyst + competitive-intel; always offer blind-reviewer + research-analyst for review/synthesis quality; board-executive for exec-heavy roles. Scaffold the picks.
 
-**Scaffold** (create-if-missing, never overwrite):
-- `ABOUT-ME/` ← about-me.md, anti-style.md, pm-principles.md, current-focus.md — placeholders filled from the interview
-- `PROJECTS/<product-slug>/CLAUDE.md` ← product-claude.md, plus an empty `roadmap.md`
+**Scaffold** (create-if-missing, never overwrite). `source template → destination`; the names differ where the destination has a meaning of its own:
+- `about-me.md → ABOUT-ME/CLAUDE.md` — the identity file every workflow and agent reads by that name. Do not leave it named `about-me.md`.
+- `anti-style.md → ABOUT-ME/anti-style.md`, `pm-principles.md → ABOUT-ME/pm-principles.md`, `current-focus.md → ABOUT-ME/current-focus.md` — placeholders filled from the interview
+- `product-claude.md → PROJECTS/<product-slug>/CLAUDE.md`, plus an empty `roadmap.md`
 - `TEMPLATES/` ← copy the doc templates (prd, lightweight-spec, one-pager, prfaq, rice, metrics-tree, jtbd-interview, research-synthesis, competitor-teardown, weekly-update, launch-checklist, decision-log, gtm-brief, tracking-plan, funnel-analysis) as the user's editable working set
 - `CLAUDE-OUTPUTS/` ← prds/ strategy-docs/ research/ stakeholder-comms/ data-analysis/ feature-briefs/ prototypes/ drafts/ (add `.gitkeep` files)
 - `.claude/agents/` ← the chosen archetypes from `templates/agents/`, ALL `{{PLACEHOLDERS}}` resolved with interview answers

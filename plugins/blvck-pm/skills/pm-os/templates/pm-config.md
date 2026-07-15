@@ -3,9 +3,17 @@
 Machine-read by every pm-os workflow. Edit by hand or re-run `/blvck-pm:setup`.
 
 ## Paths
+
+These are the defaults. Move anything you like and change it here — every workflow, `/blvck-pm:validate`
+and `/blvck-pm:score` read the vault through this section, not through hardcoded folder names.
+The one name that cannot move is `pm-os.config.md` itself: it is how everything else is found.
+
 - Vault root: {{VAULT_ROOT}}
-- Outputs: CLAUDE-OUTPUTS/ (the only write zone)
+- Identity: ABOUT-ME/ (identity file: ABOUT-ME/CLAUDE.md)
 - Product context: PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md
+- Templates: TEMPLATES/
+- Outputs: CLAUDE-OUTPUTS/ (the only write zone)
+- Agents: .claude/agents/
 
 ## Integrations (this project only)
 | Tool | Enabled | Use for |

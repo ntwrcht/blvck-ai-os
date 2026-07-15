@@ -7,7 +7,7 @@
 Two plugins, one install: an engineering harness that keeps AI coding agents reliable across sessions, and a product-management operating system that turns your PM context into routed workflows and agent teams.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-black.svg)](plugins/blvck-harness/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-black.svg)](plugins/blvck-harness/CHANGELOG.md)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin%20marketplace-black.svg)](https://claude.com/claude-code)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-black.svg)](#contributing)
 
@@ -44,10 +44,11 @@ Both follow the same design principle: **very few commands, capability in scaffo
 ## Key Features
 
 - **Five-subsystem engineering harness** — instructions, state, verification, scope, and session lifecycle, scored by 25 automated checks (`/blvck-harness:score`).
+- **Scores your structure, not just ours** — already have a harness under your own file names and your own wording? Declare where the five concepts live in `.harness-map.json` and the same 25 checks grade it, up to 100/100, naming the file behind each concept. Declaring a path never passes a check on its own: the file still has to exist and still has to carry its meaning in real structure.
 - **Team layout built for parallel work** — one directory per feature under `features/`, with date- or Jira-keyed IDs (`feat-YYYYMMDD-slug`) so parallel branches never race a shared counter or collide in merges.
 - **PM vault with routed workflows** — capture who you are, what you build, and how you speak once; 19 workflows (PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review) reuse it automatically.
 - **Per-product agent teams** — seven agent archetypes (customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst) scaffolded into your repo's `.claude/agents/`, pre-filled with your product context.
-- **Safe, generic migration** — `migrate` commands convert any existing setup (hand-rolled, upstream, or legacy vault) through a staged flow: read-only scan, confirmed plan, additive apply, and per-group cleanup that moves files to backup — never deletes.
+- **Safe, generic migration — that can decide not to migrate** — `migrate` scans any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
 - **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks every script, JSON-validates every manifest and template, and round-trips a full solo + team scaffold in a temp directory.
 
 ## Architecture Overview
@@ -62,21 +63,23 @@ blvck-ai-os/
 │   │       ├── SKILL.md                   # conventions the commands follow
 │   │       ├── scripts/                   # create-harness.mjs, validate-harness.mjs (Node)
 │   │       ├── templates/                 # solo/ and team/ scaffolds
-│   │       └── references/                # harness design patterns
+│   │       └── references/                # harness design patterns + role classification
 │   └── blvck-pm/
 │       ├── commands/                      # setup · migrate · validate · score
 │       └── skills/pm-os/
 │           ├── SKILL.md                   # session ritual, vault rules, workflow router
 │           ├── templates/                 # 21 doc/context templates + 7 agent archetypes
 │           └── references/                # frameworks, voice, integrations
+├── tests/fixtures/foreign-harness/         # a harness using none of the names above
 └── CLAUDE.md · feature_list.json · progress.md · init.sh    # this repo's own harness
 ```
 
-Three ideas hold the system together:
+Four ideas hold the system together:
 
 1. **Template–instance pattern.** Plugins hold templates; your repos hold instances. `setup` copies and fills templates into your project, where they become plain files you own. Nothing stays locked inside the plugin.
 2. **Machine-filled vs. human-filled placeholders.** `{{TOKEN}}` placeholders are resolved by scripts and commands; `[bracketed]` text is yours to edit. Scripts depend on this contract, so it never breaks.
 3. **Thin commands, thick skills.** Command files stay short and procedural; judgment and conventions live in each plugin's skill, which Claude loads on demand.
+4. **Concepts, not filenames.** A harness is five concepts (instructions, tracker, progress log, handoff, verification); `CLAUDE.md` and `feature_list.json` are just their default names. Solo, team, and adapted layouts are three ways of resolving the same concepts, so one set of checks grades all three — `/blvck-harness:score` on a team repo and on a mapped foreign repo run identical code.
 
 The two plugins also compose: a PRD written in a **blvck-pm** vault feeds the prototype-builder agent, which builds inside a **blvck-harness** repo.
 
@@ -141,16 +144,34 @@ review this PRD like a skeptical board member
 
 Integrations (Jira, Confluence, Google Drive, BigQuery) are per-project switches in `pm-os.config.md`; nothing blocks when a tool is absent.
 
-### Migrating an existing setup
+### Reconciling an existing setup
 
-Already have a hand-rolled `CLAUDE.md` with ad-hoc trackers, an upstream harness, a solo layout that needs to go team, or PM notes in another structure? Both plugins share a staged, confirm-at-every-gate migration:
+Already have a hand-rolled `CLAUDE.md` with ad-hoc trackers, an upstream harness, a solo layout that needs to go team, or PM notes in another structure? Both plugins share a staged, confirm-at-every-gate reconciliation:
 
 ```text
 /blvck-harness:migrate    # engineering repos
 /blvck-pm:migrate         # PM material
 ```
 
-The flow is deliberately conservative: a read-only scan classifies files by role, you confirm the reading, you approve a `source → destination` plan before the first write, and cleanup moves superseded files to `.migration-backup/<date>/` — group by group, with your confirmation, never a delete.
+A read-only scan classifies your files **by the role they play, never by matching a known layout** — then you pick how it ends:
+
+- **Convert** — move things into the standard shape. You approve a `source → destination` plan before the first write, and cleanup moves superseded files to `.migration-backup/<date>/` — group by group, with your confirmation, never a delete.
+- **Adapt** — change nothing. `/blvck-harness:migrate` writes a `.harness-map.json` describing what you already have; `/blvck-pm:migrate` records your real folders in `pm-os.config.md`. Your files stay exactly where they are and the tools read them there.
+
+Adapting is not the lesser option. A mapped harness is scored by the same 25 checks and can reach 100/100 — the report just marks the layout `adapted` and shows which file satisfied which concept:
+
+```text
+Layout: adapted (base: solo, map: .harness-map.json)
+
+Resolution:
+  instructions    AGENTS.md           <- docs/agent-guide.md        (map)
+  featureTracker  feature_list.json   <- .harness/features.json     (map)
+  verification    init.sh             <- Makefile                   (map)
+
+  PASS [instructions.startupWorkflow] Startup workflow documented (matched map synonym "Kickoff")
+```
+
+What a map cannot do is invent structure. A path you declare that isn't there fails the run rather than quietly falling back, and a synonym still has to appear in a real heading, list, or table — so it changes *which word* earns a point, never *whether* the concept has to be there.
 
 ## Contributing
 

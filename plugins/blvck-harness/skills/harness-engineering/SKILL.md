@@ -7,8 +7,10 @@ description: >-
   context budgets, and multi-agent coordination. Use whenever a coding agent is unreliable
   across sessions — forgets context, drifts out of scope, claims "done" before tests pass,
   or starts each session inconsistently — or when creating or assessing CLAUDE.md, AGENTS.md,
-  feature_list.json, features/*/status.json, init.sh, or progress files. Reach for it even
-  if the user never says the word "harness."
+  feature_list.json, features/*/status.json, init.sh, or progress files. Also use it when a
+  repo already has its own agent setup under different file names and needs to be scored or
+  mapped in place (.harness-map.json) rather than renamed. Reach for it even if the user never
+  says the word "harness."
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 license: MIT
 ---
@@ -23,20 +25,23 @@ Adapted from `harness-creator` in [walkinglabs/learn-harness-engineering](https:
 
 ## Core Model
 
-Every useful coding-agent harness has five subsystems:
+Every useful coding-agent harness has five subsystems. The artifact columns are the *default*
+names — the subsystem is the concept, and a repo that expresses it under its own names still
+has it:
 
-| Subsystem | Solo artifact | Team artifact | Purpose |
-|---|---|---|---|
-| Instructions | `CLAUDE.md` / `AGENTS.md` | same, plus Team Rules | Startup path, working rules, definition of done |
-| State | `feature_list.json`, `progress.md` | `features/<id>/status.json`, `features/<id>/progress/` | Current feature, status, evidence, next step |
-| Verification | `init.sh` or documented commands | same | Checks the agent must run before claiming done |
-| Scope | Feature dependencies and done criteria | same, plus claim (`owner` + `branch`) | Prevents overreach and half-finished work |
-| Lifecycle | `session-handoff.md`, end-of-session routine | handoff section inside each session's progress file | Makes the next session restartable |
+| Subsystem | Solo artifact | Team artifact | Adapted | Purpose |
+|---|---|---|---|---|
+| Instructions | `CLAUDE.md` / `AGENTS.md` | same, plus Team Rules | `instructions` | Startup path, working rules, definition of done |
+| State | `feature_list.json`, `progress.md` | `features/<id>/status.json`, `features/<id>/progress/` | `featureTracker`, `progressLog` | Current feature, status, evidence, next step |
+| Verification | `init.sh` or documented commands | same | `verification` | Checks the agent must run before claiming done |
+| Scope | Feature dependencies and done criteria | same, plus claim (`owner` + `branch`) | (tracker content) | Prevents overreach and half-finished work |
+| Lifecycle | `session-handoff.md`, end-of-session routine | handoff section inside each session's progress file | `sessionHandoff` | Makes the next session restartable |
 
 ## Choosing a Layout
 
 - **Solo** (default): one human/agent stream. Single shared state files — simplest, matches the upstream reference.
 - **Team**: multiple humans on parallel branches. State files follow one-writer-per-file: each feature is a directory, each session is a new progress file. Merge conflicts then only happen when two people genuinely collided on the same feature — a signal, not noise.
+- **Adapted**: not a layout you scaffold — it is what solo or team becomes when the repo keeps its own file names. Declared in `.harness-map.json`, which maps each concept to the files that already play it (`verification` → a `Makefile` target is the common case: "`init.sh` **or** documented commands", finally true in code and not just in this table). The same 25 checks score it, and it can reach 100/100; the report marks the layout `adapted` and names the file behind each concept. Reach for it via `/blvck-harness:migrate` — see [Role Classification](references/role-classification.md).
 - Team feature IDs never use bare running numbers (two branches would both mint `feat-005`, and the post-merge rename breaks every `dependencies` reference). The allocator is embedded in the ID: `feat-20260705-approval-routing` (date) or `feat-KEY-123-approval-routing` (ticket key). Task IDs inside a claimed feature directory (`t01`…) may use running numbers — that namespace has one owner.
 
 ## First Move
@@ -62,10 +67,31 @@ Then replace placeholder feature entries with the project's real first features.
 ### Audit an existing harness
 
 ```bash
-node ${CLAUDE_SKILL_DIR}/scripts/validate-harness.mjs --target /path/to/project [--json]
+node ${CLAUDE_SKILL_DIR}/scripts/validate-harness.mjs --target /path/to/project [--json] [--map FILE]
 ```
 
 Reports five subsystem scores plus, in team layout, hygiene findings: dangling dependency IDs, duplicate slugs, stale claims, in-progress features with no owner. Treat the lowest score as a candidate bottleneck; confirm with failures, logs, or task outcomes before claiming causality.
+
+Exit codes are three-valued: `0` passed, `1` scored below `--min-score` (default 70) or has blocking findings or nothing scoreable, `2` the command or map is misconfigured. Keep the last one distinct — a broken map is not a weak harness.
+
+A low score on a repo that clearly *has* a harness usually means the tool cannot see it, not that it is bad. Check `unscored` and the `resolution` object before believing the number: an empty directory reports 20/100 because the per-subsystem score floors at 1, so a floor score is a non-answer, not a verdict. Map it with `/blvck-harness:migrate` instead of scaffolding a second harness over the top of the first.
+
+### Adapt an existing harness instead of converting it
+
+When a repo's structure is deliberate, write `.harness-map.json` rather than renaming its files:
+
+```json
+{
+  "version": 1,
+  "concepts": {
+    "instructions": { "paths": ["docs/agent-guide.md"] },
+    "verification": { "paths": ["Makefile"] }
+  },
+  "vocabulary": { "instructions.startupWorkflow": ["Kickoff"] }
+}
+```
+
+It is an **overlay**: unmapped concepts keep their built-in names, so map only what differs. `vocabulary` adds the repo's own wording to a check's built-in phrases (keyed by check id, never replacing, never on an existence check) — but a synonym still has to appear in a heading, list, or table, so this loosens *which word* counts, never *whether structure has to carry it*. A declared path that does not exist is a broken assertion: it fails the run and never falls back to a built-in name.
 
 ## When to Read References
 
@@ -77,6 +103,7 @@ Load only the reference needed for the user's problem:
 - Context budget and progressive disclosure: [Context Engineering](references/context-engineering-pattern.md)
 - Delegation and parallel agents: [Multi-Agent Coordination](references/multi-agent-pattern.md)
 - Hooks, startup, long-running work: [Lifecycle & Bootstrap](references/lifecycle-bootstrap-pattern.md)
+- Reading a repo you did not scaffold; writing `.harness-map.json`: [Role Classification](references/role-classification.md)
 - Non-obvious failure modes: [Gotchas](references/gotchas.md)
 
 ## Design Rules
@@ -98,5 +125,7 @@ For a usable minimal harness, leave the target project with:
 - [ ] `init.sh`
 - [ ] Solo only: `session-handoff.md` for multi-session work
 - [ ] Documented verification evidence or next action
+
+Read this as the five concepts, not five filenames: an adapted repo satisfies the same list under its own names plus a `.harness-map.json` that says which file is which. What it must never satisfy is a map declaring files that are not there.
 
 If you cannot create files, provide exact file contents and commands instead.

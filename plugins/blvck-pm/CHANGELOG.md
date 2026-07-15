@@ -8,6 +8,45 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [1.2.0] - 2026-07-15
+
+### Fixed
+
+- **Every vault `/blvck-pm:setup` scaffolded failed its own validate.** Setup wrote the
+  identity file as `ABOUT-ME/about-me.md`, while all eleven other places — `validate`, the
+  session ritual, `agent-design.md`, and all seven agent archetypes — read
+  `ABOUT-ME/CLAUDE.md`. It went unnoticed because setup's last step says "run the validate
+  checks on what you just built; fix anything failing", so the model quietly papered over it
+  at runtime, every time. Setup now writes `about-me.md → ABOUT-ME/CLAUDE.md` explicitly.
+
+  **If your vault predates 1.2.0** it has `ABOUT-ME/about-me.md`. `/blvck-pm:validate` now
+  reports this as a rename with the one-line fix rather than as missing identity:
+  `git mv ABOUT-ME/about-me.md ABOUT-ME/CLAUDE.md`.
+
+### Added
+
+- **`pm-os.config.md`'s `## Paths` is now honoured.** It has always described itself as
+  "machine-read by every pm-os workflow", but `validate` and `score` ignored it and checked
+  literal folder names — so a vault keeping identity in `00-me/` and outputs in
+  `90-artifacts/` scored as a broken vault instead of a different one. `validate`, `score`,
+  the session ritual, and the workflow catalog now resolve every role through it: configured
+  path → default → classify by role → report unresolved and offer `migrate`.
+- `## Paths` covers the full role set. It previously omitted the identity dir entirely and
+  hardcoded two of its three entries — which is precisely why the drift above had nowhere to
+  be caught. `pm-os.config.md`'s own filename stays fixed: it is how everything else is found.
+
+### Changed
+
+- **`/blvck-pm:migrate` now forks.** Same scan, two outcomes: **relocate** moves material into
+  the default folders, **adapt** declares it where it stands. An Obsidian vault with its own
+  conventions is not a mess to be tidied. New plan action: **declare**.
+
+### Known limits
+
+- blvck-pm has no validator script, so its adaptation is best-effort model behaviour — unlike
+  blvck-harness, where the map is read by code and the whole path is covered by `init.sh`.
+  There is no exit code and no CI here. Stated rather than glossed.
+
 ## [1.1.0] - 2026-07-15
 
 ### Fixed

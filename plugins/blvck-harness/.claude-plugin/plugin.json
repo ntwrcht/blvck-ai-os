@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "blvck-harness",
   "displayName": "blvck · harness",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Engineering harness for AI coding agents — five subsystems (instructions, state, verification, scope, session lifecycle), solo and team layouts, setup/migrate/validate/score commands. Adapted from walkinglabs/learn-harness-engineering (MIT).",
   "author": {
     "name": "Worachote Suwanyothin"

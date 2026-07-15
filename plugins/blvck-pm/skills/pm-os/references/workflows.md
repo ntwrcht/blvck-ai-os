@@ -1,6 +1,8 @@
 # PM OS Workflow Catalog
 
-Routing table for the pm-os skill. Every workflow: (1) runs the session ritual first if not already done, (2) reads `pm-os.config.md` for paths and integrations, (3) writes only to `CLAUDE-OUTPUTS/<type>/` with date-stamped names, (4) uses the vault's `TEMPLATES/` copy of a template if present, else the bundled one.
+Routing table for the pm-os skill. Every workflow: (1) runs the session ritual first if not already done, (2) reads `pm-os.config.md` for paths and integrations, (3) writes only to the configured outputs dir (`CLAUDE-OUTPUTS/<type>/`) with date-stamped names, (4) uses the vault's configured templates dir (`TEMPLATES/`) copy of a template if present, else the bundled one.
+
+Paths named below are the defaults. `## Paths` in `pm-os.config.md` is what actually resolves them — a vault may keep any of these anywhere, and step (2) is where you find out where.
 
 ## Docs & Specs
 

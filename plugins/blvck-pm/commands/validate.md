@@ -3,15 +3,26 @@ description: Scored section-by-section check of the PM vault (✅ / ⚠️ / ❌
 ---
 Validate the PM OS vault in the current directory. Report, don't fix — offer fixes at the end.
 
-**Structure** — table with ✅/❌: `ABOUT-ME/` (CLAUDE.md, anti-style.md, pm-principles.md, current-focus.md), `PROJECTS/<product>/CLAUDE.md`, `TEMPLATES/`, `CLAUDE-OUTPUTS/` (prds, strategy-docs, research, stakeholder-comms, data-analysis required; feature-briefs, prototypes, drafts recommended ⚠️), `pm-os.config.md`, `.claude/agents/`.
+**Resolve paths first.** Read `pm-os.config.md`'s `## Paths` section. Every path below is the *configured* one, not a hardcoded folder name — a vault that keeps identity in `00-me/` and outputs in `90-artifacts/` is a vault, not a broken one. For each role, in order:
 
-**Content** — score each section ✅ pass / ⚠️ weak / ❌ missing, with the exact rule used:
+1. the path `## Paths` declares
+2. the default below, if the config does not declare it
+3. classify by role against the actual directory listing — identity material, product context, doc templates, produced artifacts, config, agent definitions. Known layouts are hints, not requirements; a folder that fits no role is **unknown** — ask, never guess
+4. if it still does not resolve, report it unresolved and offer `/blvck-pm:migrate`
 
-- `ABOUT-ME/CLAUDE.md` → Identity: names a focus area (❌ if generic "build great products"). Frameworks: RICE/JTBD/NSM/pyramid present. Stakeholder table: ≥2 rows with "how to frame" filled.
+`pm-os.config.md` itself is the one fixed name — it is how everything else is found. Annotate any path you resolved from the config or by classification, so the reader can see what was actually checked rather than assuming the defaults.
+
+**Structure** — table with ✅/❌, defaults in parentheses: identity dir (`ABOUT-ME/`: CLAUDE.md, anti-style.md, pm-principles.md, current-focus.md), product context (`PROJECTS/<product>/CLAUDE.md`), templates (`TEMPLATES/`), outputs (`CLAUDE-OUTPUTS/`: prds, strategy-docs, research, stakeholder-comms, data-analysis required; feature-briefs, prototypes, drafts recommended ⚠️), `pm-os.config.md`, agents (`.claude/agents/`).
+
+If the identity file is `about-me.md` rather than `CLAUDE.md`, that is a **rename, not a missing file** — vaults scaffolded before blvck-pm 1.2.0 got the wrong destination name from `/blvck-pm:setup`, while every workflow and agent reads `ABOUT-ME/CLAUDE.md`. Report it as ⚠️ with the one-line fix (`git mv ABOUT-ME/about-me.md ABOUT-ME/CLAUDE.md`), never as ❌ missing identity.
+
+**Content** — score each section ✅ pass / ⚠️ weak / ❌ missing, with the exact rule used. These rules are about what the file *says*, so they apply unchanged wherever the file lives:
+
+- Identity file (`ABOUT-ME/CLAUDE.md`) → Identity: names a focus area (❌ if generic "build great products"). Frameworks: RICE/JTBD/NSM/pyramid present. Stakeholder table: ≥2 rows with "how to frame" filled.
 - `anti-style.md` → has both a banned-words list and banned-behaviors list; ❌ if template text unedited.
 - `current-focus.md` → Updated date within 14 days (⚠️ within 30, ❌ older); a top priority that is specific, not a theme.
 - Product `CLAUDE.md` → one-liner + customer profile + stage with at least one number (⚠️ if no metrics); **NSM named and bolded** (❌ if absent); ≥2 primary users each with role + pain + goal; buyers vs users answered; terminology table non-empty.
-- `pm-os.config.md` → integration table complete; every enabled tool's MCP actually available in this session (⚠️ if enabled-but-unavailable); agent roster matches the files in `.claude/agents/`.
-- `.claude/agents/*` → each agent has the grounding ritual (reads ABOUT-ME + product CLAUDE.md), one output folder, an escalation line; ❌ any file with unresolved `{{PLACEHOLDERS}}`.
+- `pm-os.config.md` → `## Paths` present and every declared path exists (❌ a declared path that is not there — a declaration is an assertion, and a broken one is worse than an absent one); integration table complete; every enabled tool's MCP actually available in this session (⚠️ if enabled-but-unavailable); agent roster matches the files in the configured agents dir.
+- Agents (`.claude/agents/*`) → each agent has the grounding ritual (reads the identity file + product CLAUDE.md), one output folder, an escalation line; ❌ any file with unresolved `{{PLACEHOLDERS}}`. If the vault moved its identity dir, the agents' grounding lines must name the moved path — an agent grounding in a folder that no longer exists is ❌, not ⚠️.
 
-**Verdict**: overall ✅/⚠️/❌ per area, then a numbered fix list ordered by impact (unresolved placeholders and missing NSM first). Offer to apply fixes; touch `ABOUT-ME/` and `PROJECTS/` only with explicit approval per file.
+**Verdict**: overall ✅/⚠️/❌ per area, then a numbered fix list ordered by impact (unresolved placeholders, a broken declared path, and missing NSM first). Offer to apply fixes; touch the identity dir and product context only with explicit approval per file.

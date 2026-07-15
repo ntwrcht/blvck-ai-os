@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "layout": "solo",
+  "concepts": {
+    "instructions": { "paths": ["docs/agent-guide.md"] },
+    "featureTracker": {
+      "paths": [".harness/features.json"],
+      "shape": {
+        "collection": "items",
+        "fields": {
+          "id": "key",
+          "name": "title",
+          "description": "summary",
+          "status": "state",
+          "dependencies": "blockedBy"
+        }
+      }
+    },
+    "progressLog": { "paths": ["journal/*.md"] },
+    "sessionHandoff": { "paths": ["journal/*.md"], "pick": "last" },
+    "verification": { "paths": ["Makefile"] }
+  },
+  "vocabulary": {
+    "instructions.startupWorkflow": ["Kickoff"],
+    "instructions.definitionOfDone": ["Acceptance criteria"],
+    "scope.completionGate": ["Acceptance criteria"],
+    "scope.oneFeatureAtATime": ["Single task rule"],
+    "lifecycle.endOfSession": ["Wrap up"],
+    "verification.failsFast": [".SHELLFLAGS"]
+  },
+  "notes": "Fixture for init.sh. A complete harness that keeps its own file names and its own words: nothing canonical exists at this root. scope.completionGate needs its own synonym entry even though instructions.definitionOfDone has the same one - the two checks are not linked, because their needle sets genuinely differ."
+}
