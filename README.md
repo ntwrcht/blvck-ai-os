@@ -48,7 +48,7 @@ Both follow the same design principle: **very few commands, capability in scaffo
 - **Team layout built for parallel work** — one directory per feature under `features/`, with date- or Jira-keyed IDs (`feat-YYYYMMDD-slug`) so parallel branches never race a shared counter or collide in merges.
 - **PM vault with routed workflows** — capture who you are, what you build, and how you speak once; 21 workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review) reuse it automatically.
 - **A roadmap that ends at *measured*, not *shipped*** — `roadmap.json` tracks business outcomes bound to numbers, and an outcome cannot be closed until someone records whether the number actually moved, verdict included. A missed outcome recorded honestly is worth more than three shipped ones nobody checked.
-- **Per-product agent teams** — seven agent archetypes (customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst) scaffolded into your repo's `.claude/agents/`, pre-filled with your product context.
+- **An agent team you are interviewed for, not handed** — setup asks *who do you normally have to go ask?* and maps the answer onto eight archetypes (lead-engineer, customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst), each with its own tool and model budget. "Nobody, I work alone" is the most informative answer, not an empty one — it means the agents are standing in for a team that does not exist. Anything unmatched gets built with the bundled `agent-smith` skill.
 - **Safe, generic migration — that can decide not to migrate** — `migrate` scans any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
 - **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks all six scripts, JSON-validates every manifest and template, round-trips a full solo + team harness scaffold, and round-trips a PM vault — where a *fresh scaffold must fail*, because a skeleton nobody has answered is not a vault.
 
@@ -67,10 +67,11 @@ blvck-ai-os/
 │   │       └── references/                # harness design patterns + role classification
 │   └── blvck-pm/
 │       ├── commands/                      # setup · migrate · validate · score
+│       ├── skills/agent-smith/          # bundled agent builder (tool + model budgets)
 │       └── skills/pm-os/
 │           ├── SKILL.md                   # session ritual, vault rules, workflow router
 │           ├── scripts/                   # create-vault.mjs, validate-vault.mjs (Node)
-│           ├── templates/                 # 24 doc/context templates + 7 agent archetypes
+│           ├── templates/                 # 24 doc/context templates + 8 agent archetypes
 │           └── references/                # frameworks, voice, integrations
 ├── tests/fixtures/foreign-harness/         # a harness using none of the names above
 ├── tests/fixtures/pm-vault/                # a filled vault that must score 100/100

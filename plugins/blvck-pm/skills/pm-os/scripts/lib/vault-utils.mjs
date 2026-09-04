@@ -324,8 +324,17 @@ export async function scoreVault(root, { config, roadmap, files }) {
 
   const outputFiles = files.filter((f) => f.startsWith(p.outputs + path.sep) && f.endsWith('.md'));
   const rootMd = files.filter((f) => !f.includes(path.sep) && f.endsWith('.md') && !ROOT_ALLOWLIST.has(f));
-  const agentFiles = files.filter((f) => f.startsWith(p.agents + path.sep) && f.endsWith('.md'))
-    .map((f) => path.basename(f, '.md'));
+  const agentPaths = files.filter((f) => f.startsWith(p.agents + path.sep) && f.endsWith('.md'));
+  const agentFiles = agentPaths.map((f) => path.basename(f, '.md'));
+
+  // A documented budget nobody checks is advice. Every archetype ships with `tools` and `model`
+  // in its frontmatter, so an agent in a vault without them was hand-written past the contract.
+  const agentsMissingBudget = [];
+  for (const file of agentPaths) {
+    const front = /^---\n([\s\S]*?)\n---/.exec(await text(file))?.[1] ?? '';
+    const missing = ['tools', 'model'].filter((field) => !new RegExp(`^${field}:`, 'm').test(front));
+    if (missing.length) agentsMissingBudget.push(`${file} (missing ${missing.join(', ')})`);
+  }
   const placeholders = [];
   for (const file of files.filter((f) => f.endsWith('.md') || f.endsWith('.json'))) {
     const body = await text(file);
@@ -369,7 +378,8 @@ export async function scoreVault(root, { config, roadmap, files }) {
       check('config.machineReadable', config.source === CONFIG_JSON, `Config is machine-readable (${CONFIG_JSON})`),
       check('config.language', Boolean(config.language), 'Output language declared'),
       check('config.agentRoster', config.agents.length === 0 || config.agents.every((name) => agentFiles.includes(name)), 'Every agent in the roster has a file', config.agents.filter((name) => !agentFiles.includes(name))),
-      check('config.noPlaceholders', placeholders.length === 0, 'No unresolved {{PLACEHOLDERS}} anywhere in the vault', placeholders)
+      check('config.noPlaceholders', placeholders.length === 0, 'No unresolved {{PLACEHOLDERS}} anywhere in the vault', placeholders),
+      check('config.agentBudgets', agentsMissingBudget.length === 0, 'Every agent declares a tool and model budget', agentsMissingBudget)
     ]
   };
 

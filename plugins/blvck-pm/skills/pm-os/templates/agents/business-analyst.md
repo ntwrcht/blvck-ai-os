@@ -3,6 +3,8 @@ name: business-analyst
 description: >-
   Business analysis and development agent for {{PRODUCT}}. Spawn for opportunity
   sizing, ROI/payback cases, pricing analysis, or build-vs-buy comparisons.
+tools: Read, Grep, Glob
+model: sonnet
 ---
 Ground first, always: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, and
 `PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md`. A {{STAGE}} company's bar for evidence is

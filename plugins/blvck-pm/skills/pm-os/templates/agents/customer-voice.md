@@ -3,6 +3,8 @@ name: customer-voice
 description: >-
   Customer voice synthesizer for {{PRODUCT}}. Spawn to mine interviews, support tickets,
   or reviews into JTBD insights — especially batches too large for the main session.
+tools: Read, Grep, Glob
+model: sonnet
 ---
 Ground first, always: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, and
 `PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md`. Use the product's exact terminology.

@@ -8,6 +8,49 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [1.5.0] - 2026-09-04
+
+The agent team stops being a roster you are handed and becomes one you are interviewed for.
+
+### Added
+
+- **`lead-engineer` archetype.** The roster had no engineering lens at all — seven archetypes and
+  not one that reads a plan the way the person who has to build it will. It was also the first
+  perspective named when this direction was set. It answers rather than only asking: each gap gets
+  the decision a competent engineer would make, marked **Decided** (any engineer would call it the
+  same way) or **Flagged** (touches cost, timeline or scope; hard to reverse; or low confidence).
+  The flagged items are the agenda for the real conversation.
+- **`agent-smith` ships inside the plugin.** A user who installs blvck-pm now gets the agent
+  builder too — without it the setup interview produces a roster it cannot build. Vendored from
+  `ntwrcht/blvck-skills`; edits here do not flow upstream.
+- **Every archetype declares `tools` and `model`.** Previously all seven carried only a name and a
+  description, so the cost discipline documented in `agent-design.md` was advice with nothing
+  behind it. `research-analyst` runs on haiku — it fans out one worker per source above three
+  sources, making it the only place in the roster where a cheaper model shows up on a bill.
+  `board-executive` runs on opus: one invocation, entirely judgment. Read-only agents get
+  `Read, Grep, Glob` and nothing else; `prototype-builder` alone has write and shell access.
+- **`config.agentBudgets`** — a 26th check in `validate-vault.mjs`. A budget nobody verifies is
+  advice, so an agent file without `tools` and `model` now fails, and the vault validator says
+  which file and which field.
+
+### Changed
+
+- **`/blvck-pm:setup` asks one question instead of recommending a roster:** *"when you are planning
+  something, who do you normally have to go ask?"* Nobody can answer "which agents do you want"
+  before using the thing. Answers map onto the catalog out loud, and **"nobody, I work alone" is
+  the most informative answer in the set** — it means the agents are replacing a team that does not
+  exist, so `lead-engineer` and `blind-reviewer` are recommended as the floor with the reason given.
+- Archetypes are documented as structures, not a default team. Anything the interview surfaces with
+  no archetype is built with `agent-smith` rather than improvised.
+
+### Honest limit
+
+- A tool allowlist cannot express "read this file and no other", so `blind-reviewer`'s independence
+  is still carried by its instructions. Denying write access makes it structurally unable to
+  contaminate the document under review; it does not make it unable to read a sibling review. The
+  budget is an improvement, not the guarantee — and `agent-design.md` now says so rather than
+  implying otherwise.
+
 ## [1.4.0] - 2026-09-04
 
 blvck-pm gets executable surface. Until now the plugin was entirely prompts: no script, no exit

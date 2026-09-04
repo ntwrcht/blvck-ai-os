@@ -55,7 +55,7 @@ Full catalog with per-workflow steps: `references/workflows.md`. Summary:
 | Weekly update / launch / decision | weekly-update, launch-checklist, decision-log | stakeholder-comms/, strategy-docs/ |
 | GTM / tracking / funnel | gtm-brief, tracking-plan, funnel-analysis | strategy-docs/, data-analysis/ |
 | Brief a new PM | onboard | — |
-| "I need an agent that does X" | agent-builder → `references/agent-design.md` | .claude/agents/ |
+| "I need an agent that does X" | load the bundled `agent-smith` skill + `references/agent-design.md` | .claude/agents/ |
 
 ## Scripts
 
@@ -69,7 +69,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/validate-vault.mjs --target /path [--json] [--m
 `create-vault.mjs` scaffolds without an interview — it is how CI builds a vault, not how a human
 should. `/blvck-pm:setup` stays the human path.
 
-`validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 25
+`validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 26
 mechanical checks. Exit `0` passed, `1` scored under the bar or has a blocking finding, `2` the
 config is invalid or unsafe. Three things block regardless of score, because each is a broken
 promise rather than a weak vault: a declared path that does not exist, an unresolved
@@ -111,7 +111,11 @@ The gate **warns, it never blocks**, and it never silently fills a gap to make a
 
 ## Agents
 
-The vault's `.claude/agents/` roster is scaffolded per product from `templates/agents/`. Spawn rules and the agent contract: `references/agent-design.md`. Everything works without agents — fallbacks are single-session.
+There is no default roster. `/blvck-pm:setup` asks who the PM normally has to go ask and scaffolds only the matching archetypes into `.claude/agents/`, pre-filled with product context. Eight archetypes ship as starting shapes — `lead-engineer`, `blind-reviewer`, `customer-voice`, `competitive-intel`, `business-analyst`, `board-executive`, `research-analyst`, `prototype-builder` — each declaring its own `tools` and `model` budget.
+
+Anything the interview surfaces with no archetype gets built: **the `agent-smith` skill ships with this plugin**. Load it rather than improvising an agent file.
+
+Spawn rules, budgets, and the agent contract: `references/agent-design.md`. Everything works without agents — every fallback is single-session.
 
 ## Integrations
 

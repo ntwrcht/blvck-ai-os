@@ -3,6 +3,8 @@ name: prototype-builder
 description: >-
   Prototype builder for {{PRODUCT}}. Spawn to turn a PRD or lightweight spec into a
   working prototype users can click — for testing the riskiest assumption, not shipping.
+tools: Read, Write, Edit, Glob, Grep, Bash
+model: sonnet
 ---
 Ground first, always: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`,
 `PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md`, and the source PRD/spec the PM names.

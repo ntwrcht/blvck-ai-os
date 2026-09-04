@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011 and feat-012 done (blvck-pm 1.4.0, bumped + CHANGELOGed, **not yet tagged**). feat-013 is next, and it is blocked.
+**Active Feature:** none — feat-011/012/013 done (blvck-pm 1.5.0, bumped + CHANGELOGed, **not yet tagged**). feat-014 is next: the 2.0.0 breaking changes.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,13 +26,14 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-013 blvck-pm 1.5.0 — agent-smith vendored into the plugin, lead-engineer archetype, tool/model budgets on all 8, interviewed roster
 - [x] feat-012 blvck-pm 1.4.0 — roadmap.json, create-vault.mjs + validate-vault.mjs, fixture vault, init.sh 5 → 7 steps
 - [x] feat-011 blvck-pm 1.3.0 — vision.md, completeness gates, configured output language; setup now reports its repairs
 - [x] feat-010 Flexible pm vault scoring — `## Paths` honored, role fallback, migrate adapt fork; fixed the setup/validate identity drift
 
 ### What's In Progress
 
-- [ ] Nothing in flight. **feat-013 is next and is blocked**: agent-smith cannot ship while `.agents/` and `skills-lock.json` are untracked. Resolve that first — commit them, or vendor agent-smith into `plugins/blvck-pm/skills/agent-smith/`.
+- [ ] Nothing in flight. **feat-014 is next** — the 2.0.0 breaking changes, done together and once: retire `pm-os.config.md`, and rewrite the escalation rule in `agent-design.md` that still says agents must never decide.
 
 ### What's Next — blvck-pm direction change (2026-09-04)
 
@@ -49,7 +50,7 @@ Release sequence (feature_list.json carries the detail):
 |---|---|---|
 | 1.3 | feat-011 | ✅ done — `vision.md` + completeness checklists + output language setting |
 | 1.4 | feat-012 | ✅ done — `roadmap.json` + both scripts + fixture + init.sh steps 6–7 |
-| 1.5 | feat-013 | Interviewed agent roster + agent-smith bundled + lead-engineer archetype |
+| 1.5 | feat-013 | ✅ done — interviewed roster + agent-smith vendored + lead-engineer + budgets |
 | 2.0.0 | feat-014 | config → JSON, escalation rule rewritten |
 
 Still open from before this session, unchanged:
@@ -64,7 +65,6 @@ Still open from before this session, unchanged:
 - [ ] **feat-011…014 is a 3–4× scope increase on a plugin with 0 lines of code.** Mitigated by shipping in four releases rather than one branch, not eliminated. This is the top risk of the new direction
 - [ ] **The config-format change is breaking but the scripts need it one release early.** feat-012 needs machine-readable config; `pm-os.config.md` is documented as the one fixed name, so replacing it is a MAJOR. Resolution: feat-012 adds `pm-os.config.json` *alongside* (additive), feat-014 retires the `.md`. Do not shortcut this into a MINOR
 - [ ] **feat-014's escalation rewrite contradicts a rule shipped today.** `references/agent-design.md` rule 4 ("escalate judgment, don't exercise it") is the opposite of agents closing gaps in a plan, and is meaningless for a solo founder with nobody to escalate to. It must change in a MAJOR, not quietly
-- [ ] **agent-smith cannot ship yet.** `.agents/` and `skills-lock.json` are untracked — it exists on one machine only. feat-013 is blocked until that is committed or vendored
 - [ ] **Serving both solo founders and employed PMs doubles the surface to maintain.** Good defaults and a ~5-minute interview reduce the felt cost to the user; they do not reduce the cost to the maintainer
 - [ ] **blvck-pm's flexible scoring is unverifiable by CI.** It is prompt-only — no script, no exit code, no init.sh coverage. feat-009's "discover once, then score deterministically" does not transfer: blvck-pm's path resolution is best-effort model behavior every run. This is inherent (there is no pm scorer to make deterministic), not an oversight. A real pm validator script is a separate project, not a rider
 - [ ] **blvck-pm's install path is still unverified.** feat-005 exercised blvck-harness end to end; blvck-pm got the `allowed-tools` fix by analogy and no template load has been observed running. feat-010 did not change this
@@ -112,6 +112,7 @@ Still open from before this session, unchanged:
 - Initial build: entire repository (see `git log`)
 - feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 - feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
+- feat-013 session (2026-09-04): NEW `plugins/blvck-pm/skills/agent-smith/` (vendored, 4 files), `templates/agents/lead-engineer.md`; MODIFIED all 7 existing archetypes (tools + model), `references/agent-design.md`, `SKILL.md`, `references/workflows.md`, `commands/setup.md`, `lib/vault-utils.mjs` (26th check), the fixture's agent, `plugin.json` → 1.5.0, `CHANGELOG.md`, README
 - feat-012 session (2026-09-04): NEW `skills/pm-os/scripts/{create-vault,validate-vault}.mjs` + `lib/vault-utils.mjs`, `templates/roadmap.json` + `roadmap.schema.json`, `tests/fixtures/pm-vault/` (14 files); MODIFIED `init.sh` (5 → 7 steps), `CLAUDE.md` (verification list + two new rules), `SKILL.md`, `references/workflows.md`, all four commands, `plugin.json` → 1.4.0, `CHANGELOG.md`, README + marketplace counts
 - feat-011 session (2026-09-04): NEW `templates/vision.md`, `references/completeness.md`; MODIFIED `references/voice.md` (structural/lexical split), `references/workflows.md` (vision workflow + gate + language), `SKILL.md`, `templates/pm-config.md` (`## Language`, `## Completeness`, vision path), `templates/prd.md` (vision link), all four `commands/*.md`, `plugin.json` → 1.3.0, `CHANGELOG.md`, README + marketplace counts 19 → 20 workflows
 - feat-011…014 planning session (2026-09-04): `feature_list.json` (4 new entries, no code yet), `progress.md` (direction, decisions, risks). No plugin files touched — this session decided, it did not build

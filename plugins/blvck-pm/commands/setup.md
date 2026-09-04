@@ -17,7 +17,22 @@ This is also the **upgrade path**: a vault built before 1.3.0 has no `vision.md`
 5. **Terminology**: exact terms the team uses, and the banned synonyms for each.
 6. **Integrations for THIS project**: Jira / Confluence / Google Drive / BigQuery — enable only what this project actually uses. Probe: if an enabled tool's MCP isn't connected in this session, note it but still record the choice.
 7. **Output language**: one question — which language should generated documents be written in? Default `en`. If not `en`, say once that the bundled banned-word list is English-only and their own list belongs in `anti-style.md`.
-8. **Agent team**: recommend by stage — early/zero-to-one → customer-voice + prototype-builder; growth → business-analyst + competitive-intel; always offer blind-reviewer + research-analyst for review/synthesis quality; board-executive for exec-heavy roles. Scaffold the picks.
+8. **Agent team**: ask one question — **"when you are planning something, who do you normally have to go ask?"** Do not ask which agents they want; nobody can answer that before using the thing. Map their answer onto the catalog, name the mapping out loud, and offer to build anything unmatched:
+
+   | They said | Archetype |
+   |---|---|
+   | "our engineering lead", "the architect", "whoever tells me it's harder than I think" | `lead-engineer` |
+   | "customers", "support", "the interviews" | `customer-voice` |
+   | "what competitors do" | `competitive-intel` |
+   | "the numbers", "our analyst" | `business-analyst` |
+   | "my CEO", "the board", "investors" | `board-executive` |
+   | "someone to poke holes in it" | `blind-reviewer` |
+   | "reading a pile of research" | `research-analyst` |
+   | "I need to see it working first" | `prototype-builder` |
+
+   "Nobody, I work alone" is the most important answer in the set, not an empty one: it means the agents are replacing a team that does not exist, so recommend `lead-engineer` + `blind-reviewer` as the floor and explain why those two.
+
+   Anything with no archetype is real and gets built — load the bundled `agent-smith` skill and follow it. Scaffold the picks with all `{{PLACEHOLDERS}}` resolved, and record the roster in `pm-os.config.json`.
 
 **Scaffold** (create-if-missing, never overwrite). `source template → destination`; the names differ where the destination has a meaning of its own:
 - `about-me.md → ABOUT-ME/CLAUDE.md` — the identity file every workflow and agent reads by that name. Do not leave it named `about-me.md`.

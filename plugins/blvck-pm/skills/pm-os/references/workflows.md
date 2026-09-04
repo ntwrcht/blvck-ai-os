@@ -95,4 +95,4 @@ has been `building` for more than a quarter.
 
 ## Meta
 
-**agent-builder** — "I need an agent that does X." Read `references/agent-design.md`, then: define the job in one sentence, the spawn moments, the single output folder; draft the agent file following the contract (grounding ritual → lens/rules → output contract → escalation); fill product placeholders from the vault; write to `.claude/agents/[name].md`; register it in `pm-os.config.md`'s roster. Refuse agents whose job overlaps an existing one — extend that one instead.
+**agent-builder** — "I need an agent that does X." Load the bundled **`agent-smith`** skill; it covers the tool and model budget, the roster boundary, and the delegation test. Bring what it cannot know: the vault's grounding ritual (identity file, `anti-style.md`, product context), product placeholders, the single output folder, and registration in `pm-os.config.json`'s roster. Refuse agents whose job overlaps an existing one — two agents with the same lens produce two answers and no way to choose. See `references/agent-design.md`.

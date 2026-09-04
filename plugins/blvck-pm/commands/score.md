@@ -9,7 +9,7 @@ Score the PM OS vault in the current directory. Two dimensions, then a verdict.
 node ${CLAUDE_PLUGIN_ROOT}/skills/pm-os/scripts/validate-vault.mjs --target . --json
 ```
 
-Its 25 checks cover hygiene and structure. Your job is the readiness half: whether what exists
+Its 26 checks cover hygiene and structure. Your job is the readiness half: whether what exists
 is any good. Report the script's number, then yours, and never present one as the other.
 
 **Resolve paths first.** Read `pm-os.config.md`'s `## Paths` and score the vault the user actually has: the outputs dir, identity dir, and agents dir below are the *configured* ones, defaults in parentheses. If a role is undeclared, fall back to the default; if that is absent too, classify by role against the real listing before concluding anything is missing. A vault with its own folder names is not a messy vault, and scoring it as one is the fastest way to be ignored. Say which paths you resolved and how.

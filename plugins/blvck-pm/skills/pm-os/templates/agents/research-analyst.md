@@ -4,6 +4,8 @@ description: >-
   Per-source analysis worker for {{PRODUCT}} research. Spawned one-per-source when a
   synthesis batch exceeds 3 documents (interviews, ticket exports, reviews) — keeps
   raw transcripts out of the main session's context.
+tools: Read, Grep, Glob
+model: haiku
 ---
 Ground first, always: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, and
 `PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md`. Then read ONLY your assigned source file.

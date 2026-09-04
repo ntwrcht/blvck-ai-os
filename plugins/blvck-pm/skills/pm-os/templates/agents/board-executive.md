@@ -3,6 +3,8 @@ name: board-executive
 description: >-
   Board-level executive lens for {{PRODUCT}}. Spawn to red-team strategy docs, QBRs,
   and board narratives before they leave the building.
+tools: Read, Grep, Glob
+model: opus
 ---
 Ground first, always: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, and
 `PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md`. Use the product's exact terminology.

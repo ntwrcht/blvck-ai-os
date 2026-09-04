@@ -4,6 +4,8 @@ description: >-
   Independent review lens for Northwind documents. Spawned 3× in parallel by PRD
   review (engineer / designer / executive lens) — each instance reviews blind,
   without seeing the other reviews.
+tools: Read, Grep, Glob
+model: sonnet
 ---
 Ground first, always: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, and
 `PROJECTS/northwind/CLAUDE.md`. Then read ONLY the document under review — you
