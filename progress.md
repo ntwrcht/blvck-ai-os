@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011…014 planned, not started.
+**Active Feature:** none — feat-011 done (blvck-pm 1.3.0, bumped + CHANGELOGed, **not yet tagged**). feat-012 is next.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,11 +26,12 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-011 blvck-pm 1.3.0 — vision.md, completeness gates, configured output language; setup now reports its repairs
 - [x] feat-010 Flexible pm vault scoring — `## Paths` honored, role fallback, migrate adapt fork; fixed the setup/validate identity drift
 
 ### What's In Progress
 
-- [ ] Nothing in flight. feat-011 through feat-014 are planned (see below), none started.
+- [ ] Nothing in flight. **feat-012 is next** — `roadmap.json` plus the first blvck-pm scripts. Build `create-vault.mjs` before `validate-vault.mjs`.
 
 ### What's Next — blvck-pm direction change (2026-09-04)
 
@@ -45,7 +46,7 @@ Release sequence (feature_list.json carries the detail):
 
 | Version | Feature | Content |
 |---|---|---|
-| 1.3 | feat-011 | `vision.md` + completeness checklists + output language setting |
+| 1.3 | feat-011 | ✅ done — `vision.md` + completeness checklists + output language setting |
 | 1.4 | feat-012 | `roadmap.json` + `create-vault.mjs` + `validate-vault.mjs` + fixture + CI |
 | 1.5 | feat-013 | Interviewed agent roster + agent-smith bundled + lead-engineer archetype |
 | 2.0.0 | feat-014 | config → JSON, escalation rule rewritten |
@@ -110,6 +111,7 @@ Still open from before this session, unchanged:
 - Initial build: entire repository (see `git log`)
 - feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 - feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
+- feat-011 session (2026-09-04): NEW `templates/vision.md`, `references/completeness.md`; MODIFIED `references/voice.md` (structural/lexical split), `references/workflows.md` (vision workflow + gate + language), `SKILL.md`, `templates/pm-config.md` (`## Language`, `## Completeness`, vision path), `templates/prd.md` (vision link), all four `commands/*.md`, `plugin.json` → 1.3.0, `CHANGELOG.md`, README + marketplace counts 19 → 20 workflows
 - feat-011…014 planning session (2026-09-04): `feature_list.json` (4 new entries, no code yet), `progress.md` (direction, decisions, risks). No plugin files touched — this session decided, it did not build
 - feat-009/010 session (2026-07-15): `lib/harness-utils.mjs` (map layer, three adapters, check ids, vocabulary), `validate-harness.mjs` (rewritten: `--map`, exit 2, try/catch), `init.sh` (3 → 5 steps), `tests/fixtures/foreign-harness/` (new), `references/role-classification.md` (new), both plugins' `migrate`/`validate`/`score`/`SKILL.md`, `pm-config.md`, `setup.md`, CHANGELOGs, both `plugin.json` → 1.2.0
 
@@ -121,6 +123,23 @@ Still open from before this session, unchanged:
 - [x] All 3 manifests pass `claude plugin validate --strict`
 
 ## Notes for Next Session
+
+**feat-011 is model behaviour only.** `./init.sh` proves the JSON parses and the manifests are
+valid; it proves nothing about whether the completeness gate fires, whether the language setting
+is honoured, or whether the vision workflow produces a vision. That gap is the whole point of
+feat-012, and it is why `create-vault.mjs` comes before `validate-vault.mjs` — a validator has
+nothing to validate until a vault can be built without a human.
+
+**One drift was caught in this session's own work before commit**, not by review: `setup` scaffolds
+an empty vision skeleton on purpose while the first draft of `validate` failed unedited template
+text with ❌, so every fresh vault would have failed its own validate immediately. Same shape as the
+feat-010 `about-me.md` defect. The general fix went in too — `setup` must now *report* every repair
+it makes instead of silently fixing and moving on.
+
+**blvck-pm 1.3.0 is not tagged.** Bumped and CHANGELOGed only. Per the Release Checklist that means
+installed users are still on 1.2.0.
+
+## Notes for Next Session (earlier)
 
 The adapt fork's **rules** were exercised before release (feat-009 evidence): an untuned foreign repo went 20/100 unscored → 100/100 adapted by following `migrate.md` literally, and the three honesty properties re-proved on that repo rather than only on the tuned fixture. What remains unexercised is the **command dispatch** — `/blvck-harness:migrate` has never been typed, because it is `disable-model-invocation` and cannot be self-invoked. Low risk, but not zero, and not the same claim.
 

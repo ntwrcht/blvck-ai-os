@@ -5,10 +5,10 @@ description: >-
   specs, one-pagers, PR/FAQs, RICE prioritization, NSM/metrics trees, JTBD interview guides,
   research synthesis, competitor teardowns, weekly stakeholder updates, launch checklists,
   decision logs, GTM briefs, tracking plans, funnel analysis, PRD multi-perspective review,
-  onboarding briefs, and minting new PM agents. Loads the PM vault (ABOUT-ME/, PROJECTS/)
+  onboarding briefs, product vision, and minting new PM agents. Loads the PM vault (ABOUT-ME/, PROJECTS/)
   before working and writes only to CLAUDE-OUTPUTS/. Trigger on "PRD", "spec", "prioritize",
   "roadmap", "north star", "interview", "synthesis", "competitor", "weekly update", "launch",
-  "GTM", "tracking plan", "funnel", or any product-management request — even if the user
+  "GTM", "tracking plan", "funnel", "vision", or any product-management request — even if the user
   never says "pm-os".
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 ---
@@ -21,8 +21,9 @@ You operate inside a PM vault. The vault is the source of truth; conversation me
 
 1. Read `pm-os.config.md` — paths, enabled integrations, agent roster. Its `## Paths` section is the map: every path below is the configured one, and the defaults in parentheses only apply when the config is silent. `pm-os.config.md` is the one fixed name; everything else is free to move.
 2. Read the identity file, anti-style, and current focus from the configured identity path (`ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, `ABOUT-ME/current-focus.md`)
-3. Read the configured product context (`PROJECTS/<product>/CLAUDE.md`) and `roadmap.md` if present
-4. Confirm in ≤6 lines: product + one-liner, current focus, active OKR, writing rules status, output target, missing files. Then work.
+3. Read the configured product context (`PROJECTS/<product>/CLAUDE.md`), the vision (`PROJECTS/<product>/vision.md`) if present, and `roadmap.md` if present
+4. Note the configured output language (`## Language`, default `en`). Do not infer it from the language the user typed in
+5. Confirm in ≤6 lines: product + one-liner, vision horizon and review date, current focus, active OKR, writing rules status, output target, missing files. Then work.
 
 If the identity file is named `about-me.md`, read it and mention the rename once — vaults scaffolded before 1.2.0 got that name from setup while everything reads `CLAUDE.md`. `/blvck-pm:validate` gives the one-line fix. Don't block on it.
 
@@ -43,6 +44,7 @@ Full catalog with per-workflow steps: `references/workflows.md`. Summary:
 
 | User intent | Workflow | Output folder |
 |---|---|---|
+| "what are we building toward?" / write the vision | vision | product context (not outputs) |
 | "ticket, spec, or PRD?" | spec-or-prd (5-question router) | — |
 | Draft PRD / spec / one-pager / PR-FAQ | prd, lightweight-spec, one-pager, prfaq | prds/, strategy-docs/ |
 | "Review this PRD" | prd-review — 3 blind lenses via `blind-reviewer` agent, else inline | prds/ |
@@ -57,6 +59,14 @@ Full catalog with per-workflow steps: `references/workflows.md`. Summary:
 ## Voice & Frameworks
 
 Apply `references/voice.md` (hard writing rules) and `references/frameworks.md` (RICE, JTBD, NSM tree, pyramid principle) to every output. The vault's `anti-style.md` extends these.
+
+Voice rules split in two: **structural** rules (conclusion first, active voice, numbers over adjectives) hold in every language; the **banned-word list is English-only**. A vault set to another language takes its list from `anti-style.md`, never from the plugin.
+
+## Completeness
+
+When a document is finished — or when the user asks whether it is ready — run the completeness gate from `references/completeness.md`. Name what is unmet, offer to fill it, and if the user proceeds anyway append the override to the document with the date and their reason.
+
+The gate **warns, it never blocks**, and it never silently fills a gap to make a document pass. `pm-os.config.md`'s `## Completeness` section overrides the defaults with three verbs: `drop`, `add`, `skip`. Do not run the gate mid-draft, where every document is legitimately incomplete.
 
 ## Agents
 

@@ -11,9 +11,37 @@ The one name that cannot move is `pm-os.config.md` itself: it is how everything 
 - Vault root: {{VAULT_ROOT}}
 - Identity: ABOUT-ME/ (identity file: ABOUT-ME/CLAUDE.md)
 - Product context: PROJECTS/{{PRODUCT_SLUG}}/CLAUDE.md
+- Vision: PROJECTS/{{PRODUCT_SLUG}}/vision.md
 - Templates: TEMPLATES/
 - Outputs: CLAUDE-OUTPUTS/ (the only write zone)
 - Agents: .claude/agents/
+
+## Language
+
+Output language for every generated document. Default `en`.
+
+- Language: {{LANGUAGE}}
+
+Structural writing rules (conclusion first, active voice, numbers over adjectives) apply in
+every language. The banned-word list does not — it is language-specific, and for any language
+other than `en` it comes from `ABOUT-ME/anti-style.md`, not from the plugin.
+
+## Completeness
+
+Which fields a document needs before it counts as ready to act on. The plugin ships defaults
+per document type; this section overrides them. Omit a type to keep its defaults.
+
+Three verbs only — `drop` removes a default item, `add` appends one, `skip` disables the gate
+for that type:
+
+<!-- Examples. Delete or replace; an empty section means "use all defaults".
+- prd: drop "rollout tier with a gating metric"
+- prd: add "pricing impact stated"
+- prfaq: skip
+-->
+
+The gate **warns, it never blocks**. When a document ships with items unmet, that is recorded
+in the document itself with the date and the reason — not silently repaired.
 
 ## Integrations (this project only)
 | Tool | Enabled | Use for |

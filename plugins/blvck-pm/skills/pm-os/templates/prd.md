@@ -15,6 +15,9 @@ We believe [solution] for [user] will achieve [outcome], measured by [metric]. T
 ### Link to North Star
 [How this moves the NSM, or which L1/L2 metric it moves and why that rolls up.]
 
+### Vision Outcome Served
+[Which row of `vision.md`'s "What Must Become True" this advances. If no row fits, say so — either this work is off-strategy or the vision is stale, and both are worth surfacing before engineering starts.]
+
 ## 2. Success Metrics
 | Metric | Baseline | Target | How measured | When |
 |--------|----------|--------|--------------|------|

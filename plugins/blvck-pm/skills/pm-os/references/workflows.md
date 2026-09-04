@@ -4,11 +4,37 @@ Routing table for the pm-os skill. Every workflow: (1) runs the session ritual f
 
 Paths named below are the defaults. `## Paths` in `pm-os.config.md` is what actually resolves them — a vault may keep any of these anywhere, and step (2) is where you find out where.
 
+Every workflow that produces a document also (5) runs the completeness gate when the document
+is finished or when the user asks whether it is ready — never mid-draft. The gate names what is
+unmet, offers to fill it, and if the user proceeds anyway records the override inside the
+document. It warns; it never blocks. Defaults and how a vault adjusts them: `references/completeness.md`.
+
+Language comes from `pm-os.config.md`'s `## Language` (default `en`), never from the language
+the user happened to type in. Structural writing rules hold in every language; the banned-word
+list is language-specific — see `references/voice.md`.
+
+## Vision
+
+**vision** — "what are we actually building toward?" / "write our vision." Lives above every
+other document: the plan layer (PRD, spec, one-pager) answers *what to build next*, the vision
+answers *what has to become true*. Socratic before drafting — what changes in the user's life,
+who exactly, what would have to be observed for this to be wrong. Push back on any vision that
+would still read true with a competitor's product substituted in; that is a category
+description, not a vision.
+
+Template: `vision.md` → the configured vision path (`PROJECTS/<product>/vision.md`). This is the
+one workflow that writes **outside** the outputs dir, because a vision is product context rather
+than a dated artifact — say so before writing, and never overwrite an existing vision without
+showing a diff first. Version by keeping the old one at `PROJECTS/<product>/_archive/vision-[date].md`.
+
+Its "What Must Become True" table is the source of roadmap items: each row is a business
+outcome bound to a number. Revisit on the review date, not continuously.
+
 ## Docs & Specs
 
 **spec-or-prd** — "should this be a ticket, spec, or PRD?" Ask the 5 questions one at a time: sprint-weeks of effort; platform-touch (auth/API/schema); needs design review; compliance/legal/security; cross-team dependencies. Recommend exactly one: TICKET (<1 sprint-week, no platform touch, no design review), LIGHTWEIGHT SPEC (1–3 sprint-weeks, single team), FULL PRD (>3 sprint-weeks OR platform OR multi-team OR compliance). Name which answers drove it. No file output unless asked.
 
-**prd** — "draft a PRD for X." Confirm the JTBD and success metric before writing; challenge missing evidence. Template: `prd.md` → `CLAUDE-OUTPUTS/prds/prd-[feature]-v1-[date].md`. New version = new file (v2), old one moves to `_archive/`. Offer `/tracking-plan` next (a PRD without instrumentation is unfinished) and Jira ticket creation if enabled.
+**prd** — "draft a PRD for X." Confirm the JTBD and success metric before writing; challenge missing evidence. Name which vision outcome it serves — if the vision has none that fit, say so plainly: either the PRD is off-strategy or the vision is stale, and both are worth knowing before engineering starts. Template: `prd.md` → `CLAUDE-OUTPUTS/prds/prd-[feature]-v1-[date].md`. New version = new file (v2), old one moves to `_archive/`. Offer `/tracking-plan` next (a PRD without instrumentation is unfinished) and Jira ticket creation if enabled.
 
 **lightweight-spec** — for 1–3 sprint-week work. Template: `lightweight-spec.md` → `prds/spec-[feature]-[date].md`.
 

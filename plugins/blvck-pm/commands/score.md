@@ -11,11 +11,13 @@ Score the PM OS vault in the current directory. Two dimensions, then a verdict.
 - Staleness: `current-focus.md` older than 14 days; prototypes older than 90 days; drafts older than 30 days
 - Naming: outputs missing the `[type]-[description]-[YYYY-MM-DD]` convention
 - Config drift: agents in the agents dir (`.claude/agents/`) missing from the `pm-os.config.md` roster, or vice versa — and any path `## Paths` declares that does not exist
+- Completeness debt: documents carrying a `## Completeness` override. Count them and name the item most often left unmet — one override is a decision, the same gap in every document is a process problem
 
 **2. Module readiness** — grade each 0–5 with one-line evidence (a module scores by what exists in the outputs dir and the vault, not by intentions):
 | Module | Evidence looked for |
 |---|---|
-| Docs & specs | Any current PRD/spec; latest one has measurable success metrics |
+| Vision | `vision.md` exists, review date not past, ≥3 outcomes with metrics, ≥1 exclusion |
+| Docs & specs | Any current PRD/spec; latest one has measurable success metrics; each names the vision outcome it serves |
 | Prioritization | A RICE table ≤ 1 quarter old; decisions logged |
 | Metrics | Metrics tree exists; NSM in product CLAUDE.md matches it |
 | Discovery | Synthesis ≤ 1 quarter old; insights carry source counts |
@@ -24,4 +26,4 @@ Score the PM OS vault in the current directory. Two dimensions, then a verdict.
 | Analytics | Tracking plan for the newest PRD; funnel analysis with saved SQL/export |
 | Agent team | Roster present, contract followed, no unresolved placeholders |
 
-**Verdict**: overall /100 (hygiene 40, readiness 60), the weakest module, and the top 3 improvements as concrete actions ("run research-synthesis on the 5 interview files in research/", not "do more discovery"). Close with what's working — one line.
+**Verdict**: overall /100 (hygiene 40, readiness 60 across 9 modules), the weakest module, and the top 3 improvements as concrete actions ("run research-synthesis on the 5 interview files in research/", not "do more discovery"). Close with what's working — one line.

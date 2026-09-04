@@ -11,6 +11,7 @@ There are two ways this ends, and the scan is identical for both. **Relocate** m
 
 - *Identity material*: who the PM is, principles, writing rules, current priorities → `ABOUT-ME/`
 - *Product context*: product one-liners, personas, metrics, stakeholder notes, terminology → `PROJECTS/<product>/`
+- *Vision material*: long-horizon direction, strategy narratives, "where we're going" decks and notes → `PROJECTS/<product>/vision.md`. Distinguish from a roadmap (dated commitments) and from a pitch deck (written for investors, not for the team) — both get classified elsewhere
 - *Doc templates*: reusable PRD/spec/update skeletons → `TEMPLATES/`
 - *Produced artifacts*: finished PRDs, research, analyses, updates → `CLAUDE-OUTPUTS/<type>/`
 - *Config and integration notes* → `pm-os.config.md`; *agent definitions* → `.claude/agents/`
