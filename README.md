@@ -22,7 +22,7 @@ AI agents drift. A coding agent forgets project rules between sessions, claims w
 **blvck-ai-os** treats both problems as the same problem: agents need an *operating system* — durable instructions, explicit state, verification rituals, and clear write zones — not longer prompts. It ships that operating system as two [Claude Code](https://claude.com/claude-code) plugins:
 
 - **blvck-harness** gives engineering repos a harness: five subsystems that make agent sessions restartable, verifiable, and safe to run in parallel across a team.
-- **blvck-pm** gives product managers a vault: identity, product context, and terminology captured once, then reused by 20 routed workflows and a scaffolded agent team.
+- **blvck-pm** gives product managers a vault: identity, product context, and terminology captured once, then reused by 21 routed workflows and a scaffolded agent team.
 
 Both follow the same design principle: **very few commands, capability in scaffolded files.** Each plugin exposes exactly four commands (`setup`, `migrate`, `validate`, `score`); everything else lives in templates and skills that become *your* files, editable and versioned in *your* repos.
 
@@ -46,10 +46,11 @@ Both follow the same design principle: **very few commands, capability in scaffo
 - **Five-subsystem engineering harness** — instructions, state, verification, scope, and session lifecycle, scored by 25 automated checks (`/blvck-harness:score`).
 - **Scores your structure, not just ours** — already have a harness under your own file names and your own wording? Declare where the five concepts live in `.harness-map.json` and the same 25 checks grade it, up to 100/100, naming the file behind each concept. Declaring a path never passes a check on its own: the file still has to exist and still has to carry its meaning in real structure.
 - **Team layout built for parallel work** — one directory per feature under `features/`, with date- or Jira-keyed IDs (`feat-YYYYMMDD-slug`) so parallel branches never race a shared counter or collide in merges.
-- **PM vault with routed workflows** — capture who you are, what you build, and how you speak once; 20 workflows (vision, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review) reuse it automatically.
+- **PM vault with routed workflows** — capture who you are, what you build, and how you speak once; 21 workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review) reuse it automatically.
+- **A roadmap that ends at *measured*, not *shipped*** — `roadmap.json` tracks business outcomes bound to numbers, and an outcome cannot be closed until someone records whether the number actually moved, verdict included. A missed outcome recorded honestly is worth more than three shipped ones nobody checked.
 - **Per-product agent teams** — seven agent archetypes (customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst) scaffolded into your repo's `.claude/agents/`, pre-filled with your product context.
 - **Safe, generic migration — that can decide not to migrate** — `migrate` scans any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
-- **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks every script, JSON-validates every manifest and template, and round-trips a full solo + team scaffold in a temp directory.
+- **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks all six scripts, JSON-validates every manifest and template, round-trips a full solo + team harness scaffold, and round-trips a PM vault — where a *fresh scaffold must fail*, because a skeleton nobody has answered is not a vault.
 
 ## Architecture Overview
 
@@ -68,9 +69,11 @@ blvck-ai-os/
 │       ├── commands/                      # setup · migrate · validate · score
 │       └── skills/pm-os/
 │           ├── SKILL.md                   # session ritual, vault rules, workflow router
-│           ├── templates/                 # 22 doc/context templates + 7 agent archetypes
+│           ├── scripts/                   # create-vault.mjs, validate-vault.mjs (Node)
+│           ├── templates/                 # 24 doc/context templates + 7 agent archetypes
 │           └── references/                # frameworks, voice, integrations
 ├── tests/fixtures/foreign-harness/         # a harness using none of the names above
+├── tests/fixtures/pm-vault/                # a filled vault that must score 100/100
 └── CLAUDE.md · feature_list.json · progress.md · init.sh    # this repo's own harness
 ```
 

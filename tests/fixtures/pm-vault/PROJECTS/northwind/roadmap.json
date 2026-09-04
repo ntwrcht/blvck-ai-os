@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "product": "northwind",
+  "items": [
+    {
+      "id": "out-20260801-recover-without-touch",
+      "outcome": "Failed payments recover without anyone touching them",
+      "metric": "recovered revenue per active customer per month",
+      "baseline": "$412",
+      "target": "$700",
+      "status": "building",
+      "visionOutcome": 1,
+      "documents": ["CLAUDE-OUTPUTS/prds/prd-dunning-retry-v1-2026-08-14.md"],
+      "harnessFeatures": ["feat-20260814-retry-scheduler"],
+      "owner": "Worachote"
+    },
+    {
+      "id": "out-20260801-forecastable-recovery",
+      "outcome": "Finance can forecast recovery within 10%",
+      "metric": "forecast error against actual recovery",
+      "baseline": "34%",
+      "target": "10%",
+      "status": "planned",
+      "visionOutcome": 2,
+      "dependencies": ["out-20260801-recover-without-touch"]
+    },
+    {
+      "id": "out-20260601-card-update-messaging",
+      "outcome": "Customers update an expiring card before it fails",
+      "metric": "card-update completion rate",
+      "baseline": "18%",
+      "target": "40%",
+      "status": "measured",
+      "visionOutcome": 3,
+      "documents": ["CLAUDE-OUTPUTS/prds/prd-dunning-retry-v1-2026-08-14.md"],
+      "measured": {
+        "date": "2026-08-28",
+        "value": "26%",
+        "verdict": "missed",
+        "note": "Moved 18% to 26%, short of 40%. The reminder lands too late — the sequence starts 3 days before expiry and the median customer needs 9."
+      }
+    }
+  ]
+}

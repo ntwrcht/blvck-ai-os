@@ -24,7 +24,7 @@
     {
       "name": "blvck-pm",
       "source": "./plugins/blvck-pm",
-      "description": "Product-manager operating system — PM vault, 20 workflows, per-product agent teams, setup·migrate·validate·score.",
+      "description": "Product-manager operating system — PM vault, 21 workflows, per-product agent teams, setup·migrate·validate·score.",
       "category": "productivity",
       "keywords": ["product-management", "pm-vault", "prd", "rice", "jtbd", "gtm", "agents"],
       "author": {

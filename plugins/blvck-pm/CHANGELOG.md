@@ -8,6 +8,57 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [1.4.0] - 2026-09-04
+
+blvck-pm gets executable surface. Until now the plugin was entirely prompts: no script, no exit
+code, no CI. That is why a defect in `/blvck-pm:setup` survived two releases without a symptom.
+
+### Added
+
+- **`roadmap.json` — one per product, holding business outcomes bound to numbers.** Statuses run
+  `idea → validated → planned → building → shipped → measured`, and **`measured` is terminal**:
+  an outcome is not finished when the work ships, it is finished when someone checked whether the
+  number moved. An item claiming `measured` must carry the result and a verdict (`hit` / `missed`
+  / `inconclusive`) or validation fails. That single difference is what makes this a product
+  tracker rather than an engineering one — blvck-harness finishes when verification passes.
+  Deliberately not named `feature_list.json`: same name, different unit, would imply the two
+  plugins are interchangeable. Item ids are `out-YYYYMMDD-slug` so parallel branches never mint
+  the same id, and a `harnessFeatures` field links an outcome to the code work implementing it.
+- **`scripts/create-vault.mjs`** — scaffolds a vault with no interview. It exists so a vault can
+  be *tested*: `/blvck-pm:setup` is a conversation, so until now no vault could be produced
+  without a person, and nothing could ever be checked automatically. The interview remains the
+  way humans should create a vault.
+- **`scripts/validate-vault.mjs`** — 25 mechanical checks across five modules (identity, product,
+  plan, roadmap, config), with `--json` and three-valued exit codes: `0` passed, `1` under the bar
+  or blocked, `2` the config is invalid or unsafe. Three findings block regardless of score,
+  because each is a broken promise rather than a weak vault: a declared path that does not exist,
+  an unresolved `{{PLACEHOLDER}}`, and a roadmap error.
+- **`pm-os.config.json`** — the machine-readable config, added *alongside* `pm-os.config.md` and
+  breaking nothing. The markdown copy is still read as a fallback for older vaults. Retiring it
+  is a MAJOR and waits for 2.0.0.
+- **`tests/fixtures/pm-vault/`** and two new `init.sh` steps (now 7). The round trip is the real
+  test: a fresh scaffold must exit **1**, because a scaffold is not a vault, and the filled
+  fixture must score 100/100 and exit 0. Plus four anti-gaming assertions — a declared path that
+  is gone, a `measured` outcome with no result, an unknown or out-of-tree config path, and an
+  empty directory reporting `unscored`.
+
+### Changed
+
+- `/blvck-pm:validate` and `/blvck-pm:score` now run the script first and report its number and
+  exit code verbatim, then do the part it cannot: judge whether the content is any good. The line
+  is explicit — "does the PRD name a success metric" is the script's job, "is it a good one" is
+  the model's.
+- Every workflow that writes a document records that path against the roadmap outcome it serves.
+  That link is what turns 20 disconnected document generators into one system.
+- `/blvck-pm:setup` scaffolds `roadmap.json` and `pm-os.config.json`, and is the upgrade path for
+  vaults built before 1.4.0.
+
+### Fixed
+
+- The freshness check never matched a real `current-focus.md`. It looked for `Updated:` followed
+  by a date, but the template bolds the label as `**Updated:**`, so every vault ever built
+  reported "carries no Updated line". Found by the fixture on its first run, not by review.
+
 ## [1.3.0] - 2026-09-04
 
 First release of the direction change: blvck-pm is aimed at solo entrepreneurs and small

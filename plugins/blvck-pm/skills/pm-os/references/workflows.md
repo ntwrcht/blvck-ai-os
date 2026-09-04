@@ -4,7 +4,8 @@ Routing table for the pm-os skill. Every workflow: (1) runs the session ritual f
 
 Paths named below are the defaults. `## Paths` in `pm-os.config.md` is what actually resolves them — a vault may keep any of these anywhere, and step (2) is where you find out where.
 
-Every workflow that produces a document also (5) runs the completeness gate when the document
+Every workflow that produces a document also (5) records its path in the `documents` array of the
+roadmap outcome it serves — if no outcome fits, say so rather than inventing one — and (6) runs the completeness gate when the document
 is finished or when the user asks whether it is ready — never mid-draft. The gate names what is
 unmet, offers to fill it, and if the user proceeds anyway records the override inside the
 document. It warns; it never blocks. Defaults and how a vault adjusts them: `references/completeness.md`.
@@ -29,6 +30,22 @@ showing a diff first. Version by keeping the old one at `PROJECTS/<product>/_arc
 
 Its "What Must Become True" table is the source of roadmap items: each row is a business
 outcome bound to a number. Revisit on the review date, not continuously.
+
+**roadmap** — "what are we working on?" / "where do we stand?" / "add this to the roadmap." Reads
+and writes `roadmap.json` at the configured roadmap path. One roadmap per product: outcomes are
+bound to that product's metrics and do not compare across products.
+
+Adding an item: it is a **business outcome bound to a number**, never a feature. Push back on
+"build onboarding emails" and ask what it should change — "first-month churn under 8%" is the
+item, the emails are how. Id is `out-YYYYMMDD-slug`. Link it to a vision outcome where one fits.
+
+Moving an item to `measured` requires the result: date, value, and verdict (`hit` / `missed` /
+`inconclusive`). Refuse to mark it measured without one — the whole point of the lifecycle ending
+at `measured` rather than `shipped` is that someone checked. A missed outcome recorded honestly
+is worth more than three shipped ones nobody looked at.
+
+Reporting status: group by status, lead with what moved since last time, and name every item that
+has been `building` for more than a quarter.
 
 ## Docs & Specs
 

@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PM Roadmap",
+  "description": "Business outcomes for one product. The unit is an outcome bound to a number, not a feature — which is why the lifecycle ends at 'measured' rather than 'shipped'.",
+  "type": "object",
+  "required": ["version", "items"],
+  "properties": {
+    "version": { "const": 1 },
+    "product": { "type": "string", "description": "Product slug this roadmap belongs to. One roadmap per product: outcomes are bound to that product's metrics and do not compare across products." },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "outcome", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^out-\\d{8}-[a-z0-9-]+$",
+            "description": "out-YYYYMMDD-slug. The date is the allocator, so two branches never mint the same id and no post-merge rename can break a dependency reference."
+          },
+          "outcome": { "type": "string", "description": "The business outcome in one sentence. Not a feature: 'first-month churn under 8%', not 'build onboarding emails'." },
+          "metric": { "type": "string", "description": "The number that proves it. An outcome without one cannot reach 'measured'." },
+          "baseline": { "type": "string" },
+          "target": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["idea", "validated", "planned", "building", "shipped", "measured"],
+            "description": "measured is terminal. shipped means the work left the building; measured means the number was checked afterwards."
+          },
+          "visionOutcome": { "type": ["integer", "string"], "description": "Which row of vision.md's 'What Must Become True' this serves." },
+          "documents": { "type": "array", "items": { "type": "string" }, "description": "Vault-relative paths to the PRDs, specs, and analyses that serve this outcome." },
+          "harnessFeatures": { "type": "array", "items": { "type": "string" }, "description": "blvck-harness feature IDs implementing it. The seam between the two plugins: they track different units and link rather than share a tracker." },
+          "dependencies": { "type": "array", "items": { "type": "string" }, "description": "Other item ids that must land first." },
+          "owner": { "type": "string" },
+          "measured": {
+            "type": "object",
+            "description": "Required once status is 'measured'. Without it an item can be marked finished while the number it existed for is unknown.",
+            "required": ["date", "value", "verdict"],
+            "properties": {
+              "date": { "type": "string" },
+              "value": { "type": "string" },
+              "verdict": { "type": "string", "enum": ["hit", "missed", "inconclusive"] },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ set -e
 echo "=== Harness Initialization: blvck-ai-os ==="
 
 SCRIPTS="plugins/blvck-harness/skills/harness-engineering/scripts"
+PM_SCRIPTS="plugins/blvck-pm/skills/pm-os/scripts"
 
 # Runs a command that is expected to fail a specific way. `set -e` would kill the script on a
 # nonzero exit, and `cmd | node -e ...` would report the reader's exit code instead of the
@@ -18,18 +19,21 @@ expect_exit () {
   fi
 }
 
-echo "=== 1/5 Script syntax ==="
+echo "=== 1/7 Script syntax ==="
 node --check "$SCRIPTS/create-harness.mjs"
 node --check "$SCRIPTS/validate-harness.mjs"
 node --check "$SCRIPTS/lib/harness-utils.mjs"
+node --check "$PM_SCRIPTS/create-vault.mjs"
+node --check "$PM_SCRIPTS/validate-vault.mjs"
+node --check "$PM_SCRIPTS/lib/vault-utils.mjs"
 echo "OK"
 
-echo "=== 2/5 JSON validity (manifests, templates, trackers, fixtures) ==="
+echo "=== 2/7 JSON validity (manifests, templates, trackers, fixtures) ==="
 find . -name '*.json' -not -path './.git/*' -not -path '*/node_modules/*' -print0 \
   | xargs -0 -I{} node -e "JSON.parse(require('fs').readFileSync('{}','utf8'))" \
   && echo "OK"
 
-echo "=== 3/5 Scaffold + validate round-trip (solo and team) ==="
+echo "=== 3/7 Scaffold + validate round-trip (solo and team) ==="
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -57,7 +61,7 @@ if node "$SCRIPTS/validate-harness.mjs" --target "$TMP/team" >/dev/null 2>&1; th
 fi
 echo "team: seeded findings correctly rejected (exit 1)"
 
-echo "=== 4/5 Adapted layout scores a foreign structure ==="
+echo "=== 4/7 Adapted layout scores a foreign structure ==="
 cp -R tests/fixtures/foreign-harness "$TMP/foreign"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign"
 echo "adapted: foreign-shaped harness scores (exit 0)"
@@ -93,7 +97,7 @@ if (native.overall !== mapped.overall) {
 ' "$TMP/native.json" "$TMP/mapped.json"
 echo "adapted: team layout expressed as a map scores identically"
 
-echo "=== 5/5 Adapted layout cannot be gamed ==="
+echo "=== 5/7 Adapted layout cannot be gamed ==="
 
 # Declaring a path is an assertion, not a pass: point the map at a file that is not there and
 # the run must fail rather than quietly falling back to the built-in name.
@@ -147,6 +151,83 @@ if (result.unscored !== true) {
 }
 ' "$TMP/empty.json"
 echo "empty: reports unscored rather than a floor score (exit 1)"
+
+echo "=== 6/7 PM vault round-trip (scaffold, then a filled vault) ==="
+
+# The fixture's current-focus.md carries a placeholder date rather than a real one. The
+# freshness check is genuinely time-dependent, so a hardcoded date would pass today and fail
+# CI in a month — that would be the test rotting, not the code.
+stamp_focus () {
+  sed "s/FIXTURE_DATE/$(date +%F)/" "$1/ABOUT-ME/current-focus.md" > "$1/ABOUT-ME/current-focus.md.tmp"
+  mv "$1/ABOUT-ME/current-focus.md.tmp" "$1/ABOUT-ME/current-focus.md"
+}
+
+# A scaffold is not a vault. create-vault.mjs leaves exactly the placeholders a human has to
+# answer, so validating straight after scaffolding MUST fail — otherwise an untouched skeleton
+# reads as a finished vault, which is how the identity-file defect stayed invisible for two
+# releases.
+node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/vault" --product "CI Product" --agents blind-reviewer >/dev/null
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/vault"
+echo "pm: fresh scaffold is unfinished, not passing (exit 1)"
+
+cp -R tests/fixtures/pm-vault "$TMP/pm-filled"
+stamp_focus "$TMP/pm-filled"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-filled"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-filled" --json > "$TMP/pm.json"
+node -e '
+const result = require(process.argv[1]);
+if (result.overall !== 100) {
+  console.error(`FAIL: the filled fixture should score 100/100, got ${result.overall}`);
+  process.exit(1);
+}
+' "$TMP/pm.json"
+echo "pm: filled vault scores 100/100 (exit 0)"
+
+echo "=== 7/7 PM vault cannot be gamed ==="
+
+# Same rule as the harness map: a declared path is an assertion, and a broken one fails the run
+# rather than costing a few points. Without this a typo'd config reads as a passing vault.
+cp -R tests/fixtures/pm-vault "$TMP/pm-missing"
+stamp_focus "$TMP/pm-missing"
+rm -f "$TMP/pm-missing/PROJECTS/northwind/vision.md"
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-missing"
+echo "pm: a declared path that does not exist fails (exit 1)"
+
+# "measured" is the terminal status and the only one that has to carry a result. An item that
+# claims it without one says an outcome finished while its number is unknown — the exact failure
+# the lifecycle exists to prevent, so it blocks independently of the score. It scored 96/100.
+cp -R tests/fixtures/pm-vault "$TMP/pm-nomeasure"
+stamp_focus "$TMP/pm-nomeasure"
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const data = JSON.parse(fs.readFileSync(file, "utf8"));
+delete data.items.find((item) => item.status === "measured").measured;
+fs.writeFileSync(file, JSON.stringify(data, null, 2));
+' "$TMP/pm-nomeasure/PROJECTS/northwind/roadmap.json"
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-nomeasure"
+echo "pm: a measured outcome with no result blocks regardless of score (exit 1)"
+
+# A config the validator cannot trust is a config error (2), not a weak vault (1).
+mkdir -p "$TMP/pm-badconfig"
+printf '{"version":1,"paths":{"visshun":"x.md"}}\n' > "$TMP/pm-badconfig/pm-os.config.json"
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-badconfig"
+printf '{"version":1,"paths":{"vision":"../../../etc/passwd"}}\n' > "$TMP/pm-badconfig/pm-os.config.json"
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-badconfig"
+echo "pm: unknown roles and out-of-tree paths are config errors (exit 2)"
+
+# "We found nothing" must stay distinguishable from "you have nothing".
+mkdir -p "$TMP/pm-empty"
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-empty"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-empty" --json > "$TMP/pm-empty.json" || true
+node -e '
+const result = require(process.argv[1]);
+if (result.unscored !== true) {
+  console.error(`FAIL: an empty directory reported ${result.overall}/100 without flagging itself unscored`);
+  process.exit(1);
+}
+' "$TMP/pm-empty.json"
+echo "pm: an empty directory reports unscored (exit 1)"
 
 echo "=== Verification Complete ==="
 echo ""

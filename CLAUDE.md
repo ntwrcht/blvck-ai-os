@@ -75,13 +75,19 @@ For each plugin with user-visible changes:
 ```
 
 Required checks:
-- `node --check` on all three harness scripts
+- `node --check` on all six scripts (three harness, three PM vault)
 - JSON parse of every manifest, template, tracker, and fixture in the repo
 - Solo + team scaffold and validate round-trip in a temp directory (validate must exit 0 for solo, and team must report the seeded hygiene findings)
 - Adapted layout: the foreign-shaped fixture scores (exit 0), and team layout re-expressed as a user map scores identically to native team — if those two ever diverge, the map has stopped being a generalization of the layouts and has become a parallel implementation
 - Adapted layout cannot be gamed: a declared path that does not exist fails, flat prose does not pass the structured gate, an invalid or out-of-tree map exits 2, and an empty directory reports `unscored` rather than its floor score
+- PM vault round-trip: a fresh `create-vault.mjs` scaffold must exit **1** (a scaffold is not a vault — an untouched skeleton passing is how the identity-file defect hid for two releases), and `tests/fixtures/pm-vault` must score 100/100 and exit 0
+- PM vault cannot be gamed: a declared path that is gone fails, a `measured` outcome with no result blocks regardless of score, an unknown or out-of-tree config path exits 2, and an empty directory reports `unscored`
 
 Three layouts, one check set. A change to scoring must keep solo, team, **and** adapted passing — and `scoreHarness` must stay layout-agnostic. If you find yourself adding a branch on layout inside it, that is the signal the change belongs in an adapter instead.
+
+**The two plugins' scripts stay separate.** `harness-utils.mjs` scores repos, `vault-utils.mjs` scores vaults, and they share no code on purpose: they track different units with different terminal states (verification passes vs. the number moved). A helper that looks worth sharing is usually a sign one of them is drifting toward the other's job.
+
+**Keep judgment out of `vault-utils.mjs`.** It answers only what a machine can answer — "does the PRD name a success metric", never "is it a good one". A check that needs an opinion belongs in `validate.md`, which is a prompt. Adding one here makes the score non-reproducible, which removes the reason the script exists.
 
 Never commit a `.harness-map.json` at this repo's root — discovery is root-only, so it would flip blvck-ai-os's own validate to `adapted`. Fixtures live under `tests/`.
 

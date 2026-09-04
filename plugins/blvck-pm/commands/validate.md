@@ -3,6 +3,21 @@ description: Scored section-by-section check of the PM vault (✅ / ⚠️ / ❌
 ---
 Validate the PM OS vault in the current directory. Report, don't fix — offer fixes at the end.
 
+**Run the script first**, then read what it cannot:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/skills/pm-os/scripts/validate-vault.mjs --target . --json
+```
+
+It answers every structural question mechanically — files present, placeholders unresolved,
+paths declared but absent, roadmap well formed, focus stale, roster drifted — and it is
+reproducible in a way your reading is not. Report its score and exit code verbatim. Then do the
+part it cannot: judge whether the content is any good. Do not re-derive its checks by hand, and
+do not soften its result; if it exits 1, say so before anything else.
+
+Exit `2` means the config is invalid or unsafe, not that the vault is weak — say that plainly
+and fix the config before scoring anything.
+
 **Resolve paths first.** Read `pm-os.config.md`'s `## Paths` section. Every path below is the *configured* one, not a hardcoded folder name — a vault that keeps identity in `00-me/` and outputs in `90-artifacts/` is a vault, not a broken one. For each role, in order:
 
 1. the path `## Paths` declares
@@ -23,6 +38,8 @@ If the identity file is `about-me.md` rather than `CLAUDE.md`, that is a **renam
 - `current-focus.md` → Updated date within 14 days (⚠️ within 30, ❌ older); a top priority that is specific, not a theme.
 - Product `CLAUDE.md` → one-liner + customer profile + stage with at least one number (⚠️ if no metrics); **NSM named and bolded** (❌ if absent); ≥2 primary users each with role + pain + goal; buyers vs users answered; terminology table non-empty.
 - `vision.md` → an **unedited skeleton is ⚠️, not ❌**: `/blvck-pm:setup` scaffolds it deliberately and defers the content to the `vision` workflow, so report "scaffolded, not yet written — run the vision workflow". Once written, check: horizon and review date present, and the review date not past (⚠️ if past — a vision nobody revisited is context, not direction); the change described in user terms rather than product terms; ≥3 rows in "What Must Become True", each with a metric (⚠️ if rows exist without metrics — an outcome with no number cannot become a roadmap item); ≥1 exclusion (❌ if empty: a vision without exclusions directs nothing); the bet named. Partially written is ⚠️ naming the unfilled sections.
+- `pm-os.config.json` → present and machine-readable (⚠️ if only `pm-os.config.md` exists — the markdown copy is a bridge for pre-1.4.0 vaults, and only the JSON is parsed by the script; offer to generate it)
+- `roadmap.json` → present at the configured path; every item bound to a metric; every `measured` item carrying date, value, and verdict; nothing sitting in `building` for more than a quarter (⚠️ and name them — a stalled outcome is the most common thing a roadmap hides)
 - `pm-os.config.md` → `## Language` present (⚠️ if absent — `en` is assumed); if language is not `en`, `anti-style.md` must carry a banned-word list for that language (⚠️ otherwise, and say plainly that no lexical check is running). `## Completeness` present, and every override uses only `drop` / `add` / `skip` against a known document type (❌ on an unknown verb or type — a typo'd override reads as configured and silently does nothing). `## Paths` present and every declared path exists (❌ a declared path that is not there — a declaration is an assertion, and a broken one is worse than an absent one); integration table complete; every enabled tool's MCP actually available in this session (⚠️ if enabled-but-unavailable); agent roster matches the files in the configured agents dir.
 - Agents (`.claude/agents/*`) → each agent has the grounding ritual (reads the identity file + product CLAUDE.md), one output folder, an escalation line; ❌ any file with unresolved `{{PLACEHOLDERS}}`. If the vault moved its identity dir, the agents' grounding lines must name the moved path — an agent grounding in a folder that no longer exists is ❌, not ⚠️.
 

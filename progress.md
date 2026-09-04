@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011 done (blvck-pm 1.3.0, bumped + CHANGELOGed, **not yet tagged**). feat-012 is next.
+**Active Feature:** none — feat-011 and feat-012 done (blvck-pm 1.4.0, bumped + CHANGELOGed, **not yet tagged**). feat-013 is next, and it is blocked.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,12 +26,13 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-012 blvck-pm 1.4.0 — roadmap.json, create-vault.mjs + validate-vault.mjs, fixture vault, init.sh 5 → 7 steps
 - [x] feat-011 blvck-pm 1.3.0 — vision.md, completeness gates, configured output language; setup now reports its repairs
 - [x] feat-010 Flexible pm vault scoring — `## Paths` honored, role fallback, migrate adapt fork; fixed the setup/validate identity drift
 
 ### What's In Progress
 
-- [ ] Nothing in flight. **feat-012 is next** — `roadmap.json` plus the first blvck-pm scripts. Build `create-vault.mjs` before `validate-vault.mjs`.
+- [ ] Nothing in flight. **feat-013 is next and is blocked**: agent-smith cannot ship while `.agents/` and `skills-lock.json` are untracked. Resolve that first — commit them, or vendor agent-smith into `plugins/blvck-pm/skills/agent-smith/`.
 
 ### What's Next — blvck-pm direction change (2026-09-04)
 
@@ -47,7 +48,7 @@ Release sequence (feature_list.json carries the detail):
 | Version | Feature | Content |
 |---|---|---|
 | 1.3 | feat-011 | ✅ done — `vision.md` + completeness checklists + output language setting |
-| 1.4 | feat-012 | `roadmap.json` + `create-vault.mjs` + `validate-vault.mjs` + fixture + CI |
+| 1.4 | feat-012 | ✅ done — `roadmap.json` + both scripts + fixture + init.sh steps 6–7 |
 | 1.5 | feat-013 | Interviewed agent roster + agent-smith bundled + lead-engineer archetype |
 | 2.0.0 | feat-014 | config → JSON, escalation rule rewritten |
 
@@ -111,6 +112,7 @@ Still open from before this session, unchanged:
 - Initial build: entire repository (see `git log`)
 - feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 - feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
+- feat-012 session (2026-09-04): NEW `skills/pm-os/scripts/{create-vault,validate-vault}.mjs` + `lib/vault-utils.mjs`, `templates/roadmap.json` + `roadmap.schema.json`, `tests/fixtures/pm-vault/` (14 files); MODIFIED `init.sh` (5 → 7 steps), `CLAUDE.md` (verification list + two new rules), `SKILL.md`, `references/workflows.md`, all four commands, `plugin.json` → 1.4.0, `CHANGELOG.md`, README + marketplace counts
 - feat-011 session (2026-09-04): NEW `templates/vision.md`, `references/completeness.md`; MODIFIED `references/voice.md` (structural/lexical split), `references/workflows.md` (vision workflow + gate + language), `SKILL.md`, `templates/pm-config.md` (`## Language`, `## Completeness`, vision path), `templates/prd.md` (vision link), all four `commands/*.md`, `plugin.json` → 1.3.0, `CHANGELOG.md`, README + marketplace counts 19 → 20 workflows
 - feat-011…014 planning session (2026-09-04): `feature_list.json` (4 new entries, no code yet), `progress.md` (direction, decisions, risks). No plugin files touched — this session decided, it did not build
 - feat-009/010 session (2026-07-15): `lib/harness-utils.mjs` (map layer, three adapters, check ids, vocabulary), `validate-harness.mjs` (rewritten: `--map`, exit 2, try/catch), `init.sh` (3 → 5 steps), `tests/fixtures/foreign-harness/` (new), `references/role-classification.md` (new), both plugins' `migrate`/`validate`/`score`/`SKILL.md`, `pm-config.md`, `setup.md`, CHANGELOGs, both `plugin.json` → 1.2.0
@@ -136,8 +138,25 @@ text with ❌, so every fresh vault would have failed its own validate immediate
 feat-010 `about-me.md` defect. The general fix went in too — `setup` must now *report* every repair
 it makes instead of silently fixing and moving on.
 
-**blvck-pm 1.3.0 is not tagged.** Bumped and CHANGELOGed only. Per the Release Checklist that means
-installed users are still on 1.2.0.
+**blvck-pm 1.3.0 and 1.4.0 are not tagged.** Bumped and CHANGELOGed only. Per the Release Checklist
+that means installed users are still on 1.2.0.
+
+**Three bugs in feat-012 were found by the tests, not by reading the code**, and all three had the
+same shape — something incomplete scoring high enough to pass:
+
+1. A fresh scaffold scored 72/100 and exited 0. An untouched skeleton reading as a finished vault
+   is exactly how the `about-me.md` defect hid for two releases.
+2. A roadmap item marked `measured` with its result deleted scored 96/100 and exited 0 — the rest
+   of the vault carried it over the bar.
+3. The `current-focus` freshness regex never matched anything: it looked for `Updated:` while the
+   template bolds it `**Updated:**`. A dead check since 1.0.0.
+
+The lesson is the one feat-009 already recorded and this session re-proved: **a score bar alone is
+not a gate.** Anything that is a broken promise rather than a weak result has to block on its own.
+
+**The completeness gate from feat-011 is still unenforced by code.** `validate-vault.mjs` checks the
+vault's structure, not each document against its checklist. Deliberate for 1.4.0 — per-type config
+resolution is a bigger change — but it means the gate is still model behaviour.
 
 ## Notes for Next Session (earlier)
 

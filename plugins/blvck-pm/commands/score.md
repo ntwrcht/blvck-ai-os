@@ -3,6 +3,15 @@ description: Vault hygiene + PM-readiness grading with the top improvements
 ---
 Score the PM OS vault in the current directory. Two dimensions, then a verdict.
 
+**Start with the script** — it settles the structural half without opinion:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/skills/pm-os/scripts/validate-vault.mjs --target . --json
+```
+
+Its 25 checks cover hygiene and structure. Your job is the readiness half: whether what exists
+is any good. Report the script's number, then yours, and never present one as the other.
+
 **Resolve paths first.** Read `pm-os.config.md`'s `## Paths` and score the vault the user actually has: the outputs dir, identity dir, and agents dir below are the *configured* ones, defaults in parentheses. If a role is undeclared, fall back to the default; if that is absent too, classify by role against the real listing before concluding anything is missing. A vault with its own folder names is not a messy vault, and scoring it as one is the fastest way to be ignored. Say which paths you resolved and how.
 
 **1. Vault hygiene** (each finding listed with file paths):
@@ -17,6 +26,7 @@ Score the PM OS vault in the current directory. Two dimensions, then a verdict.
 | Module | Evidence looked for |
 |---|---|
 | Vision | `vision.md` exists, review date not past, ≥3 outcomes with metrics, ≥1 exclusion |
+| Roadmap | Outcomes bound to numbers, not features; something has reached `measured`; nothing stuck in `building` beyond a quarter |
 | Docs & specs | Any current PRD/spec; latest one has measurable success metrics; each names the vision outcome it serves |
 | Prioritization | A RICE table ≤ 1 quarter old; decisions logged |
 | Metrics | Metrics tree exists; NSM in product CLAUDE.md matches it |
@@ -26,4 +36,4 @@ Score the PM OS vault in the current directory. Two dimensions, then a verdict.
 | Analytics | Tracking plan for the newest PRD; funnel analysis with saved SQL/export |
 | Agent team | Roster present, contract followed, no unresolved placeholders |
 
-**Verdict**: overall /100 (hygiene 40, readiness 60 across 9 modules), the weakest module, and the top 3 improvements as concrete actions ("run research-synthesis on the 5 interview files in research/", not "do more discovery"). Close with what's working — one line.
+**Verdict**: overall /100 (hygiene 40, readiness 60 across 10 modules), the weakest module, and the top 3 improvements as concrete actions ("run research-synthesis on the 5 interview files in research/", not "do more discovery"). Close with what's working — one line.

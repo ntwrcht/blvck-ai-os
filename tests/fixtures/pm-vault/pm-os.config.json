@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "product": "northwind",
+  "productName": "Northwind",
+  "language": "en",
+  "paths": {
+    "identity": "ABOUT-ME",
+    "identityFile": "ABOUT-ME/CLAUDE.md",
+    "antiStyle": "ABOUT-ME/anti-style.md",
+    "principles": "ABOUT-ME/pm-principles.md",
+    "currentFocus": "ABOUT-ME/current-focus.md",
+    "productContext": "PROJECTS/northwind/CLAUDE.md",
+    "vision": "PROJECTS/northwind/vision.md",
+    "roadmap": "PROJECTS/northwind/roadmap.json",
+    "templates": "TEMPLATES",
+    "outputs": "CLAUDE-OUTPUTS",
+    "agents": ".claude/agents"
+  },
+  "completeness": {
+    "prd": { "add": ["pricing impact stated"] },
+    "prfaq": "skip"
+  },
+  "integrations": { "jira": false, "confluence": false, "drive": false, "bigquery": true },
+  "agents": ["blind-reviewer"]
+}
