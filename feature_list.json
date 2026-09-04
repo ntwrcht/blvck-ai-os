@@ -79,6 +79,38 @@
       "dependencies": ["feat-002", "feat-009"],
       "status": "done",
       "evidence": "2026-07-15: REAL BUG FOUND (not in the original scope): setup.md:20 wrote the identity file as ABOUT-ME/about-me.md while ELEVEN other places read ABOUT-ME/CLAUDE.md — verified by grep: validate.md x2, setup.md:7, SKILL.md:22, references/agent-design.md:7, and all 7 agent archetypes. Every vault /blvck-pm:setup ever scaffolded failed its own validate on structure check #1. Invisible because setup.md:27 tells the model to 'run the validate checks on what you just built; fix anything failing' — it was silently repaired at runtime every single time, so the defect never surfaced as a symptom. Fixed setup.md:20 to state the rename explicitly (source template name != destination name, the precedent product-claude.md -> PROJECTS/<slug>/CLAUDE.md already sets); validate.md now reports a legacy about-me.md as a RENAME with a one-line git mv, never as missing identity, so pre-1.2.0 vaults are not told their identity file is gone. PATHS: pm-config.md's ## Paths described itself as 'machine-read by every pm-os workflow' but validate/score ignored it entirely and checked literal names, AND the template omitted ABOUT-ME/ while hardcoding 2 of its 3 entries — which is exactly why the drift had nowhere to be caught. Extended to the full role set; validate.md/score.md/SKILL.md/workflows.md now resolve through it with the ladder configured -> default -> classify by role -> unresolved+offer migrate. migrate.md gained the relocate/adapt fork and a `declare` plan action. VERIFIED: ./init.sh passes; all 3 manifests pass --strict; grep confirms no stale about-me.md destination remains (only the template source name and the deliberate legacy-detection lines). LIMIT STATED, NOT GLOSSED: blvck-pm has no validator script, so unlike feat-009 this adaptation is best-effort model behavior — no exit code, no CI coverage, 'discover once then score deterministically' does not transfer. A reproducible pm scorer is a separate project."
+    },
+    {
+      "id": "feat-011",
+      "name": "Vision -> Plan chain + completeness checklist",
+      "description": "blvck-pm 1.3. Adds the missing top of the product chain and the gate that makes 'a complete plan' mean something. NEW: vision.md template + workflow (its own file, not a section of product CLAUDE.md, because vision changes yearly while product context changes constantly). REUSED: the plan layer stays prd/lightweight-spec/one-pager -- no plan.md is created, adding one would make users guess which document to write. NEW: per-document completeness checklists (PRD requires success metric, target user, first-release scope) shipped as adjustable defaults, not fixed rules. The gate WARNS and lets through, and records the override with a date -- plan completeness is arguable in a way that 'do the tests pass' is not, and a tool that blocks here gets abandoned. Also: output language becomes a config setting -- structural rules (conclusion first, numbers over adjectives) are language-independent, the banned-word list is not. English ships first.",
+      "dependencies": ["feat-002", "feat-010"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-012",
+      "name": "roadmap.json + the first blvck-pm scripts",
+      "description": "blvck-pm 1.4. Closes the gap that blvck-pm has zero executable surface while blvck-harness has 1,293 lines. NEW: roadmap.json -- one per product, unit is a BUSINESS OUTCOME bound to a metric, lifecycle idea -> validated -> planned -> building -> shipped -> MEASURED. The terminal state is 'measured', not 'shipped': that is what makes it a PM tracker and not an engineering one. Optional link field to blvck-harness feature IDs so the two plugins compose without duplicating. Deliberately NOT named feature_list.json -- same name, different unit, would imply the plugins are interchangeable. NEW: create-vault.mjs (non-interactive, --target) FIRST, because nothing can be tested until a vault can be produced without a human -- this is why the about-me.md bug survived two releases. THEN validate-vault.mjs (structure, placeholders, staleness, naming, declared-path existence, roster drift, checklist gaps) with --json and three-valued exit codes. NEW: pm-os.config.json alongside the existing .md (additive -- the .md is only removed in 2.0.0). NEW: fixture vault under tests/ + init.sh steps 6-7 including the adversarial set: a declared path that does not exist must fail, right-sounding prose must not pass the checklist, an empty vault must report unscored. Every workflow output gains a link to the roadmap item it serves -- that link is what turns 19 disconnected generators into one system.",
+      "dependencies": ["feat-011"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-013",
+      "name": "Interviewed agent team + agent-smith bundled",
+      "description": "blvck-pm 1.5. The agent team stops being a fixed roster and becomes the answer to 'who would you normally have to ask?'. CHANGED: the 7 archetypes become structures in a catalog, not a default team; setup asks who the user consults when planning and maps answers onto archetypes, generating anything unmatched. NEW: lead-engineer archetype -- the roster today has no engineering lens at all (customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst) and it is the first perspective named as the reason this feature exists. NEW: agent-smith copied into plugins/blvck-pm/skills/agent-smith/ -- a plugin may ship several skills; it forces the explicit tool and model budget the 7 archetypes lack entirely today, which is also what makes blind-reviewer's independence structural instead of prose. PREREQUISITE: .agents/ and skills-lock.json are untracked right now, so agent-smith exists only on one machine and cannot ship until that is resolved. Also requires allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**) or it hits the same permission wall as feat-008.",
+      "dependencies": ["feat-012"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-014",
+      "name": "blvck-pm 2.0.0 breaking changes",
+      "description": "Everything that cannot land in a MINOR, done together and once. (1) pm-os.config.md -> pm-os.config.json: markdown bullets with parentheticals cannot be parsed reliably, and the file is documented as the one fixed name, so changing it is breaking by definition. The .json shipped alongside in feat-012; here the .md is retired. (2) The escalation rule in references/agent-design.md is rewritten: rule 4 today says agents must escalate decisions and never make them, which is directly opposed to agents closing gaps -- and which has no meaning for a solo founder who has nobody to escalate to. New rule: agents decide, flag the decision as an assumption with what would change it, and skip the flag for minor calls, where 'minor' is defined by three testable conditions the user can tune (touches cost/timeline/scope, hard to reverse, confidence below threshold). The flagged list becomes the agenda for the real meeting -- which is the stakeholder-gap reduction this whole direction is aimed at. (3) Any check whose tightening would flip pass to fail on unchanged vaults.",
+      "dependencies": ["feat-013"],
+      "status": "not-started",
+      "evidence": ""
     }
   ]
 }
