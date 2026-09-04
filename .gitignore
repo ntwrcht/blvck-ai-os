@@ -1,3 +1,14 @@
 .DS_Store
 node_modules/
 *.log
+
+# Local development environment, not part of the plugins.
+# Skills installed here from ntwrcht/blvck-skills are a convenience for working ON this repo;
+# nothing in the repo reads them, and agent-smith — the only one that ships — is vendored into
+# plugins/blvck-pm/skills/agent-smith/ with its provenance recorded in that SKILL.md.
+# skills-lock.json is not committed on purpose: its recorded hash no longer matches the files
+# it locks, and a lockfile that disagrees with its own content is worse than none.
+.agents/
+.claude/skills/
+.claude/settings.local.json
+skills-lock.json
