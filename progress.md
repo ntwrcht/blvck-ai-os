@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011 through feat-014 all done. blvck-pm is at **2.0.0**, bumped and CHANGELOGed, **not yet tagged**. The direction set on 2026-09-04 is fully built.
+**Active Feature:** none — feat-011 through feat-015 all done. blvck-pm is at **2.1.0**. The direction set on 2026-09-04 is fully built and the four items left open after feat-014 are closed.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,6 +26,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-015 blvck-pm 2.1.0 — per-document completeness enforced, install verified, marketplace version removed
 - [x] feat-014 blvck-pm 2.0.0 — markdown config retired with a deterministic upgrade, escalation rule inverted, completeness overrides enforced
 - [x] feat-013 blvck-pm 1.5.0 — agent-smith vendored into the plugin, lead-engineer archetype, tool/model budgets on all 8, interviewed roster
 - [x] feat-012 blvck-pm 1.4.0 — roadmap.json, create-vault.mjs + validate-vault.mjs, fixture vault, init.sh 5 → 7 steps
@@ -34,9 +35,13 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 
 ### What's In Progress
 
-- [ ] Nothing in flight. Every feature in `feature_list.json` is done.
+- [ ] Nothing in flight. Every feature in `feature_list.json` is done, and blvck-pm 2.1.0 needs tagging.
 
-**The next action is a release, not a feature.** blvck-pm went 1.2.0 → 2.0.0 across four commits in one session and none of them is tagged, so installed users are still on 1.2.0 and have received none of it. Per the Release Checklist: `cd plugins/blvck-pm && claude plugin tag --push`, then verify with `claude plugin details blvck-pm`.
+**Still unverified, and it cannot be verified from here:** the bundled `agent-smith` has never been
+loaded at runtime from a **GitHub-source** install. This machine installs blvck-pm from a
+`directory` source pointing at the repo itself, which is inside the workspace — so the permission
+wall that `allowed-tools` exists to prevent cannot reproduce here by construction. Unchanged since
+feat-008; now true of two skills rather than one.
 
 ### What's Next — blvck-pm direction change (2026-09-04)
 
@@ -115,6 +120,7 @@ Still open from before this session, unchanged:
 - Initial build: entire repository (see `git log`)
 - feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 - feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
+- feat-015 session (2026-09-04): NEW `scripts/lib/checklists.mjs`; MODIFIED `lib/vault-utils.mjs` (27th check), `templates/vision.md` (guidance → HTML comments), `references/completeness.md`, `SKILL.md`, `commands/score.md`, `init.sh` (2 more cases), `.github/workflows/validate.yml` (guard extended), `CLAUDE.md` (version rule), `.claude-plugin/marketplace.json` (top-level version removed), `plugin.json` → 2.1.0, `CHANGELOG.md`
 - feat-014 session (2026-09-04): NEW `references/config.md` (replacing `templates/pm-config.md`, deleted); MODIFIED `lib/vault-utils.mjs` (markdown config retired, `config.completeness` check), `create-vault.mjs` (`--upgrade-config`, no markdown copy), `validate-vault.mjs` (completeness errors block), `references/agent-design.md` (rule 4 inverted), `references/completeness.md`, `SKILL.md`, all four commands, `init.sh` (2 more cases), `plugin.json` → 2.0.0, `CHANGELOG.md`, README
 - feat-013 session (2026-09-04): NEW `plugins/blvck-pm/skills/agent-smith/` (vendored, 4 files), `templates/agents/lead-engineer.md`; MODIFIED all 7 existing archetypes (tools + model), `references/agent-design.md`, `SKILL.md`, `references/workflows.md`, `commands/setup.md`, `lib/vault-utils.mjs` (26th check), the fixture's agent, `plugin.json` → 1.5.0, `CHANGELOG.md`, README
 - feat-012 session (2026-09-04): NEW `skills/pm-os/scripts/{create-vault,validate-vault}.mjs` + `lib/vault-utils.mjs`, `templates/roadmap.json` + `roadmap.schema.json`, `tests/fixtures/pm-vault/` (14 files); MODIFIED `init.sh` (5 → 7 steps), `CLAUDE.md` (verification list + two new rules), `SKILL.md`, `references/workflows.md`, all four commands, `plugin.json` → 1.4.0, `CHANGELOG.md`, README + marketplace counts
@@ -159,10 +165,15 @@ same shape — something incomplete scoring high enough to pass:
 The lesson is the one feat-009 already recorded and this session re-proved: **a score bar alone is
 not a gate.** Anything that is a broken promise rather than a weak result has to block on its own.
 
-**The completeness gate is half enforced.** As of 2.0.0 the *config* is checked — a typo'd override
-fails and names the key — but each *document* is still not checked against its checklist. The gate
-itself remains model behaviour. That is the largest remaining gap between what blvck-pm promises
-and what it can prove.
+**The completeness gate is enforced end to end as of 2.1.0** — each document is checked against its
+checklist, and items no machine can judge are reported as *unchecked* rather than counted as passing.
+It still warns rather than blocks, by design.
+
+**Template guidance must be an HTML comment.** Plain explanatory prose in a template reads as a
+filled-in section: `vision.md`'s own advice was passing three of its own checks on an empty file,
+and bracketed placeholder text fooled three more (`[1-2 sentences: ... quote or number]` contains
+digits; `[Cover: empty, loading, error …]` contains the keywords). Both are fixed, and the rule is
+in `references/completeness.md`.
 
 **One bug appeared three times in this session, and all three were found by tests rather than by
 reading code.** A fresh scaffold at 72/100 exit 0; a `measured` outcome with its result deleted at

@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "blvck-pm",
   "displayName": "blvck · pm",
-  "version": "2.0.0",
-  "description": "Product-manager operating system — PM vault (ABOUT-ME, PROJECTS, TEMPLATES, CLAUDE-OUTPUTS), 20 routed workflows (vision, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review), an interviewed per-product agent team built from 8 archetypes with the bundled agent-smith skill, a roadmap of business outcomes, scaffold and validate scripts, and setup/migrate/validate/score commands. Vault patterns follow ai-native-pm-os.",
+  "version": "2.1.0",
+  "description": "Product-manager operating system — PM vault (ABOUT-ME, PROJECTS, TEMPLATES, CLAUDE-OUTPUTS), 21 routed workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review), an interviewed per-product agent team built from 8 archetypes with the bundled agent-smith skill, a roadmap of business outcomes, scaffold and validate scripts, and setup/migrate/validate/score commands. Vault patterns follow ai-native-pm-os.",
   "author": {
     "name": "Worachote Suwanyothin"
   },

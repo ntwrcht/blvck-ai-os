@@ -256,6 +256,56 @@ fs.writeFileSync(file, JSON.stringify(config, null, 2));
 expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-badoverride"
 echo "pm: an unparseable completeness override fails (exit 1)"
 
+# The completeness gate WARNS and never blocks, so this asserts a score change, not an exit code.
+# An unmet item costs a point only when nobody acknowledged it; a "## Completeness" section in the
+# document turns the same gap into a recorded decision and the score goes back to full.
+cp -R tests/fixtures/pm-vault "$TMP/pm-gap"
+stamp_focus "$TMP/pm-gap"
+PRD="$TMP/pm-gap/CLAUDE-OUTPUTS/prds/prd-dunning-retry-v1-2026-08-14.md"
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+let body = fs.readFileSync(file, "utf8");
+body = body.split("## Completeness")[0].trimEnd() + "\n";
+body = body.replace(/\| Recovered revenue per active customer \|[^\n]*\n/, "|  |  |  |  |  |\n");
+fs.writeFileSync(file, body);
+' "$PRD"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-gap" --json > "$TMP/pm-gap.json"
+node -e '
+const result = require(process.argv[1]);
+const check = Object.values(result.modules).flatMap((m) => m.checks).find((c) => c.id === "plan.completeness");
+if (check.pass) {
+  console.error("FAIL: a PRD with no success metric passed the completeness gate");
+  process.exit(1);
+}
+if (result.overall === 100) {
+  console.error("FAIL: an unacknowledged gap did not cost anything");
+  process.exit(1);
+}
+' "$TMP/pm-gap.json"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-gap"
+echo "pm: an unmet checklist item costs score but never blocks (exit 0)"
+
+# Same gap, acknowledged in the document. A recorded trade-off is a decision, not a defect.
+cp -R tests/fixtures/pm-vault "$TMP/pm-ack"
+stamp_focus "$TMP/pm-ack"
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const body = fs.readFileSync(file, "utf8")
+  .replace(/\| Recovered revenue per active customer \|[^\n]*\n/, "|  |  |  |  |  |\n");
+fs.writeFileSync(file, body);
+' "$TMP/pm-ack/CLAUDE-OUTPUTS/prds/prd-dunning-retry-v1-2026-08-14.md"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-ack" --json > "$TMP/pm-ack.json"
+node -e '
+const result = require(process.argv[1]);
+if (result.overall !== 100) {
+  console.error(`FAIL: an acknowledged gap should cost nothing, scored ${result.overall}`);
+  process.exit(1);
+}
+' "$TMP/pm-ack.json"
+echo "pm: the same gap, acknowledged in the document, costs nothing"
+
 # "We found nothing" must stay distinguishable from "you have nothing".
 mkdir -p "$TMP/pm-empty"
 expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-empty"

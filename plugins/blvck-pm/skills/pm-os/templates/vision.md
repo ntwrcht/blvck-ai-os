@@ -2,9 +2,9 @@
 
 **Horizon:** [12 months / 3 years] | **Written:** [YYYY-MM-DD] | **Review on:** [YYYY-MM-DD]
 
-Vision changes once or twice a year. Everything else in this vault changes weekly, which is
-why this lives in its own file — a vision kept inside product context gets edited away by
-accident.
+<!-- Vision changes once or twice a year. Everything else in this vault changes weekly, which
+is why this lives in its own file - a vision kept inside product context gets edited away by
+accident. -->
 
 ## The Change We Want to Cause
 
@@ -19,8 +19,8 @@ month", not "SMB creatives". A vision that serves everyone directs nothing.]
 
 ## What Must Become True
 
-The 3–5 outcomes that have to happen for the vision to be real. Each one is a business
-outcome bound to a number, not a feature — these become the items on the roadmap.
+<!-- The 3-5 outcomes that have to happen for the vision to be real. Each one is a business
+outcome bound to a number, not a feature - these become the items on the roadmap. -->
 
 | # | Outcome | How we would know | Current |
 |---|---------|-------------------|---------|
@@ -33,7 +33,7 @@ outcome bound to a number, not a feature — these become the items on the roadm
 - [A thing a reasonable person would expect you to build, and why you are not building it]
 - [Another]
 
-A vision without exclusions is a wish list. This section is the part that does work.
+<!-- A vision without exclusions is a wish list. This section is the part that does work. -->
 
 ## The Bet
 

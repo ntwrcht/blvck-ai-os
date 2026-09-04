@@ -69,7 +69,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/validate-vault.mjs --target /path [--json] [--m
 `create-vault.mjs` scaffolds without an interview — it is how CI builds a vault, not how a human
 should. `/blvck-pm:setup` stays the human path.
 
-`validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 26
+`validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 27
 mechanical checks. Exit `0` passed, `1` scored under the bar or has a blocking finding, `2` the
 config is invalid or unsafe. Three things block regardless of score, because each is a broken
 promise rather than a weak vault: a declared path that does not exist, an unresolved

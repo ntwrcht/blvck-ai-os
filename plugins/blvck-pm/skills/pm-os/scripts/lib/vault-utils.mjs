@@ -7,6 +7,7 @@
 import { readdir, readFile, realpath, stat, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkDocument, classifyDocument, resolveChecklist } from './checklists.mjs';
 
 export const SKILL_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const TEMPLATE_DIR = path.join(SKILL_ROOT, 'templates');
@@ -367,6 +368,24 @@ export async function scoreVault(root, { config, roadmap, files }) {
     }
   }
 
+  // Each document against its own checklist — the half of the completeness gate that was still
+  // model behaviour through 2.0.0. The gate WARNS by design (a founder may knowingly ship an
+  // experiment with no metric), so an unmet item never blocks; it only counts when nobody
+  // acknowledged it. A document carrying a "## Completeness" override has been acknowledged,
+  // and an acknowledged trade-off is a decision rather than a gap.
+  const documentFindings = [];
+  const documentPaths = [p.vision, ...outputFiles];
+  for (const relative of documentPaths) {
+    const docType = classifyDocument(relative);
+    if (!docType) continue;
+    const body = await text(relative);
+    if (!body) continue;
+    const found = checkDocument(body, docType, config.completeness);
+    if (found.unmet.length > 0 && !found.acknowledged) {
+      documentFindings.push({ path: relative, docType, unmet: found.unmet });
+    }
+  }
+
   const focusDate = /updated[:*\s]*(\d{4}-\d{2}-\d{2})/i.exec(focusText)?.[1];
   const focusAge = focusDate ? daysSince(focusDate) : null;
 
@@ -390,7 +409,9 @@ export async function scoreVault(root, { config, roadmap, files }) {
       check('plan.outputSubdirs', (await Promise.all(REQUIRED_OUTPUT_DIRS.map((d) => isDir(path.join(root, p.outputs, d))))).every(Boolean), `Required output subdirs present (${REQUIRED_OUTPUT_DIRS.join(', ')})`),
       check('plan.templatesDir', await isDir(path.join(root, p.templates)), `Templates dir present (${p.templates})`),
       check('plan.naming', outputFiles.every((f) => OUTPUT_NAME.test(path.basename(f))), 'Every output follows [type]-[description]-[YYYY-MM-DD].md', outputFiles.filter((f) => !OUTPUT_NAME.test(path.basename(f)))),
-      check('plan.noStrays', rootMd.length === 0, 'No generated markdown stranded at the vault root', rootMd)
+      check('plan.noStrays', rootMd.length === 0, 'No generated markdown stranded at the vault root', rootMd),
+      check('plan.completeness', documentFindings.length === 0, 'Every document meets its checklist or records why it shipped incomplete',
+        documentFindings.map((f) => `${f.path}: ${f.unmet.join('; ')}`))
     ],
     roadmap: [
       check('roadmap.exists', roadmap.present, `Roadmap present (${p.roadmap})`),
@@ -430,6 +451,7 @@ export async function scoreVault(root, { config, roadmap, files }) {
   // Surfaced separately from its check because it blocks: an override the tool cannot parse
   // looks configured and does nothing, which no score bar can be trusted to catch.
   result.completenessErrors = completenessErrors;
+  result.documentFindings = documentFindings;
   result.unscored = config.source === null && !identityText && !productText;
   return result;
 }

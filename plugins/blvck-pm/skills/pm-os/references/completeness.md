@@ -89,6 +89,24 @@ the three possible outcomes.
 Document types the gate knows: `vision`, `prd`, `lightweight-spec`, `one-pager`, `prfaq`, `rice`,
 `metrics-tree`, `tracking-plan`, `gtm-brief`.
 
+## What is checked by code, and what is not
+
+As of 2.1.0 `validate-vault.mjs` checks each document against its checklist, not just the config.
+Every item carries a machine test **or** is marked unchecked — a checklist that silently skips
+half its items is worse than one that admits what it cannot see. `plan.completeness` reports the
+document and the unmet items by name.
+
+It stays a warning. An unmet item costs a point only when **nobody acknowledged it**; a document
+carrying a `## Completeness` section has recorded the trade-off, and a recorded trade-off is a
+decision rather than a gap. Nothing here ever changes the exit code.
+
+Placeholder prose does not count as content. Template text is `[bracketed]`, and bracketed prose
+is rich enough to fool a naive check — `[1-2 sentences: ... the evidence - quote or number]`
+contains digits, and `[Cover: empty, loading, error ...]` contains the very words a keyword test
+looks for. Bracketed blocks (including multi-line ones), HTML comments, and unresolved `{{TOKENS}}`
+are stripped before any test runs. **Guidance you add to a template belongs in an HTML comment**,
+not in plain prose, or it will read as a filled-in section.
+
 ## What the gate does not do
 
 - It does not judge quality. "Has a success metric" is checkable; "has a *good* success metric"

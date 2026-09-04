@@ -52,13 +52,20 @@ jobs:
         run: claude plugin validate ./plugins/blvck-pm --strict
 
       # Guards the release trap: plugin.json pins `version`, so it is the cache
-      # key users compare against. A marketplace entry that also sets `version`
-      # silently drifts from it.
-      - name: Marketplace entries must not pin version
+      # key users compare against. Any other copy drifts from it silently — the
+      # top-level one sat at 1.1.0 while the plugins reached 2.0.0 and nothing
+      # noticed, because the old guard only checked the per-plugin entries.
+      - name: Marketplace manifest must not pin any version
         run: |
-          if node -e "process.exit(require('./.claude-plugin/marketplace.json').plugins.some(p => 'version' in p) ? 1 : 0)"; then
+          if node -e "
+            const m = require('./.claude-plugin/marketplace.json');
+            const offenders = [];
+            if ('version' in m) offenders.push('top-level');
+            for (const p of m.plugins) if ('version' in p) offenders.push(p.name);
+            if (offenders.length) { console.error(offenders.join(', ')); process.exit(1); }
+          "; then
             echo "OK: version lives only in plugin.json"
           else
-            echo "::error::A marketplace entry sets 'version'. Keep it only in plugin.json (see CLAUDE.md Release Checklist)."
+            echo "::error::The marketplace manifest sets 'version' (see above). Keep it only in plugin.json (CLAUDE.md Release Checklist)."
             exit 1
           fi

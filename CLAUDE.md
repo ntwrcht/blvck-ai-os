@@ -61,8 +61,11 @@ For each plugin with user-visible changes:
 1. Bump `version` in `plugins/<plugin>/.claude-plugin/plugin.json` (semver: MAJOR breaking,
    MINOR features, PATCH fixes)
 2. Add the matching entry to `plugins/<plugin>/CHANGELOG.md`
-3. Never add `version` to the marketplace entry — `plugin.json` is the single source of truth
-   (both are legal and `plugin.json` wins, but two copies drift silently)
+3. Never add `version` **anywhere** in `.claude-plugin/marketplace.json` — not to a plugin entry,
+   not at the top level. `plugin.json` is the single source of truth (both are legal and
+   `plugin.json` wins, but two copies drift silently). The top-level field proved the point: it
+   sat at `1.1.0` while the plugins reached `2.0.0` and nothing noticed, because the guard only
+   checked the entries. It is now removed, and CI checks both
 4. Run `./init.sh` and `claude plugin validate . --strict`
 5. Commit, then `cd plugins/<plugin> && claude plugin tag --push`
 6. Verify a real install picks up the new version: `claude plugin details <plugin>`

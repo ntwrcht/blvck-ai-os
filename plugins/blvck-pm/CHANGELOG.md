@@ -8,6 +8,41 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.1.0] - 2026-09-04
+
+Closes the last gap between what blvck-pm promises and what it can prove.
+
+### Added
+
+- **The completeness gate now checks each document, not just its config.** 1.3.0 shipped the
+  checklists and 2.0.0 enforced the *overrides*, but nothing ever opened a PRD to see whether it
+  actually had a success metric — the gate itself was still model behaviour, and it was the core
+  promise of the product. `plan.completeness` is a 27th check: it classifies each document by
+  filename, resolves its checklist (defaults plus the vault's `drop`/`add`/`skip`), and reports
+  the document and the unmet items by name.
+- Every checklist item carries a machine test **or is marked unchecked**. "The change is described
+  in the user's life, not the product" cannot be tested by a machine, and saying so beats counting
+  it as passed — a checklist that silently skips half its items is worse than one that admits what
+  it cannot see.
+
+### Changed
+
+- Guidance prose in `vision.md` moved into HTML comments. Placeholder text is `[bracketed]` and
+  gets stripped before any test runs, but plain explanatory prose in a template reads as a
+  filled-in section — the vision template's own advice was passing three of its own checks on an
+  empty file.
+
+### Notes
+
+- **It warns; it never blocks.** An unmet item costs a point only when nobody acknowledged it. A
+  document carrying a `## Completeness` section has recorded the trade-off, and a recorded
+  trade-off is a decision rather than a gap. Verified both ways in `init.sh`: the same missing
+  success metric scores 96 unacknowledged and 100 acknowledged, exit 0 either way.
+- **This is a MINOR, and that was checked rather than assumed.** Adding a check the vault fails
+  raises the denominator without the numerator, which could in principle push a passing vault
+  under the bar — the repo treats that as MAJOR. It cannot happen here: the only boundary case is
+  19/26 = 73, which becomes 19/27 = 70 and still passes.
+
 ## [2.0.0] - 2026-09-04
 
 Everything that could not land in a MINOR, done together and once.

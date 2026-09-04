@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "blvck-ai-os",
   "description": "Personal PM + engineering operating system: an engineering harness for reliable AI coding sessions and a product-manager OS with vault, workflows, and agent teams.",
-  "version": "1.1.0",
   "owner": {
     "name": "Worachote Suwanyothin",
     "email": "s.worachote01@gmail.com"
