@@ -1,8 +1,8 @@
 # PM OS Workflow Catalog
 
-Routing table for the pm-os skill. Every workflow: (1) runs the session ritual first if not already done, (2) reads `pm-os.config.md` for paths and integrations, (3) writes only to the configured outputs dir (`CLAUDE-OUTPUTS/<type>/`) with date-stamped names, (4) uses the vault's configured templates dir (`TEMPLATES/`) copy of a template if present, else the bundled one.
+Routing table for the pm-os skill. Every workflow: (1) runs the session ritual first if not already done, (2) reads `pm-os.config.json` for paths and integrations, (3) writes only to the configured outputs dir (`CLAUDE-OUTPUTS/<type>/`) with date-stamped names, (4) uses the vault's configured templates dir (`TEMPLATES/`) copy of a template if present, else the bundled one.
 
-Paths named below are the defaults. `## Paths` in `pm-os.config.md` is what actually resolves them — a vault may keep any of these anywhere, and step (2) is where you find out where.
+Paths named below are the defaults. `paths` in `pm-os.config.json` is what actually resolves them — a vault may keep any of these anywhere, and step (2) is where you find out where.
 
 Every workflow that produces a document also (5) records its path in the `documents` array of the
 roadmap outcome it serves — if no outcome fits, say so rather than inventing one — and (6) runs the completeness gate when the document
@@ -10,7 +10,7 @@ is finished or when the user asks whether it is ready — never mid-draft. The g
 unmet, offers to fill it, and if the user proceeds anyway records the override inside the
 document. It warns; it never blocks. Defaults and how a vault adjusts them: `references/completeness.md`.
 
-Language comes from `pm-os.config.md`'s `## Language` (default `en`), never from the language
+Language comes from `pm-os.config.json`'s `language` (default `en`), never from the language
 the user happened to type in. Structural writing rules hold in every language; the banned-word
 list is language-specific — see `references/voice.md`.
 

@@ -132,7 +132,10 @@ export async function listFiles(root, { maxFiles = 4000 } = {}) {
 // exists because a markdown bullet list cannot be parsed reliably; the markdown reader is a
 // bridge for vaults built before it, not a second supported format. It reads what it can and
 // stays silent about what it cannot rather than guessing.
-function parsePathsFromMarkdown(text) {
+// Kept for the one-time conversion in create-vault.mjs --upgrade-config, not for scoring.
+// Best-effort by nature: it reads what it can and stays silent about what it cannot, which is
+// exactly why it is unfit to be a config source and fine as a migration aid.
+export function parsePathsFromMarkdown(text) {
   const paths = {};
   const section = text.split(/^##\s+/m).find((block) => block.startsWith('Paths'));
   if (!section) return paths;
@@ -157,7 +160,7 @@ function parsePathsFromMarkdown(text) {
   return paths;
 }
 
-function parseLanguageFromMarkdown(text) {
+export function parseLanguageFromMarkdown(text) {
   const section = text.split(/^##\s+/m).find((block) => block.startsWith('Language'));
   if (!section) return null;
   const match = /^-\s*Language:\s*(\S+)/m.exec(section);
@@ -215,16 +218,15 @@ export async function loadConfig(root) {
     agents = Array.isArray(raw.agents) ? raw.agents.filter((a) => typeof a === 'string') : [];
     completeness = (raw.completeness && typeof raw.completeness === 'object') ? raw.completeness : {};
     source = CONFIG_JSON;
-  } else {
-    const mdText = await readText(mdPath);
-    if (mdText !== null) {
-      declared = parsePathsFromMarkdown(mdText);
-      for (const [role, value] of Object.entries(declared)) {
-        await assertInsideRoot(root, value, `${CONFIG_MD}: ${role}`);
-      }
-      language = parseLanguageFromMarkdown(mdText);
-      source = CONFIG_MD;
-    }
+  } else if (await exists(mdPath)) {
+    // 2.0.0: the markdown config is no longer read. It was never reliably parseable — bullets
+    // with parentheticals — and keeping a second source of truth meant the two drifted silently.
+    // Failing loudly with the fix beats reading half of it and scoring on a guess.
+    throw new VaultConfigError(
+      `${CONFIG_MD} is no longer read (blvck-pm 2.0.0). Convert it once:\n` +
+      `  node <plugin>/skills/pm-os/scripts/create-vault.mjs --upgrade-config --target ${root}\n` +
+      `That writes ${CONFIG_JSON} from it and leaves the markdown alone for you to delete.`
+    );
   }
 
   // Defaults carry a {{PRODUCT_SLUG}} token. With no configured product, find the one product
@@ -341,6 +343,30 @@ export async function scoreVault(root, { config, roadmap, files }) {
     if (/\{\{[A-Z_]+\}\}/.test(body)) placeholders.push(file);
   }
 
+  // feat-011 said a typo'd completeness override "reads as configured and silently does nothing".
+  // Saying so in a prompt did not stop it; this does.
+  const DOC_TYPES = new Set(['vision', 'prd', 'lightweight-spec', 'one-pager', 'prfaq', 'rice',
+    'metrics-tree', 'tracking-plan', 'gtm-brief']);
+  const completenessErrors = [];
+  for (const [docType, rule] of Object.entries(config.completeness || {})) {
+    if (!DOC_TYPES.has(docType)) {
+      completenessErrors.push(`unknown document type "${docType}" (known: ${[...DOC_TYPES].join(', ')})`);
+      continue;
+    }
+    if (rule === 'skip') continue;
+    if (rule === null || typeof rule !== 'object' || Array.isArray(rule)) {
+      completenessErrors.push(`${docType}: must be "skip" or an object of drop/add lists`);
+      continue;
+    }
+    for (const verb of Object.keys(rule)) {
+      if (verb !== 'drop' && verb !== 'add') {
+        completenessErrors.push(`${docType}.${verb}: only "drop" and "add" are verbs (or the value "skip")`);
+      } else if (!Array.isArray(rule[verb])) {
+        completenessErrors.push(`${docType}.${verb}: must be an array of strings`);
+      }
+    }
+  }
+
   const focusDate = /updated[:*\s]*(\d{4}-\d{2}-\d{2})/i.exec(focusText)?.[1];
   const focusAge = focusDate ? daysSince(focusDate) : null;
 
@@ -375,7 +401,7 @@ export async function scoreVault(root, { config, roadmap, files }) {
     ],
     config: [
       check('config.exists', config.source !== null, `Config present (${CONFIG_JSON} or ${CONFIG_MD})`),
-      check('config.machineReadable', config.source === CONFIG_JSON, `Config is machine-readable (${CONFIG_JSON})`),
+      check('config.completeness', completenessErrors.length === 0, 'Completeness overrides use only drop/add/skip against known document types', completenessErrors),
       check('config.language', Boolean(config.language), 'Output language declared'),
       check('config.agentRoster', config.agents.length === 0 || config.agents.every((name) => agentFiles.includes(name)), 'Every agent in the roster has a file', config.agents.filter((name) => !agentFiles.includes(name))),
       check('config.noPlaceholders', placeholders.length === 0, 'No unresolved {{PLACEHOLDERS}} anywhere in the vault', placeholders),
@@ -401,6 +427,9 @@ export async function scoreVault(root, { config, roadmap, files }) {
   result.passed = passed;
   result.total = total;
   result.bottleneck = passed === total ? null : worst;
+  // Surfaced separately from its check because it blocks: an override the tool cannot parse
+  // looks configured and does nothing, which no score bar can be trusted to catch.
+  result.completenessErrors = completenessErrors;
   result.unscored = config.source === null && !identityText && !productText;
   return result;
 }

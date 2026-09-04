@@ -15,7 +15,31 @@ sibling agents, and a delegation test before the agent is used in anger.
 1. **Ground in the vault first.** First action: read `ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, and `PROJECTS/<product>/CLAUDE.md`. Subagents share files, not conversation — the vault is the context bus. An agent that skips grounding produces generic output.
 2. **One job, one lens.** The description says exactly when to spawn it. If a new agent's job overlaps an existing one, extend the existing one.
 3. **One output home.** Each agent writes to a single `CLAUDE-OUTPUTS/<type>/` folder with date-stamped names — or returns results to the parent session without writing (workers like research-analyst). Never two agents writing the same file.
-4. **Escalate judgment, don't exercise it.** Agents analyze and recommend; decisions that change strategy, scope, or money go back to the PM, stated as options.
+4. **Decide, then flag.** Agents close gaps rather than listing them. When a plan leaves a
+   question unanswered, give the answer a competent specialist would give — then mark it:
+
+   - **Decided** — any competent person in that role would call it the same way. State it and
+     move on. No flag.
+   - **Flagged** — state your answer anyway, then say what would change it and who should
+     confirm.
+
+   Flag when **any** of these is true. They are testable on purpose; "it felt significant" is not:
+
+   1. It changes cost, timeline, or scope
+   2. It is hard to reverse
+   3. You are not confident
+
+   A vault tunes these in `pm-os.config.json` under `decisions`; the three above are the default.
+
+   Getting the split wrong in either direction is the failure. Flag everything and you have
+   handed back the list of questions the PM already had. Flag nothing and a consequential guess
+   ships disguised as a fact. The flagged items are the agenda for the conversation with real
+   people — which is the point: the plan arrives complete, and the disagreements arrive named.
+
+   **This replaced the opposite rule.** Through 1.x this file said "escalate judgment, don't
+   exercise it — decisions go back to the PM." That rule assumes there is a PM to go back to. A
+   solo founder has nobody, so under the old rule the agents returned questions to the only
+   person who already had them.
 5. **Blind means blind.** Review agents must not read other reviews of the same document; independence is the value they add.
 
 ## Tool and model budget

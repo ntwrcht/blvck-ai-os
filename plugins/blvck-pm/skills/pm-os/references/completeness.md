@@ -35,7 +35,7 @@ decision. If the user gives no reason, write `no reason given` rather than inven
 
 ## Default checklists
 
-Defaults only. `pm-os.config.md`'s `## Completeness` section overrides them per vault — a user
+Defaults only. `pm-os.config.json`'s `completeness` overrides them per vault — a user
 whose process does not produce one of these fields removes the line rather than failing forever.
 
 **vision** — the change described in user terms, the specific person it serves, at least 3
@@ -67,21 +67,27 @@ identified, owner for implementation
 
 ## Adjusting them
 
-`pm-os.config.md`:
+`pm-os.config.json`, under `completeness`:
 
-```markdown
-## Completeness
-
-Overrides the defaults in the pm-os skill. Omit a document type to keep its defaults.
-
-- prd: drop "rollout tier with a gating metric"      # we gate in the tracker, not the PRD
-- prd: add "pricing impact stated"                   # every PRD here touches pricing
-- prfaq: skip                                        # we do not write these
+```json
+"completeness": {
+  "prd": {
+    "drop": ["rollout tier with a gating metric"],
+    "add": ["pricing impact stated"]
+  },
+  "prfaq": "skip"
+}
 ```
 
-Three verbs, and nothing else: **drop** removes a default item, **add** appends one, **skip**
-turns the gate off for that document type entirely. Anything else is a config error — say so
-and keep the defaults rather than guessing at the intent.
+Two verbs and one keyword, and nothing else: **drop** removes a default item, **add** appends
+one, and the string **`"skip"`** turns the gate off for that document type entirely. An unknown
+verb, an unknown document type, or a value that is neither `"skip"` nor an object **fails
+validation** — `validate-vault.mjs` reports it as `config.completeness`. That is deliberate: an
+override the tool cannot parse looks configured and silently does nothing, which is the worst of
+the three possible outcomes.
+
+Document types the gate knows: `vision`, `prd`, `lightweight-spec`, `one-pager`, `prfaq`, `rice`,
+`metrics-tree`, `tracking-plan`, `gtm-brief`.
 
 ## What the gate does not do
 

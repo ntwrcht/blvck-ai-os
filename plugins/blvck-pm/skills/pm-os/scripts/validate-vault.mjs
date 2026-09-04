@@ -25,7 +25,7 @@ if (args.help) {
 Scores a PM vault across five modules:
   identity, product, plan, roadmap, config
 
-Paths resolve through ${CONFIG_JSON} when present, then pm-os.config.md, then defaults.
+Paths resolve through ${CONFIG_JSON} when present, then pm-os.config.json, then defaults.
 A declared path that escapes the vault is a config error, not a low score.
 
 Exit codes:
@@ -92,6 +92,11 @@ try {
       for (const message of roadmap.errors) console.log(`  - ${message}`);
       console.log('');
     }
+    if (result.completenessErrors.length) {
+      console.log('Completeness config errors (these block regardless of score):');
+      for (const message of result.completenessErrors) console.log(`  - ${message}`);
+      console.log('');
+    }
     if (result.unresolvedPlaceholders.length) {
       console.log(`Unfinished: ${result.unresolvedPlaceholders.length} file(s) still carry {{PLACEHOLDERS}}.`);
       console.log('Run /blvck-pm:setup to answer them. A scaffold is not a vault.');
@@ -100,7 +105,8 @@ try {
   }
 
   if (result.unscored || result.overall < minScore || missingDeclared.length > 0
-      || result.unresolvedPlaceholders.length > 0 || roadmap.errors.length > 0) {
+      || result.unresolvedPlaceholders.length > 0 || roadmap.errors.length > 0
+      || result.completenessErrors.length > 0) {
     process.exitCode = 1;
   }
 } catch (error) {

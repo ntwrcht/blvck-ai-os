@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011/012/013 done (blvck-pm 1.5.0, bumped + CHANGELOGed, **not yet tagged**). feat-014 is next: the 2.0.0 breaking changes.
+**Active Feature:** none — feat-011 through feat-014 all done. blvck-pm is at **2.0.0**, bumped and CHANGELOGed, **not yet tagged**. The direction set on 2026-09-04 is fully built.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,6 +26,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-014 blvck-pm 2.0.0 — markdown config retired with a deterministic upgrade, escalation rule inverted, completeness overrides enforced
 - [x] feat-013 blvck-pm 1.5.0 — agent-smith vendored into the plugin, lead-engineer archetype, tool/model budgets on all 8, interviewed roster
 - [x] feat-012 blvck-pm 1.4.0 — roadmap.json, create-vault.mjs + validate-vault.mjs, fixture vault, init.sh 5 → 7 steps
 - [x] feat-011 blvck-pm 1.3.0 — vision.md, completeness gates, configured output language; setup now reports its repairs
@@ -33,7 +34,9 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 
 ### What's In Progress
 
-- [ ] Nothing in flight. **feat-014 is next** — the 2.0.0 breaking changes, done together and once: retire `pm-os.config.md`, and rewrite the escalation rule in `agent-design.md` that still says agents must never decide.
+- [ ] Nothing in flight. Every feature in `feature_list.json` is done.
+
+**The next action is a release, not a feature.** blvck-pm went 1.2.0 → 2.0.0 across four commits in one session and none of them is tagged, so installed users are still on 1.2.0 and have received none of it. Per the Release Checklist: `cd plugins/blvck-pm && claude plugin tag --push`, then verify with `claude plugin details blvck-pm`.
 
 ### What's Next — blvck-pm direction change (2026-09-04)
 
@@ -51,7 +54,7 @@ Release sequence (feature_list.json carries the detail):
 | 1.3 | feat-011 | ✅ done — `vision.md` + completeness checklists + output language setting |
 | 1.4 | feat-012 | ✅ done — `roadmap.json` + both scripts + fixture + init.sh steps 6–7 |
 | 1.5 | feat-013 | ✅ done — interviewed roster + agent-smith vendored + lead-engineer + budgets |
-| 2.0.0 | feat-014 | config → JSON, escalation rule rewritten |
+| 2.0.0 | feat-014 | ✅ done — config → JSON with a deterministic upgrade, escalation rule inverted |
 
 Still open from before this session, unchanged:
 
@@ -112,6 +115,7 @@ Still open from before this session, unchanged:
 - Initial build: entire repository (see `git log`)
 - feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 - feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
+- feat-014 session (2026-09-04): NEW `references/config.md` (replacing `templates/pm-config.md`, deleted); MODIFIED `lib/vault-utils.mjs` (markdown config retired, `config.completeness` check), `create-vault.mjs` (`--upgrade-config`, no markdown copy), `validate-vault.mjs` (completeness errors block), `references/agent-design.md` (rule 4 inverted), `references/completeness.md`, `SKILL.md`, all four commands, `init.sh` (2 more cases), `plugin.json` → 2.0.0, `CHANGELOG.md`, README
 - feat-013 session (2026-09-04): NEW `plugins/blvck-pm/skills/agent-smith/` (vendored, 4 files), `templates/agents/lead-engineer.md`; MODIFIED all 7 existing archetypes (tools + model), `references/agent-design.md`, `SKILL.md`, `references/workflows.md`, `commands/setup.md`, `lib/vault-utils.mjs` (26th check), the fixture's agent, `plugin.json` → 1.5.0, `CHANGELOG.md`, README
 - feat-012 session (2026-09-04): NEW `skills/pm-os/scripts/{create-vault,validate-vault}.mjs` + `lib/vault-utils.mjs`, `templates/roadmap.json` + `roadmap.schema.json`, `tests/fixtures/pm-vault/` (14 files); MODIFIED `init.sh` (5 → 7 steps), `CLAUDE.md` (verification list + two new rules), `SKILL.md`, `references/workflows.md`, all four commands, `plugin.json` → 1.4.0, `CHANGELOG.md`, README + marketplace counts
 - feat-011 session (2026-09-04): NEW `templates/vision.md`, `references/completeness.md`; MODIFIED `references/voice.md` (structural/lexical split), `references/workflows.md` (vision workflow + gate + language), `SKILL.md`, `templates/pm-config.md` (`## Language`, `## Completeness`, vision path), `templates/prd.md` (vision link), all four `commands/*.md`, `plugin.json` → 1.3.0, `CHANGELOG.md`, README + marketplace counts 19 → 20 workflows
@@ -155,9 +159,18 @@ same shape — something incomplete scoring high enough to pass:
 The lesson is the one feat-009 already recorded and this session re-proved: **a score bar alone is
 not a gate.** Anything that is a broken promise rather than a weak result has to block on its own.
 
-**The completeness gate from feat-011 is still unenforced by code.** `validate-vault.mjs` checks the
-vault's structure, not each document against its checklist. Deliberate for 1.4.0 — per-type config
-resolution is a bigger change — but it means the gate is still model behaviour.
+**The completeness gate is half enforced.** As of 2.0.0 the *config* is checked — a typo'd override
+fails and names the key — but each *document* is still not checked against its checklist. The gate
+itself remains model behaviour. That is the largest remaining gap between what blvck-pm promises
+and what it can prove.
+
+**One bug appeared three times in this session, and all three were found by tests rather than by
+reading code.** A fresh scaffold at 72/100 exit 0; a `measured` outcome with its result deleted at
+96/100 exit 0; an unparseable completeness override at 96/100 exit 0. Every one was something
+incomplete carried over the score bar by the healthy parts around it. **A score bar is not a gate.**
+Four things now block regardless of score — declared paths, placeholders, roadmap errors,
+completeness overrides — and any new check should be classified as *weak result* (scores) or
+*broken promise* (blocks) before it is written, not after a test catches it.
 
 ## Notes for Next Session (earlier)
 

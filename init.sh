@@ -216,6 +216,46 @@ printf '{"version":1,"paths":{"vision":"../../../etc/passwd"}}\n' > "$TMP/pm-bad
 expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-badconfig"
 echo "pm: unknown roles and out-of-tree paths are config errors (exit 2)"
 
+# 2.0.0 retired the markdown config. A vault that still has only the old one must fail LOUDLY
+# with the conversion command, never be half-read and scored on a guess — and the conversion
+# must then produce a vault that passes.
+cp -R tests/fixtures/pm-vault "$TMP/pm-legacy"
+stamp_focus "$TMP/pm-legacy"
+rm -f "$TMP/pm-legacy/pm-os.config.json"
+cat > "$TMP/pm-legacy/pm-os.config.md" <<'LEGACY'
+# PM OS Config
+
+## Paths
+- Identity: ABOUT-ME/ (identity file: ABOUT-ME/CLAUDE.md)
+- Product context: PROJECTS/northwind/CLAUDE.md
+- Vision: PROJECTS/northwind/vision.md
+- Roadmap: PROJECTS/northwind/roadmap.json
+- Templates: TEMPLATES/
+- Outputs: CLAUDE-OUTPUTS/
+- Agents: .claude/agents/
+
+## Language
+- Language: en
+LEGACY
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-legacy"
+node "$PM_SCRIPTS/create-vault.mjs" --upgrade-config --target "$TMP/pm-legacy" >/dev/null
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-legacy"
+echo "pm: a pre-2.0.0 markdown config fails loudly, then upgrades to passing"
+
+# A completeness override the tool cannot parse looks configured and does nothing — the worst
+# of the three outcomes, so it is a failure rather than a shrug.
+cp -R tests/fixtures/pm-vault "$TMP/pm-badoverride"
+stamp_focus "$TMP/pm-badoverride"
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const config = JSON.parse(fs.readFileSync(file, "utf8"));
+config.completeness = { prd: { remove: ["success metric"] } };
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+' "$TMP/pm-badoverride/pm-os.config.json"
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-badoverride"
+echo "pm: an unparseable completeness override fails (exit 1)"
+
 # "We found nothing" must stay distinguishable from "you have nothing".
 mkdir -p "$TMP/pm-empty"
 expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-empty"

@@ -8,6 +8,57 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.0.0] - 2026-09-04
+
+Everything that could not land in a MINOR, done together and once.
+
+### Removed — BREAKING
+
+- **`pm-os.config.md` is no longer read.** It was never reliably parseable — bullets with
+  parentheticals — and keeping a second copy of the same truth meant the two drifted in silence,
+  which is exactly how `## Paths` came to describe itself as "machine-read by every workflow"
+  while nothing read it. A vault carrying only the markdown config now **fails loudly with the
+  conversion command** rather than being half-read and scored on a guess.
+
+  **Migrating:** `node <plugin>/skills/pm-os/scripts/create-vault.mjs --upgrade-config --target .`
+  It writes `pm-os.config.json` from what the markdown actually stated, leaves the markdown in
+  place for you to delete, and **reports what it could not carry over** — defaulted paths, plus
+  integrations and the agent roster, which it does not attempt to guess.
+
+  The explanation of what the config means did not disappear with the template: it is now
+  `references/config.md`.
+
+### Changed — BREAKING
+
+- **The agent contract is inverted: agents decide and flag, instead of escalating.** Through 1.x
+  `agent-design.md` rule 4 read "escalate judgment, don't exercise it — decisions go back to the
+  PM". That rule assumes there is a PM to go back to. A solo founder has nobody, so it returned
+  questions to the only person who already had them.
+
+  Now: give the answer a competent specialist would give, then mark it **Decided** (any competent
+  person in that role calls it the same way) or **Flagged**. Flag when any of three testable
+  conditions holds — it changes cost, timeline or scope; it is hard to reverse; you are not
+  confident — tunable per vault under `decisions`. The flagged items become the agenda for the
+  conversation with real people. The plan arrives complete and the disagreements arrive named,
+  which is the entire point of the direction this release completes.
+
+### Added
+
+- **`config.completeness` is enforced.** 1.3.0 said a typo'd override "reads as configured and
+  silently does nothing"; saying so in a prompt did not stop it. An unknown verb, an unknown
+  document type, or a malformed value now fails validation and names the offending key.
+- Two `init.sh` cases: a pre-2.0.0 markdown config must fail with exit 2 and then pass after
+  `--upgrade-config`, and an unparseable completeness override must fail.
+
+### Fixed
+
+- **The third instance of one recurring bug.** An unparseable completeness override scored 25/26
+  — 96/100 — and exited 0, joining the fresh scaffold at 72/100 and the resultless `measured`
+  outcome at 96/100 from 1.4.0. All three were something incomplete carried over the score bar by
+  the healthy parts around it. The rule, now applied everywhere: **a score bar is not a gate.**
+  Anything that is a broken promise rather than a weak result blocks on its own, whatever the
+  score — declared paths, placeholders, roadmap errors, and now completeness overrides.
+
 ## [1.5.0] - 2026-09-04
 
 The agent team stops being a roster you are handed and becomes one you are interviewed for.

@@ -47,10 +47,11 @@ Both follow the same design principle: **very few commands, capability in scaffo
 - **Scores your structure, not just ours** — already have a harness under your own file names and your own wording? Declare where the five concepts live in `.harness-map.json` and the same 25 checks grade it, up to 100/100, naming the file behind each concept. Declaring a path never passes a check on its own: the file still has to exist and still has to carry its meaning in real structure.
 - **Team layout built for parallel work** — one directory per feature under `features/`, with date- or Jira-keyed IDs (`feat-YYYYMMDD-slug`) so parallel branches never race a shared counter or collide in merges.
 - **PM vault with routed workflows** — capture who you are, what you build, and how you speak once; 21 workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review) reuse it automatically.
+- **Agents that decide, then flag** — a lead-engineer agent audits a plan and answers the questions an engineering lead would answer, marking each **Decided** or **Flagged** by three testable rules. A solo founder gets the answers with no one to ask; a PM walks into the meeting with the disagreements already named.
 - **A roadmap that ends at *measured*, not *shipped*** — `roadmap.json` tracks business outcomes bound to numbers, and an outcome cannot be closed until someone records whether the number actually moved, verdict included. A missed outcome recorded honestly is worth more than three shipped ones nobody checked.
 - **An agent team you are interviewed for, not handed** — setup asks *who do you normally have to go ask?* and maps the answer onto eight archetypes (lead-engineer, customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst), each with its own tool and model budget. "Nobody, I work alone" is the most informative answer, not an empty one — it means the agents are standing in for a team that does not exist. Anything unmatched gets built with the bundled `agent-smith` skill.
 - **Safe, generic migration — that can decide not to migrate** — `migrate` scans any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
-- **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks all six scripts, JSON-validates every manifest and template, round-trips a full solo + team harness scaffold, and round-trips a PM vault — where a *fresh scaffold must fail*, because a skeleton nobody has answered is not a vault.
+- **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks all six scripts, JSON-validates every manifest and template, round-trips a full solo + team harness scaffold, and round-trips a PM vault — where a *fresh scaffold must fail*, because a skeleton nobody has answered is not a vault. Ten adversarial cases keep the scores honest: a score bar is not a gate, so anything that is a broken promise rather than a weak result fails on its own.
 
 ## Architecture Overview
 
@@ -71,6 +72,7 @@ blvck-ai-os/
 │       └── skills/pm-os/
 │           ├── SKILL.md                   # session ritual, vault rules, workflow router
 │           ├── scripts/                   # create-vault.mjs, validate-vault.mjs (Node)
+│           ├── references/                # config, completeness, agent design, workflows, voice
 │           ├── templates/                 # 24 doc/context templates + 8 agent archetypes
 │           └── references/                # frameworks, voice, integrations
 ├── tests/fixtures/foreign-harness/         # a harness using none of the names above

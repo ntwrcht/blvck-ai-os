@@ -38,7 +38,7 @@ own language. English ships as the only bundled list; others are user-supplied.
 
 ## Which language
 
-`pm-os.config.md`'s `## Language` section decides. Default `en`. Do not infer the language from
+`pm-os.config.json`'s `language` decides. Default `en`. Do not infer the language from
 what the user typed in chat — a PM who asks a question in one language often needs the document
 in another, and an inferred language changes between documents in the same vault, which makes
 `anti-style.md` unenforceable.

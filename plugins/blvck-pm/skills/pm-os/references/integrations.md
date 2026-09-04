@@ -1,9 +1,9 @@
 # Integrations
 
-pm-os is local-first. Integrations are per-project switches in `pm-os.config.md`; a disabled or unavailable tool never blocks a workflow — the workflow runs local-only and says so in one line.
+pm-os is local-first. Integrations are per-project switches in `pm-os.config.json`; a disabled or unavailable tool never blocks a workflow — the workflow runs local-only and says so in one line.
 
 ## The rule, in order
-1. Read `pm-os.config.md` → is the tool enabled for this project?
+1. Read `pm-os.config.json` → is the tool enabled for this project?
 2. Enabled → check the MCP tools actually exist in this session (e.g. `mcp__…Atlassian…`, `mcp__…Google_Drive…`, `mcp__…BigQuery…`). Config says yes but tools absent → proceed local-only, note "Jira enabled but not connected in this session."
 3. Never store credentials or tokens in the vault. Connection setup belongs to Claude Code MCP config, not pm-os.
 

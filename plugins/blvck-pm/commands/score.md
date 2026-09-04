@@ -12,15 +12,15 @@ node ${CLAUDE_PLUGIN_ROOT}/skills/pm-os/scripts/validate-vault.mjs --target . --
 Its 26 checks cover hygiene and structure. Your job is the readiness half: whether what exists
 is any good. Report the script's number, then yours, and never present one as the other.
 
-**Resolve paths first.** Read `pm-os.config.md`'s `## Paths` and score the vault the user actually has: the outputs dir, identity dir, and agents dir below are the *configured* ones, defaults in parentheses. If a role is undeclared, fall back to the default; if that is absent too, classify by role against the real listing before concluding anything is missing. A vault with its own folder names is not a messy vault, and scoring it as one is the fastest way to be ignored. Say which paths you resolved and how.
+**Resolve paths first.** Read `pm-os.config.json`'s `paths` and score the vault the user actually has: the outputs dir, identity dir, and agents dir below are the *configured* ones, defaults in parentheses. If a role is undeclared, fall back to the default; if that is absent too, classify by role against the real listing before concluding anything is missing. A vault with its own folder names is not a messy vault, and scoring it as one is the fastest way to be ignored. Say which paths you resolved and how.
 
 **1. Vault hygiene** (each finding listed with file paths):
 - Strays: generated `.md` files at vault root or outside the outputs dir (`CLAUDE-OUTPUTS/`) — identity/context/config files excluded
 - Versioning: multiple versions of the same PRD active in `prds/` with none archived
 - Staleness: `current-focus.md` older than 14 days; prototypes older than 90 days; drafts older than 30 days
 - Naming: outputs missing the `[type]-[description]-[YYYY-MM-DD]` convention
-- Config drift: agents in the agents dir (`.claude/agents/`) missing from the `pm-os.config.md` roster, or vice versa — and any path `## Paths` declares that does not exist
-- Completeness debt: documents carrying a `## Completeness` override. Count them and name the item most often left unmet — one override is a decision, the same gap in every document is a process problem
+- Config drift: agents in the agents dir (`.claude/agents/`) missing from the `pm-os.config.json` roster, or vice versa — and any path `paths` declares that does not exist
+- Completeness debt: documents carrying a `completeness` override. Count them and name the item most often left unmet — one override is a decision, the same gap in every document is a process problem
 
 **2. Module readiness** — grade each 0–5 with one-line evidence (a module scores by what exists in the outputs dir and the vault, not by intentions):
 | Module | Evidence looked for |
