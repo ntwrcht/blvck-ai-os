@@ -3,9 +3,15 @@
 ## Current State
 
 **Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011…014 planned, not started. v1.2.0 still bumped-but-untagged.
+**Active Feature:** none — feat-011…014 planned, not started.
 
-**Released:** v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.0`, `v1.1.0`; CI green; GitHub license detects MIT; repo topics set. https://github.com/ntwrcht/blvck-ai-os/releases/tag/v1.1.0
+**Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
+
+Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.0`, `v1.1.0`; CI green; GitHub license detects MIT; repo topics set. https://github.com/ntwrcht/blvck-ai-os/releases/tag/v1.1.0
+
+> This file claimed "v1.2.0 ready to tag, not yet tagged" long after the tags were pushed, and
+> that stale line was believed and acted on in a later session. When a release completes, update
+> this line in the same session — a tracker that lies is worse than one that is silent.
 
 ## Status
 
@@ -49,7 +55,7 @@ Still open from before this session, unchanged:
 1. Exercise the paths still uncovered: `/blvck-pm:setup` in a real vault, `/blvck-pm:migrate` on legacy PM notes, and `/blvck-harness:migrate` typed as an actual slash command (its adapt *rules* were exercised in feat-009; the command dispatch was not)
 2. Confirm a fresh install from the **GitHub source** (not the local directory source used so far) resolves references without a prompt — `${CLAUDE_PLUGIN_ROOT}` points at `~/.claude/plugins/cache/…` there
 3. Consider guidance against reusing one phrase as the synonym for two different checks — see feat-009's evidence; defensible today but unaddressed by the prompt
-4. **v1.2.0 is bumped and CHANGELOGed but never tagged** — per the Release Checklist, that means installed users are still on 1.1.0 and have received none of feat-009/010
+4. `.claude-plugin/marketplace.json` still declares its own top-level `"version": "1.1.0"` while both plugins are at 1.2.0. CI only guards the per-plugin entries, so this drifted unnoticed. Decide whether the marketplace version tracks the plugins or is versioned independently, then make the checklist say which
 
 ## Blockers / Risks
 
