@@ -599,9 +599,10 @@ export function formatVaultReport(result, root, config, roadmap) {
 
   if (result.codebases?.length) {
     lines.push('Codebases:');
+    const width = Math.max(...result.codebases.map((c) => c.name.length)) + 2;
     for (const c of result.codebases) {
       const state = !c.present ? 'MISSING' : !c.repo ? 'NOT A REPO' : c.inside ? 'inside' : 'outside';
-      lines.push(`  ${c.name.padEnd(16)}${c.scope.padEnd(11)}${state.padEnd(9)}${c.path}${c.branch ? `  (${c.branch})` : ''}`);
+      lines.push(`  ${c.name.padEnd(width)}${c.scope.padEnd(12)}${state.padEnd(12)}${c.path}${c.branch ? `  (${c.branch})` : ''}`);
     }
     lines.push('');
   }
