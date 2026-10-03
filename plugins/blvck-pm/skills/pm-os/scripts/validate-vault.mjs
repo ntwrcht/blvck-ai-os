@@ -10,11 +10,11 @@ import {
   VaultConfigError,
   exists,
   formatVaultReport,
-  listFiles,
   loadConfig,
   loadRoadmap,
   parseArgs,
-  scoreVault
+  scoreVault,
+  walkVault
 } from './lib/vault-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
@@ -25,8 +25,10 @@ if (args.help) {
 Scores a PM vault across five modules:
   identity, product, plan, roadmap, config
 
-Paths resolve through ${CONFIG_JSON} when present, then pm-os.config.json, then defaults.
-A declared path that escapes the vault is a config error, not a low score.
+Paths resolve through ${CONFIG_JSON}, then defaults. A declared path that escapes the
+vault is a config error, not a low score. The one exception is the codebases registry:
+a codebase may live anywhere, because it earns no points. Git repos nested inside the
+vault are codebases and are never read as vault material.
 
 Exit codes:
   0  scored at least --min-score (default 70)
@@ -51,8 +53,8 @@ try {
 
   const config = await loadConfig(target);
   const roadmap = await loadRoadmap(target, config.paths);
-  const files = await listFiles(target);
-  const result = await scoreVault(target, { config, roadmap, files });
+  const { files, repos } = await walkVault(target);
+  const result = await scoreVault(target, { config, roadmap, files, repos });
 
   result.config = { source: config.source, language: config.language, paths: config.paths, declared: config.declared };
   result.roadmap = { present: roadmap.present, errors: roadmap.errors, count: roadmap.items.length };
@@ -63,6 +65,12 @@ try {
   const missingDeclared = [];
   for (const [role, value] of Object.entries(config.declared)) {
     if (!(await exists(path.join(target, value)))) missingDeclared.push(`${role}: "${value}" does not exist`);
+  }
+  // A registered codebase is the same kind of assertion. Planning reads it through git, so one
+  // that is there but is not a repository is as broken as one that is not there at all.
+  for (const c of result.codebases) {
+    if (!c.present) missingDeclared.push(`codebases.${c.name}: "${c.path}" does not exist`);
+    else if (!c.repo) missingDeclared.push(`codebases.${c.name}: "${c.path}" is not a git repository`);
   }
   result.missingDeclaredPaths = missingDeclared;
 

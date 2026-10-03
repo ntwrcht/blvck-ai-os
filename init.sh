@@ -19,7 +19,7 @@ expect_exit () {
   fi
 }
 
-echo "=== 1/7 Script syntax ==="
+echo "=== 1/8 Script syntax ==="
 node --check "$SCRIPTS/create-harness.mjs"
 node --check "$SCRIPTS/validate-harness.mjs"
 node --check "$SCRIPTS/lib/harness-utils.mjs"
@@ -28,12 +28,12 @@ node --check "$PM_SCRIPTS/validate-vault.mjs"
 node --check "$PM_SCRIPTS/lib/vault-utils.mjs"
 echo "OK"
 
-echo "=== 2/7 JSON validity (manifests, templates, trackers, fixtures) ==="
+echo "=== 2/8 JSON validity (manifests, templates, trackers, fixtures) ==="
 find . -name '*.json' -not -path './.git/*' -not -path '*/node_modules/*' -print0 \
   | xargs -0 -I{} node -e "JSON.parse(require('fs').readFileSync('{}','utf8'))" \
   && echo "OK"
 
-echo "=== 3/7 Scaffold + validate round-trip (solo and team) ==="
+echo "=== 3/8 Scaffold + validate round-trip (solo and team) ==="
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -61,7 +61,7 @@ if node "$SCRIPTS/validate-harness.mjs" --target "$TMP/team" >/dev/null 2>&1; th
 fi
 echo "team: seeded findings correctly rejected (exit 1)"
 
-echo "=== 4/7 Adapted layout scores a foreign structure ==="
+echo "=== 4/8 Adapted layout scores a foreign structure ==="
 cp -R tests/fixtures/foreign-harness "$TMP/foreign"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign"
 echo "adapted: foreign-shaped harness scores (exit 0)"
@@ -97,7 +97,7 @@ if (native.overall !== mapped.overall) {
 ' "$TMP/native.json" "$TMP/mapped.json"
 echo "adapted: team layout expressed as a map scores identically"
 
-echo "=== 5/7 Adapted layout cannot be gamed ==="
+echo "=== 5/8 Adapted layout cannot be gamed ==="
 
 # Declaring a path is an assertion, not a pass: point the map at a file that is not there and
 # the run must fail rather than quietly falling back to the built-in name.
@@ -152,7 +152,7 @@ if (result.unscored !== true) {
 ' "$TMP/empty.json"
 echo "empty: reports unscored rather than a floor score (exit 1)"
 
-echo "=== 6/7 PM vault round-trip (scaffold, then a filled vault) ==="
+echo "=== 6/8 PM vault round-trip (scaffold, then a filled vault) ==="
 
 # The fixture's current-focus.md carries a placeholder date rather than a real one. The
 # freshness check is genuinely time-dependent, so a hardcoded date would pass today and fail
@@ -183,7 +183,7 @@ if (result.overall !== 100) {
 ' "$TMP/pm.json"
 echo "pm: filled vault scores 100/100 (exit 0)"
 
-echo "=== 7/7 PM vault cannot be gamed ==="
+echo "=== 7/8 PM vault cannot be gamed ==="
 
 # Same rule as the harness map: a declared path is an assertion, and a broken one fails the run
 # rather than costing a few points. Without this a typo'd config reads as a passing vault.
@@ -318,6 +318,96 @@ if (result.unscored !== true) {
 }
 ' "$TMP/pm-empty.json"
 echo "pm: an empty directory reports unscored (exit 1)"
+
+echo "=== 8/8 PM codebase registry ==="
+
+# Repos are built here rather than committed as fixtures: a nested .git cannot live inside this
+# repo's history. Each case starts from the filled fixture, so a regression shows as a score or
+# exit change against a known 100/100 baseline.
+make_repo () {
+  mkdir -p "$1"
+  git -C "$1" init -q
+}
+registry () {
+  node -e '
+const fs = require("fs");
+const [file, json] = process.argv.slice(1);
+const config = JSON.parse(fs.readFileSync(file, "utf8"));
+config.codebases = JSON.parse(json);
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+' "$1/pm-os.config.json" "$2"
+}
+check_json () {
+  node "$PM_SCRIPTS/validate-vault.mjs" --target "$1" --json > "$TMP/registry.json" || true
+  node -e "const r = require(process.argv[1]); $2" "$TMP/registry.json"
+}
+
+# The baseline: one repo inside (the default home) and one outside (a clone shared with another
+# vault). Outside is legal for codebases only — they earn no points, so there is no score to
+# borrow. The inside repo carries a {{TOKEN}} in its README: a repo is not vault material, and
+# before 2.2.0 that line alone blocked the whole vault.
+cp -R tests/fixtures/pm-vault "$TMP/pm-code"
+stamp_focus "$TMP/pm-code"
+make_repo "$TMP/pm-code/CODE/billing-api"
+touch "$TMP/pm-code/CODE/billing-api/CLAUDE.md" "$TMP/pm-code/CODE/billing-api/init.sh"
+echo "Deploy with {{DEPLOY_TARGET}}." > "$TMP/pm-code/CODE/billing-api/README.md"
+make_repo "$TMP/shared/point-service"
+registry "$TMP/pm-code" "[{\"name\":\"billing-api\",\"path\":\"CODE/billing-api\",\"scope\":\"mine\",\"branch\":\"main\"},{\"name\":\"point-service\",\"path\":\"$TMP/shared/point-service\",\"scope\":\"dependency\"}]"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+check_json "$TMP/pm-code" '
+if (r.overall !== 100) { console.error(`FAIL: a vault with a clean registry scored ${r.overall}`); process.exit(1); }
+if (r.warnings.length) { console.error(`FAIL: unexpected warnings: ${r.warnings.join("; ")}`); process.exit(1); }
+'
+echo "pm: codebases inside and outside the vault score 100/100, and a repo's {{TOKEN}} is not read"
+
+# Skipped by what a folder IS, not its name: a plain folder called CODE/ is still vault material.
+mkdir -p "$TMP/pm-code/CODE/notes"
+echo "{{UNANSWERED}}" > "$TMP/pm-code/CODE/notes/scratch.md"
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+rm -rf "$TMP/pm-code/CODE/notes"
+echo "pm: a folder named CODE/ that is not a repo is still read (exit 1)"
+
+# Warnings never move the score or the exit code. An undeclared nested repo gets named; a root
+# CLAUDE.md over a nested repo gets named, because it loads in every coding session there.
+make_repo "$TMP/pm-code/CODE/stray"
+echo "# Vault rules" > "$TMP/pm-code/CLAUDE.md"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+check_json "$TMP/pm-code" '
+const text = r.warnings.join("\n");
+if (!/CODE\/stray/.test(text)) { console.error("FAIL: an undeclared nested repo was not named"); process.exit(1); }
+if (!/billing-api: sits inside the vault/.test(text)) { console.error("FAIL: the root CLAUDE.md leak was not named"); process.exit(1); }
+if (/point-service/.test(text)) { console.error("FAIL: a repo outside the vault cannot inherit its CLAUDE.md"); process.exit(1); }
+if (r.overall !== 100) { console.error(`FAIL: warnings cost score (${r.overall})`); process.exit(1); }
+'
+rm -rf "$TMP/pm-code/CODE/stray" "$TMP/pm-code/CLAUDE.md"
+echo "pm: an undeclared repo and a leaking root CLAUDE.md warn, never block (exit 0)"
+
+# A `mine` repo without a harness is a weak result, not a broken promise: it scores, never blocks.
+rm "$TMP/pm-code/CODE/billing-api/init.sh"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+check_json "$TMP/pm-code" '
+const c = Object.values(r.modules).flatMap((m) => m.checks).find((x) => x.id === "config.codebaseHarness");
+if (c.pass || r.overall === 100) { console.error("FAIL: a mine repo with no init.sh cost nothing"); process.exit(1); }
+'
+touch "$TMP/pm-code/CODE/billing-api/init.sh"
+echo "pm: a mine repo without a harness costs score but never blocks (exit 0)"
+
+# A registered codebase is an assertion, like any declared path: gone, or not a repo, blocks.
+registry "$TMP/pm-code" '[{"name":"gone","path":"CODE/gone","scope":"mine"}]'
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+mkdir -p "$TMP/pm-code/CODE/plain"
+registry "$TMP/pm-code" '[{"name":"plain","path":"CODE/plain","scope":"dependency"}]'
+expect_exit 1 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+echo "pm: a codebase that is gone or is not a repo fails (exit 1)"
+
+# An entry the tool cannot parse looks configured and does nothing, so it is a config error.
+registry "$TMP/pm-code" '[{"name":"billing-api","path":"CODE/billing-api","scope":"owned"}]'
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+registry "$TMP/pm-code" '[{"name":"billing-api","path":"CODE/billing-api","scope":"mine","role":"owned"}]'
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+registry "$TMP/pm-code" '{"billing-api":"CODE/billing-api"}'
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+echo "pm: an unknown scope, an unknown key, or a non-array registry is a config error (exit 2)"
 
 echo "=== Verification Complete ==="
 echo ""

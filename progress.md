@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-04
-**Active Feature:** none — feat-011 through feat-015 all done. blvck-pm is at **2.1.0**. The direction set on 2026-09-04 is fully built and the four items left open after feat-014 are closed.
+**Last Updated:** 2026-10-04
+**Active Feature:** none — feat-016 done. blvck-pm is at **2.2.0** in the repo, **committed but not tagged or pushed**: installed users are still on 2.1.0 until the release checklist's tag-and-push step runs.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,6 +26,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-016 blvck-pm 2.2.0 — codebase registry (`codebases` in config, path anywhere, `CODE/` default), freshness rule, nested repos skipped by the validator, leak + undeclared-repo warnings, migrate as a non-forcing helper
 - [x] feat-015 blvck-pm 2.1.0 — per-document completeness enforced, install verified, marketplace version removed
 - [x] feat-014 blvck-pm 2.0.0 — markdown config retired with a deterministic upgrade, escalation rule inverted, completeness overrides enforced
 - [x] feat-013 blvck-pm 1.5.0 — agent-smith vendored into the plugin, lead-engineer archetype, tool/model budgets on all 8, interviewed roster
@@ -70,6 +71,9 @@ Still open from before this session, unchanged:
 
 ## Blockers / Risks
 
+- [ ] **feat-016's prompt paths are unexercised.** The script side is covered by six init.sh cases; the freshness rule, setup's code question, and migrate's codebase flow are model behaviour and have not been run against a real vault. `~/botnoi-voice` (4 nested repos, root CLAUDE.md) is the natural first test of migrate
+- [ ] **Symlink gap in `assertInsideRoot`** (found during feat-016, not fixed): it compares paths as text, so a symlink inside the vault pointing outside passes for every `paths` entry. Fix with `realpath` plus an init.sh case
+
 - [ ] **feat-011…014 is a 3–4× scope increase on a plugin with 0 lines of code.** Mitigated by shipping in four releases rather than one branch, not eliminated. This is the top risk of the new direction
 - [ ] **The config-format change is breaking but the scripts need it one release early.** feat-012 needs machine-readable config; `pm-os.config.md` is documented as the one fixed name, so replacing it is a MAJOR. Resolution: feat-012 adds `pm-os.config.json` *alongside* (additive), feat-014 retires the `.md`. Do not shortcut this into a MINOR
 - [ ] **feat-014's escalation rewrite contradicts a rule shipped today.** `references/agent-design.md` rule 4 ("escalate judgment, don't exercise it") is the opposite of agents closing gaps in a plan, and is meaningless for a solo founder with nobody to escalate to. It must change in a MAJOR, not quietly
@@ -84,6 +88,18 @@ Still open from before this session, unchanged:
 - [ ] Minor: `actions/checkout@v4` / `setup-node@v4` warn about deprecated Node 20 (warning only, CI green)
 
 ## Decisions Made
+
+### Codebase registry (2026-10-04, feat-016)
+
+Spec and full reasoning: `docs/proposals/codebases-in-vault.md`. Decided with the user, then corrected against two production vaults and ~140 session transcripts — three of the first-draft decisions did not survive the evidence.
+
+- **One registry, a path can point anywhere, `CODE/` by default** — inside and outside are one mechanism with different values, not two modes. First draft nested everything in the vault; real use showed a repo needed by two vaults, which nesting cannot serve
+- **`scope` (mine / dependency), not write permission** — first draft had `owned` / `reference`; the user commits heavily to repos the vault reads as read-only. Access follows where the session starts
+- **Nested repos are skipped by what they are (`.git`), not by the name `CODE/`** — keeps it a MINOR: a vault with no nested repos sees zero change. Both production vaults scored identically under 2.1.0 and 2.2.0
+- **A codebase is the one declared path allowed outside the vault** — the inside rule stops score borrowing, and a codebase earns no points
+- **Freshness reads through git when the clone is not clean** — fetch, then `git show origin/<branch>:…`; never touch a working tree the user may be building in
+- **Finding the vault from inside a repo was dropped** — repo sessions got context from tickets, never the vault. Revisit when someone asks
+- **Migrate never rewrites an agent** — both production rosters are hand-built, none from the eight archetypes
 
 ### blvck-pm direction (2026-09-04, grilling session)
 
@@ -120,6 +136,7 @@ Still open from before this session, unchanged:
 - Initial build: entire repository (see `git log`)
 - feat-006 session (2026-07-05): `plugins/blvck-harness/commands/migrate.md` + `plugins/blvck-pm/commands/migrate.md` (new), README command tables/usage, pm-os `SKILL.md` no-vault line, trackers
 - feat-007 session (2026-07-05): plugin dirs renamed via git mv; every name reference updated (manifests, command prefixes, README, CLAUDE.md, templates, trackers); repo folder → `~/blvck-ai-os`
+- feat-016 session (2026-10-04): NEW `docs/proposals/codebases-in-vault.md`; MODIFIED `lib/vault-utils.mjs` (`walkVault`, registry parsing, 28th check, warnings), `validate-vault.mjs` (codebase assertions block), `init.sh` (step 8/8, six cases), `SKILL.md` (Codebases section), `references/config.md`, `commands/{setup,migrate,score}.md`, `templates/agents/{lead-engineer,prototype-builder}.md`, `plugin.json` → 2.2.0, `CHANGELOG.md`, README, `CLAUDE.md`
 - feat-015 session (2026-09-04): NEW `scripts/lib/checklists.mjs`; MODIFIED `lib/vault-utils.mjs` (27th check), `templates/vision.md` (guidance → HTML comments), `references/completeness.md`, `SKILL.md`, `commands/score.md`, `init.sh` (2 more cases), `.github/workflows/validate.yml` (guard extended), `CLAUDE.md` (version rule), `.claude-plugin/marketplace.json` (top-level version removed), `plugin.json` → 2.1.0, `CHANGELOG.md`
 - feat-014 session (2026-09-04): NEW `references/config.md` (replacing `templates/pm-config.md`, deleted); MODIFIED `lib/vault-utils.mjs` (markdown config retired, `config.completeness` check), `create-vault.mjs` (`--upgrade-config`, no markdown copy), `validate-vault.mjs` (completeness errors block), `references/agent-design.md` (rule 4 inverted), `references/completeness.md`, `SKILL.md`, all four commands, `init.sh` (2 more cases), `plugin.json` → 2.0.0, `CHANGELOG.md`, README
 - feat-013 session (2026-09-04): NEW `plugins/blvck-pm/skills/agent-smith/` (vendored, 4 files), `templates/agents/lead-engineer.md`; MODIFIED all 7 existing archetypes (tools + model), `references/agent-design.md`, `SKILL.md`, `references/workflows.md`, `commands/setup.md`, `lib/vault-utils.mjs` (26th check), the fixture's agent, `plugin.json` → 1.5.0, `CHANGELOG.md`, README

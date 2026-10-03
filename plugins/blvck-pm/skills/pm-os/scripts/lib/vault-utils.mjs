@@ -5,6 +5,7 @@
 // conversation and belongs to /blvck-pm:validate, which is a prompt. Nothing here judges
 // quality, and adding a check that does is the signal it belongs on the other side of the line.
 import { readdir, readFile, realpath, stat, writeFile, mkdir } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDocument, classifyDocument, resolveChecklist } from './checklists.mjs';
@@ -37,6 +38,13 @@ export const DEFAULT_PATHS = {
   outputs: 'CLAUDE-OUTPUTS',
   agents: '.claude/agents'
 };
+
+// `mine`: work in this codebase is a task in the PM's plan. `dependency`: work there belongs to a
+// named owner and enters the plan as a dependency. Deliberately NOT a write permission — in real
+// use the PM commits heavily to repos the vault reads as read-only. Access follows where the
+// session starts (vault root plans, a session inside the repo builds), not this field.
+export const CODEBASE_SCOPES = ['mine', 'dependency'];
+const CODEBASE_KEYS = new Set(['name', 'path', 'scope', 'branch']);
 
 export const REQUIRED_OUTPUT_DIRS = ['prds', 'strategy-docs', 'research', 'stakeholder-comms', 'data-analysis'];
 export const OPTIONAL_OUTPUT_DIRS = ['feature-briefs', 'prototypes', 'drafts'];
@@ -104,8 +112,18 @@ export async function writeText(filePath, contents) {
   await writeFile(filePath, contents, 'utf8');
 }
 
-export async function listFiles(root, { maxFiles = 4000 } = {}) {
+export async function listFiles(root, options) {
+  return (await walkVault(root, options)).files;
+}
+
+// A subfolder with its own `.git` is a codebase, not vault material, and the walk does not enter
+// it. Decided by what the folder IS rather than what it is called: a vault may already keep PM
+// files in a folder named CODE/, and a repo can sit anywhere before migrate moves it. Without
+// this a repo's `{{...}}` blocks the vault and a large repo spends the whole file cap before the
+// PRDs are reached. `.git` may be a file (worktrees, submodules), so the name alone decides.
+export async function walkVault(root, { maxFiles = 4000 } = {}) {
   const out = [];
+  const repos = [];
   const skip = new Set(['.git', 'node_modules', '.migration-backup', '_archive']);
   async function walk(dir) {
     if (out.length >= maxFiles) return;
@@ -113,6 +131,10 @@ export async function listFiles(root, { maxFiles = 4000 } = {}) {
     try {
       entries = await readdir(dir, { withFileTypes: true });
     } catch {
+      return;
+    }
+    if (dir !== root && entries.some((entry) => entry.name === '.git')) {
+      repos.push(path.relative(root, dir));
       return;
     }
     for (const entry of entries) {
@@ -124,7 +146,7 @@ export async function listFiles(root, { maxFiles = 4000 } = {}) {
     }
   }
   await walk(root);
-  return out;
+  return { files: out, repos };
 }
 
 // --- config -----------------------------------------------------------------------------
@@ -180,6 +202,60 @@ async function assertInsideRoot(root, relative, label) {
   return resolved;
 }
 
+function expandHome(value) {
+  if (value === '~') return homedir();
+  if (value.startsWith('~/')) return path.join(homedir(), value.slice(2));
+  return value;
+}
+
+// The registry is the one place a declared path may leave the vault. The inside-the-vault rule
+// exists so a vault cannot borrow another vault's score, and a codebase earns no points — so the
+// rule has nothing to protect here, while a repo shared by two vaults has to live outside at
+// least one of them. Everything else about a declaration still holds: an entry the tool cannot
+// parse looks configured and does nothing, so it is a config error, not a shrug.
+async function parseCodebases(root, value) {
+  if (value === undefined) return [];
+  const where = `${CONFIG_JSON}: codebases`;
+  if (!Array.isArray(value)) throw new VaultConfigError(`${where} must be an array`);
+  const realRoot = await realpath(root).catch(() => path.resolve(root));
+  const names = new Set();
+  const codebases = [];
+  for (const [index, entry] of value.entries()) {
+    const at = `${where}[${index}]`;
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new VaultConfigError(`${at} must be an object`);
+    }
+    for (const key of Object.keys(entry)) {
+      if (!CODEBASE_KEYS.has(key)) {
+        throw new VaultConfigError(`${at}: unknown key "${key}" (known: ${[...CODEBASE_KEYS].join(', ')})`);
+      }
+    }
+    for (const key of ['name', 'path', 'scope']) {
+      if (typeof entry[key] !== 'string' || entry[key].length === 0) {
+        throw new VaultConfigError(`${at}.${key} must be a non-empty string`);
+      }
+    }
+    if (!CODEBASE_SCOPES.includes(entry.scope)) {
+      throw new VaultConfigError(`${at}.scope must be one of ${CODEBASE_SCOPES.join(' | ')} (got "${entry.scope}")`);
+    }
+    if (entry.branch !== undefined && (typeof entry.branch !== 'string' || entry.branch.length === 0)) {
+      throw new VaultConfigError(`${at}.branch must be a non-empty string when present`);
+    }
+    if (names.has(entry.name)) throw new VaultConfigError(`${at}.name "${entry.name}" is a duplicate`);
+    names.add(entry.name);
+    const resolved = path.resolve(realRoot, expandHome(entry.path));
+    codebases.push({
+      name: entry.name,
+      path: entry.path.replace(/\/$/, ''),
+      scope: entry.scope,
+      branch: entry.branch ?? null,
+      resolved,
+      inside: resolved.startsWith(realRoot + path.sep)
+    });
+  }
+  return codebases;
+}
+
 export async function loadConfig(root) {
   const jsonPath = path.join(root, CONFIG_JSON);
   const mdPath = path.join(root, CONFIG_MD);
@@ -189,6 +265,7 @@ export async function loadConfig(root) {
   let product = null;
   let agents = [];
   let completeness = {};
+  let codebases = [];
   let raw = null;
 
   const jsonText = await readText(jsonPath);
@@ -218,6 +295,7 @@ export async function loadConfig(root) {
     product = typeof raw.product === 'string' ? raw.product : null;
     agents = Array.isArray(raw.agents) ? raw.agents.filter((a) => typeof a === 'string') : [];
     completeness = (raw.completeness && typeof raw.completeness === 'object') ? raw.completeness : {};
+    codebases = await parseCodebases(root, raw.codebases);
     source = CONFIG_JSON;
   } else if (await exists(mdPath)) {
     // 2.0.0: the markdown config is no longer read. It was never reliably parseable — bullets
@@ -246,7 +324,7 @@ export async function loadConfig(root) {
     paths[role] = declared[role] ?? (slug ? fallback.replaceAll('{{PRODUCT_SLUG}}', slug) : fallback);
   }
 
-  return { source, paths, declared, language, product: slug, agents, completeness, raw };
+  return { source, paths, declared, language, product: slug, agents, completeness, codebases, raw };
 }
 
 // --- roadmap ----------------------------------------------------------------------------
@@ -315,7 +393,24 @@ function daysSince(dateText) {
   return Math.floor((Date.now() - parsed) / 86400000);
 }
 
-export async function scoreVault(root, { config, roadmap, files }) {
+// What a declared codebase is promising, checked on disk. Missing or not-a-repo entries are
+// broken promises (they block in validate-vault.mjs); a `mine` repo without a harness is a weak
+// result (it scores). Nothing here reads the repo's harness for quality — that is
+// blvck-harness's job, and the two plugins' scripts share no code on purpose.
+export async function inspectCodebases(codebases) {
+  const report = [];
+  for (const codebase of codebases) {
+    const present = await isDir(codebase.resolved);
+    const repo = present && await exists(path.join(codebase.resolved, '.git'));
+    const harness = repo
+      && await exists(path.join(codebase.resolved, 'CLAUDE.md'))
+      && await exists(path.join(codebase.resolved, 'init.sh'));
+    report.push({ ...codebase, present, repo, harness });
+  }
+  return report;
+}
+
+export async function scoreVault(root, { config, roadmap, files, repos = [] }) {
   const p = config.paths;
   const has = async (relative) => exists(path.join(root, relative));
   const text = async (relative) => (await readText(path.join(root, relative))) ?? '';
@@ -386,6 +481,28 @@ export async function scoreVault(root, { config, roadmap, files }) {
     }
   }
 
+  const codebases = await inspectCodebases(config.codebases || []);
+  const unharnessed = codebases.filter((c) => c.scope === 'mine' && c.repo && !c.harness);
+
+  // Warnings change neither the score nor the exit code. Each names something that works today
+  // but will surprise the user later, and is reported so the surprise happens here instead.
+  const warnings = [];
+  // Claude Code loads every CLAUDE.md above the working directory. A repo nested under a vault
+  // root that has one inherits the vault's rules in every coding session — in real use that
+  // blocked a merge, a branch switch and an edit, because the vault said its repos were read-only.
+  if (await exists(path.join(root, 'CLAUDE.md'))) {
+    for (const c of codebases.filter((entry) => entry.inside && entry.present)) {
+      warnings.push(`${c.name}: sits inside the vault, so the vault's root CLAUDE.md loads in every coding session there`);
+    }
+  }
+  const realRoot = await realpath(root).catch(() => path.resolve(root));
+  const declaredInside = new Set(codebases.filter((c) => c.inside).map((c) => path.relative(realRoot, c.resolved)));
+  for (const repo of repos) {
+    if (!declaredInside.has(repo)) {
+      warnings.push(`${repo}: a git repo inside the vault that the codebases registry does not list (run /blvck-pm:migrate to declare it)`);
+    }
+  }
+
   const focusDate = /updated[:*\s]*(\d{4}-\d{2}-\d{2})/i.exec(focusText)?.[1];
   const focusAge = focusDate ? daysSince(focusDate) : null;
 
@@ -426,7 +543,10 @@ export async function scoreVault(root, { config, roadmap, files }) {
       check('config.language', Boolean(config.language), 'Output language declared'),
       check('config.agentRoster', config.agents.length === 0 || config.agents.every((name) => agentFiles.includes(name)), 'Every agent in the roster has a file', config.agents.filter((name) => !agentFiles.includes(name))),
       check('config.noPlaceholders', placeholders.length === 0, 'No unresolved {{PLACEHOLDERS}} anywhere in the vault', placeholders),
-      check('config.agentBudgets', agentsMissingBudget.length === 0, 'Every agent declares a tool and model budget', agentsMissingBudget)
+      check('config.agentBudgets', agentsMissingBudget.length === 0, 'Every agent declares a tool and model budget', agentsMissingBudget),
+      // Passes when no codebase is declared, so it can only ever raise an existing vault's score.
+      check('config.codebaseHarness', unharnessed.length === 0, 'Every codebase in scope "mine" carries a harness (CLAUDE.md + init.sh)',
+        unharnessed.map((c) => `${c.name} (${c.path}): run /blvck-harness:setup there`))
     ]
   };
 
@@ -452,6 +572,8 @@ export async function scoreVault(root, { config, roadmap, files }) {
   // looks configured and does nothing, which no score bar can be trusted to catch.
   result.completenessErrors = completenessErrors;
   result.documentFindings = documentFindings;
+  result.codebases = codebases.map(({ resolved, ...rest }) => rest);
+  result.warnings = warnings;
   result.unscored = config.source === null && !identityText && !productText;
   return result;
 }
@@ -475,6 +597,15 @@ export function formatVaultReport(result, root, config, roadmap) {
   }
   lines.push('');
 
+  if (result.codebases?.length) {
+    lines.push('Codebases:');
+    for (const c of result.codebases) {
+      const state = !c.present ? 'MISSING' : !c.repo ? 'NOT A REPO' : c.inside ? 'inside' : 'outside';
+      lines.push(`  ${c.name.padEnd(16)}${c.scope.padEnd(11)}${state.padEnd(9)}${c.path}${c.branch ? `  (${c.branch})` : ''}`);
+    }
+    lines.push('');
+  }
+
   for (const [name, module] of Object.entries(result.modules)) {
     lines.push(`${name}: ${module.score}/${module.total}`);
     for (const c of module.checks) {
@@ -484,6 +615,12 @@ export function formatVaultReport(result, root, config, roadmap) {
         if (c.detail.length > 5) lines.push(`         … ${c.detail.length - 5} more`);
       }
     }
+    lines.push('');
+  }
+
+  if (result.warnings?.length) {
+    lines.push('Warnings (no effect on score or exit code):');
+    for (const w of result.warnings) lines.push(`  - ${w}`);
     lines.push('');
   }
 

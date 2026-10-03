@@ -1,6 +1,6 @@
 # Proposal: A codebase registry for the PM vault
 
-**Status:** Decided, not scheduled · **Plugin:** blvck-pm (touches blvck-harness) · **Target:** blvck-pm 2.2.0 · **Date:** 2026-10-04
+**Status:** Built in blvck-pm 2.2.0 (feat-016) · **Plugin:** blvck-pm (touches blvck-harness) · **Target:** blvck-pm 2.2.0 · **Date:** 2026-10-04
 
 ## Summary
 

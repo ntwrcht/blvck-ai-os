@@ -125,8 +125,8 @@
       "name": "Codebase registry for the PM vault",
       "description": "blvck-pm 2.2.0: an optional `codebases` registry in pm-os.config.json (path anywhere, CODE/ by default; scope mine|dependency; branch), a built-in freshness rule before citing code, the validator skipping nested repos, a leak warning for repos nested under a root CLAUDE.md, and migrate as a non-forcing helper. Spec: docs/proposals/codebases-in-vault.md.",
       "dependencies": ["feat-015"],
-      "status": "in_progress",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-10-04: blvck-pm 2.2.0. Script side: walkVault skips any subfolder with its own .git (by what it is, not its name) and reports the repos; loadConfig parses an optional codebases registry (name/path/scope/branch; unknown key or scope, duplicate name, non-array -> exit 2; ~ expands; the one declared path allowed outside the vault); validate-vault blocks on a codebase that is gone or not a git repo; 28th check config.codebaseHarness (mine repo needs CLAUDE.md + init.sh; scores, never blocks, passes when none declared); warnings for an undeclared nested repo and for a nested codebase under a root CLAUDE.md, never affecting score or exit. init.sh step 8/8 adds six cases, all passing; a mutation test (repo skip disabled) made the first case FAIL, so the suite can catch the regression. Real vaults (read-only run): ~/botnoi 93/100 and ~/botnoi-voice 89/100 under BOTH 2.1.0 and 2.2.0 -> MINOR confirmed on production data; botnoi-voice now names its 4 unregistered repos. Prompt side: SKILL.md Codebases section with the freshness rule (pull when clean and on-branch, else fetch and read origin/<branch> through git, always name the commit), config.md, setup code question, migrate codebase helper (register in place / offer move, names the costs, never rewrites agents), lead-engineer and prototype-builder read the registry. ./init.sh passes; claude plugin validate . --strict and plugins/blvck-pm --strict pass. NOT DONE: tag and push (release checklist step 5); prompt paths not yet exercised on a real vault."
     }
   ]
 }

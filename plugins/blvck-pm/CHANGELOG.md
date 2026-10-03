@@ -8,6 +8,48 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.2.0] - 2026-10-04
+
+Lets a vault plan against the real code. Designed from two production vaults and about 140 of
+their session transcripts; the spec is `docs/proposals/codebases-in-vault.md`.
+
+### Added
+
+- **`codebases` in `pm-os.config.json`** — a registry of the repos this vault plans against.
+  Each entry has a `path` (anywhere; `CODE/<repo>` is the default home), a `scope` (`mine` or
+  `dependency`), and an optional `branch`. Scope is not a write permission: in real use the PM
+  committed heavily to repos the vault read as read-only. Access follows where the session
+  starts — the vault root plans, a session inside the repo builds.
+- **A freshness rule before citing code.** A clean clone on its branch is pulled; any other clone
+  is left alone, fetched, and read through git. Every output that cites code names the commit it
+  read. In real use a clone sat 26 commits behind and a task was generated from it.
+- **`config.codebaseHarness`**, a 28th check: every `mine` repo carries `CLAUDE.md` + `init.sh`.
+  It scores, never blocks, and passes when no codebase is declared.
+- **Warnings** that change neither score nor exit code: a git repo nested in the vault that the
+  registry does not list, and a nested codebase that inherits the vault's root `CLAUDE.md` — in
+  real use that file's "repositories are read-only" rule blocked a merge, a branch switch and an
+  edit in coding sessions.
+- `/blvck-pm:setup` asks one code question; `/blvck-pm:migrate` registers repos in place or offers
+  a move into `CODE/`, names what a move costs, and never rewrites an agent.
+
+### Changed
+
+- **The validator no longer reads git repos nested in the vault.** A subfolder with its own `.git`
+  is a codebase, decided by what it is, not its name. Before this, a repo's `{{...}}` blocked the
+  whole vault and a large repo could spend the 4,000-file walk cap before reaching the PRDs.
+- `lead-engineer` checks plans against registered code at the pinned commit; `prototype-builder`
+  builds in a registered codebase instead of an unnamed folder.
+
+### Notes
+
+- **This is a MINOR, and the real vaults confirmed it.** The registry is optional, the new check
+  passes when it is absent (x/n → (x+1)/(n+1) never lowers a score), and skipping nested repos
+  can only remove false blocks. Both production vaults scored the same under 2.1.0 and 2.2.0
+  (93 and 89).
+- **A codebase is the one declared path allowed outside the vault.** The inside rule stops a vault
+  borrowing another's score, and a codebase earns no points. Everything else still holds: one that
+  is gone or is not a repo blocks, and an unknown key or scope exits 2.
+
 ## [2.1.0] - 2026-09-04
 
 Closes the last gap between what blvck-pm promises and what it can prove.

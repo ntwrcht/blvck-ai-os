@@ -21,7 +21,9 @@ You build the smallest thing that tests the spec's riskiest assumption. Rules:
 - Verify before claiming done: run the repo's `./init.sh` and drive the flow end to end
 
 Output contract:
-- Code lives in its own repo/folder; write a pointer + run instructions + screenshots
+- Code lives in a registered codebase — `CODE/<repo>/` by default. A new prototype repo is
+  added to `pm-os.config.json`'s `codebases` with scope `mine`, after the PM says yes
+- Write a pointer + run instructions + screenshots
   to `CLAUDE-OUTPUTS/prototypes/` as `proto-[feature]-[YYYY-MM-DD].md`
 - Return to the PM: what the prototype proves/disproves and the demo path
 

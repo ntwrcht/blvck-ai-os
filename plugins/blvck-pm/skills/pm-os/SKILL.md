@@ -19,7 +19,7 @@ You operate inside a PM vault. The vault is the source of truth; conversation me
 
 ## Session Ritual (always first, once per session)
 
-1. Read `pm-os.config.json` — paths, language, completeness overrides, decision thresholds, integrations, agent roster. Shape and field meanings: `references/config.md`. It is the one fixed name and, as of 2.0.0, the only config: a vault still carrying `pm-os.config.md` fails with the one-line conversion command rather than being half-read. Every path below is the configured one; the defaults in parentheses apply only when the config is silent. Everything except that file is free to move.
+1. Read `pm-os.config.json` — paths, language, completeness overrides, decision thresholds, integrations, agent roster, codebases. Shape and field meanings: `references/config.md`. It is the one fixed name and, as of 2.0.0, the only config: a vault still carrying `pm-os.config.md` fails with the one-line conversion command rather than being half-read. Every path below is the configured one; the defaults in parentheses apply only when the config is silent. Everything except that file is free to move.
 2. Read the identity file, anti-style, and current focus from the configured identity path (`ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, `ABOUT-ME/current-focus.md`)
 3. Read the configured product context (`PROJECTS/<product>/CLAUDE.md`), the vision (`PROJECTS/<product>/vision.md`) if present, and `roadmap.json` if present — the roadmap is where "where do we stand" is answered
 4. Note the configured output language (`language`, default `en`). Do not infer it from the language the user typed in
@@ -69,10 +69,11 @@ node ${CLAUDE_SKILL_DIR}/scripts/validate-vault.mjs --target /path [--json] [--m
 `create-vault.mjs` scaffolds without an interview — it is how CI builds a vault, not how a human
 should. `/blvck-pm:setup` stays the human path.
 
-`validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 27
+`validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 28
 mechanical checks. Exit `0` passed, `1` scored under the bar or has a blocking finding, `2` the
 config is invalid or unsafe. Three things block regardless of score, because each is a broken
-promise rather than a weak vault: a declared path that does not exist, an unresolved
+promise rather than a weak vault: a declared path that does not exist (a registered codebase
+that is gone or is not a git repo included), an unresolved
 `{{PLACEHOLDER}}`, and a roadmap error.
 
 **The script decides only what a machine can decide.** "Does the PRD name a success metric" is
@@ -96,6 +97,20 @@ and link rather than share a tracker.
 When a workflow writes a document, add its path to the `documents` array of the outcome it
 serves. If no outcome fits, say so rather than inventing one: either the work is off-strategy or
 the roadmap is stale.
+
+## Codebases
+
+`pm-os.config.json`'s `codebases` lists the code this vault plans against (`references/config.md`). Read code **only** through it: a repo the registry does not list is not this vault's to cite, and a path hardcoded in prose is how two vaults end up reading two different clones of the same service.
+
+**Freshness, before citing any code.** A plan built on a stale clone is worse than one built on no code, because it carries a file and a line and reads as checked.
+
+1. If the repo is on its `branch` with a clean tree, run `git -C <path> pull --ff-only`.
+2. Otherwise — another branch, uncommitted work, or a pull that cannot fast-forward — **leave the working tree alone**: the user may be mid-build in that clone. Run `git -C <path> fetch`, then read `origin/<branch>` through git: `git show origin/<branch>:<file>`, `git ls-tree -r --name-only origin/<branch>`, `git grep <pattern> origin/<branch>`.
+3. Record the commit you read (`git rev-parse`) and name it in every output that cites code, next to each `path:line`.
+
+Never `checkout`, `switch`, `stash`, `merge`, `reset`, commit, or build in a registered codebase from the vault. Planning reads; building happens in a session the user starts inside the repo, under that repo's own harness.
+
+`scope` decides how work lands in a plan: `mine` is a task, `dependency` is a dependency with a named owner. A claim that something belongs to another codebase needs a file and a line, not an inference.
 
 ## Voice & Frameworks
 

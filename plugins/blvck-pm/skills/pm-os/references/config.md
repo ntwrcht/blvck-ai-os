@@ -38,6 +38,10 @@ node <plugin>/skills/pm-os/scripts/create-vault.mjs --upgrade-config --target .
   },
   "decisions": { "flagIrreversible": true, "flagCostTimeScope": true, "confidenceFloor": 0.7 },
   "integrations": { "jira": false, "confluence": false, "drive": false, "bigquery": false },
+  "codebases": [
+    { "name": "billing-api", "path": "CODE/billing-api", "scope": "mine", "branch": "main" },
+    { "name": "point-service", "path": "~/work/point-service", "scope": "dependency", "branch": "develop" }
+  ],
   "agents": ["lead-engineer", "blind-reviewer"]
 }
 ```
@@ -61,6 +65,30 @@ because an override the tool cannot parse looks configured and silently does not
 
 **`integrations`** — per-project switches. A disabled or unavailable tool never blocks a
 workflow; it runs local-only and says so.
+
+**`codebases`** — the code this vault plans against (2.2.0, optional). Each entry is a git repo:
+
+| Field | Meaning |
+|---|---|
+| `name` | Unique within the vault |
+| `path` | Anywhere. Relative paths resolve from the vault root and `~` is the home directory. `CODE/<repo>` is the default home |
+| `scope` | `mine` — work there is a task in this plan. `dependency` — work there belongs to a named owner and enters the plan as a dependency |
+| `branch` | The branch planning reads. Omitted means the repo's current default |
+
+`scope` is **not** a write permission. Access follows where the session starts: the vault root
+plans and reads, and a session started inside the repo builds. A PM who commits to a repo still
+plans against it read-only from here.
+
+This is the one declared path allowed outside the vault. The inside-the-vault rule exists so a
+vault cannot borrow another vault's score; a codebase earns no points, and a repo shared by two
+vaults has to sit outside at least one of them. The rest of the declaration contract holds: a
+codebase that is gone or is not a git repo **blocks**, and an unknown key or scope is a config
+error (exit 2). Every git repo nested in the vault is skipped when the validator walks it — a
+repo is never vault material — and one the registry does not list is named as a warning.
+
+A codebase nested in the vault inherits the vault's root `CLAUDE.md` in every coding session
+there, because Claude Code loads every CLAUDE.md above the working directory. The validator warns
+when that is the case. A fresh vault has no root `CLAUDE.md`, so the default is clean.
 
 **`agents`** — the roster. `/blvck-pm:validate` fails on a roster naming a file that is not there,
 and on an agent file the roster does not mention.
