@@ -9,7 +9,9 @@ description: >-
   before working and writes only to CLAUDE-OUTPUTS/. Trigger on "PRD", "spec", "prioritize",
   "roadmap", "north star", "interview", "synthesis", "competitor", "weekly update", "launch",
   "GTM", "tracking plan", "funnel", "vision", or any product-management request — even if the user
-  never says "pm-os".
+  never says "pm-os". Also use before reading or citing code from the vault's codebases — "which
+  files would X touch", "tech read", "check this against the code", "does the code support",
+  "where is X implemented" — because it carries the freshness rule that keeps citations current.
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 ---
 
@@ -102,11 +104,12 @@ the roadmap is stale.
 
 `pm-os.config.json`'s `codebases` lists the code this vault plans against (`references/config.md`). Read code **only** through it: a repo the registry does not list is not this vault's to cite, and a path hardcoded in prose is how two vaults end up reading two different clones of the same service.
 
-**Freshness, before citing any code.** A plan built on a stale clone is worse than one built on no code, because it carries a file and a line and reads as checked.
+**Freshness, before reading any code.** A plan built on a stale clone is worse than one built on no code, because it carries a file and a line and reads as checked. Refresh **every registered codebase**, dependencies included, before the first read — not only the ones the work seems to touch. Which repos a question touches is what the reading finds out, so it cannot be decided before it; in real use a session refreshed the three repos it judged in scope and the answer then cited a fourth from a clone nobody had refreshed.
 
 1. If the repo is on its `branch` with a clean tree, run `git -C <path> pull --ff-only`.
 2. Otherwise — another branch, uncommitted work, or a pull that cannot fast-forward — **leave the working tree alone**: the user may be mid-build in that clone. Run `git -C <path> fetch`, then read `origin/<branch>` through git: `git show origin/<branch>:<file>`, `git ls-tree -r --name-only origin/<branch>`, `git grep <pattern> origin/<branch>`.
 3. Record the commit you read (`git rev-parse`) and name it in every output that cites code, next to each `path:line`.
+4. When you brief an agent to read code, pass it the commit for every registered codebase. A citation from a repo with no recorded commit is labeled **unpinned** in the output, never presented as current.
 
 Never `checkout`, `switch`, `stash`, `merge`, `reset`, commit, or build in a registered codebase from the vault. Planning reads; building happens in a session the user starts inside the repo, under that repo's own harness.
 

@@ -22,7 +22,12 @@ their session transcripts; the spec is `docs/proposals/codebases-in-vault.md`.
   starts — the vault root plans, a session inside the repo builds.
 - **A freshness rule before citing code.** A clean clone on its branch is pulled; any other clone
   is left alone, fetched, and read through git. Every output that cites code names the commit it
-  read. In real use a clone sat 26 commits behind and a task was generated from it.
+  read. In real use a clone sat 26 commits behind and a task was generated from it. It refreshes
+  **every** registered codebase, dependencies included: a real run refreshed the three repos it
+  judged in scope and then cited a fourth from a clone nobody had refreshed. A citation with no
+  recorded commit is labeled *unpinned*. The pm-os skill now also triggers on code questions
+  ("which files would X touch", "tech read"), because the rule lives there and a code question
+  never loaded it before.
 - **`config.codebaseHarness`**, a 28th check: every `mine` repo carries `CLAUDE.md` + `init.sh`.
   It scores, never blocks, and passes when no codebase is declared.
 - **Warnings** that change neither score nor exit code: a git repo nested in the vault that the
