@@ -85,7 +85,7 @@ Required checks:
 - Adapted layout cannot be gamed: a declared path that does not exist fails, flat prose does not pass the structured gate, an invalid or out-of-tree map exits 2, and an empty directory reports `unscored` rather than its floor score
 - PM vault round-trip: a fresh `create-vault.mjs` scaffold must exit **1** (a scaffold is not a vault — an untouched skeleton passing is how the identity-file defect hid for two releases), and `tests/fixtures/pm-vault` must score 100/100 and exit 0
 - PM vault cannot be gamed: a declared path that is gone fails, a `measured` outcome with no result blocks regardless of score, an unknown or out-of-tree config path exits 2, and an empty directory reports `unscored`
-- PM codebase registry: codebases inside and outside the vault score 100/100 and a repo's `{{TOKEN}}` is never read, a non-repo folder named `CODE/` still is, an undeclared repo and a leaking root `CLAUDE.md` warn without blocking, a `mine` repo with no harness scores but never blocks, a codebase that is gone or not a repo fails, and a malformed registry exits 2
+- PM codebase registry: codebases inside and outside the vault score 100/100 and a repo's `{{TOKEN}}` is never read, a non-repo folder named `CODE/` still is, an undeclared repo and a leaking root `CLAUDE.md` warn without blocking, `"rootClaudeMd": "accepted"` silences only its own warning, a `mine` repo with no harness scores but never blocks, a codebase that is gone or not a repo fails, and a malformed registry exits 2
 
 Three layouts, one check set. A change to scoring must keep solo, team, **and** adapted passing — and `scoreHarness` must stay layout-agnostic. If you find yourself adding a branch on layout inside it, that is the signal the change belongs in an adapter instead.
 

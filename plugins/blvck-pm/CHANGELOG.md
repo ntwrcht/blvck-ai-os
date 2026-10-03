@@ -28,7 +28,8 @@ their session transcripts; the spec is `docs/proposals/codebases-in-vault.md`.
 - **Warnings** that change neither score nor exit code: a git repo nested in the vault that the
   registry does not list, and a nested codebase that inherits the vault's root `CLAUDE.md` — in
   real use that file's "repositories are read-only" rule blocked a merge, a branch switch and an
-  edit in coding sessions.
+  edit in coding sessions. Setting `"rootClaudeMd": "accepted"` on an entry records the
+  inheritance as intended and silences that warning only; any other value exits 2.
 - `/blvck-pm:setup` asks one code question; `/blvck-pm:migrate` registers repos in place or offers
   a move into `CODE/`, names what a move costs, and never rewrites an agent.
 

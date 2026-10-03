@@ -74,6 +74,7 @@ workflow; it runs local-only and says so.
 | `path` | Anywhere. Relative paths resolve from the vault root and `~` is the home directory. `CODE/<repo>` is the default home |
 | `scope` | `mine` — work there is a task in this plan. `dependency` — work there belongs to a named owner and enters the plan as a dependency |
 | `branch` | The branch planning reads. Omitted means the repo's current default |
+| `rootClaudeMd` | Only value: `"accepted"`. Records that this nested repo inheriting the vault's root `CLAUDE.md` is intended, which silences that one warning. Any other value is a config error |
 
 `scope` is **not** a write permission. Access follows where the session starts: the vault root
 plans and reads, and a session started inside the repo builds. A PM who commits to a repo still
@@ -88,7 +89,10 @@ repo is never vault material — and one the registry does not list is named as 
 
 A codebase nested in the vault inherits the vault's root `CLAUDE.md` in every coding session
 there, because Claude Code loads every CLAUDE.md above the working directory. The validator warns
-when that is the case. A fresh vault has no root `CLAUDE.md`, so the default is clean.
+when that is the case. A fresh vault has no root `CLAUDE.md`, so the default is clean. If the
+inheritance is intended — say the root file's rules were scoped to vault-root sessions — set
+`"rootClaudeMd": "accepted"` on that entry. A recorded trade-off is a decision, not a gap, and a
+warning that can never be answered teaches people to skip warnings.
 
 **`agents`** — the roster. `/blvck-pm:validate` fails on a roster naming a file that is not there,
 and on an agent file the roster does not mention.

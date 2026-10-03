@@ -379,8 +379,21 @@ if (!/billing-api: sits inside the vault/.test(text)) { console.error("FAIL: the
 if (/point-service/.test(text)) { console.error("FAIL: a repo outside the vault cannot inherit its CLAUDE.md"); process.exit(1); }
 if (r.overall !== 100) { console.error(`FAIL: warnings cost score (${r.overall})`); process.exit(1); }
 '
-rm -rf "$TMP/pm-code/CODE/stray" "$TMP/pm-code/CLAUDE.md"
 echo "pm: an undeclared repo and a leaking root CLAUDE.md warn, never block (exit 0)"
+
+# An acknowledged inheritance is a decision, not a gap: it silences that entry's warning and only
+# that one. The undeclared stray repo must still be named.
+registry "$TMP/pm-code" "[{\"name\":\"billing-api\",\"path\":\"CODE/billing-api\",\"scope\":\"mine\",\"rootClaudeMd\":\"accepted\"},{\"name\":\"point-service\",\"path\":\"$TMP/shared/point-service\",\"scope\":\"dependency\"}]"
+check_json "$TMP/pm-code" '
+const text = r.warnings.join("\n");
+if (/billing-api/.test(text)) { console.error("FAIL: an accepted root CLAUDE.md still warned"); process.exit(1); }
+if (!/CODE\/stray/.test(text)) { console.error("FAIL: accepting one warning silenced an unrelated one"); process.exit(1); }
+'
+registry "$TMP/pm-code" '[{"name":"billing-api","path":"CODE/billing-api","scope":"mine","rootClaudeMd":"yes"}]'
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
+rm -rf "$TMP/pm-code/CODE/stray" "$TMP/pm-code/CLAUDE.md"
+registry "$TMP/pm-code" "[{\"name\":\"billing-api\",\"path\":\"CODE/billing-api\",\"scope\":\"mine\",\"branch\":\"main\"},{\"name\":\"point-service\",\"path\":\"$TMP/shared/point-service\",\"scope\":\"dependency\"}]"
+echo "pm: \"rootClaudeMd\": \"accepted\" silences only its own warning, and any other value exits 2"
 
 # A `mine` repo without a harness is a weak result, not a broken promise: it scores, never blocks.
 rm "$TMP/pm-code/CODE/billing-api/init.sh"

@@ -44,7 +44,7 @@ export const DEFAULT_PATHS = {
 // use the PM commits heavily to repos the vault reads as read-only. Access follows where the
 // session starts (vault root plans, a session inside the repo builds), not this field.
 export const CODEBASE_SCOPES = ['mine', 'dependency'];
-const CODEBASE_KEYS = new Set(['name', 'path', 'scope', 'branch']);
+const CODEBASE_KEYS = new Set(['name', 'path', 'scope', 'branch', 'rootClaudeMd']);
 
 export const REQUIRED_OUTPUT_DIRS = ['prds', 'strategy-docs', 'research', 'stakeholder-comms', 'data-analysis'];
 export const OPTIONAL_OUTPUT_DIRS = ['feature-briefs', 'prototypes', 'drafts'];
@@ -241,6 +241,12 @@ async function parseCodebases(root, value) {
     if (entry.branch !== undefined && (typeof entry.branch !== 'string' || entry.branch.length === 0)) {
       throw new VaultConfigError(`${at}.branch must be a non-empty string when present`);
     }
+    // The one way to answer the inheritance warning. Same rule as a document's "## Completeness"
+    // section: a recorded trade-off is a decision, not a gap. Exactly one value, because an
+    // acknowledgement the tool cannot read would silence nothing while looking like it had.
+    if (entry.rootClaudeMd !== undefined && entry.rootClaudeMd !== 'accepted') {
+      throw new VaultConfigError(`${at}.rootClaudeMd must be "accepted" when present (got ${JSON.stringify(entry.rootClaudeMd)})`);
+    }
     if (names.has(entry.name)) throw new VaultConfigError(`${at}.name "${entry.name}" is a duplicate`);
     names.add(entry.name);
     const resolved = path.resolve(realRoot, expandHome(entry.path));
@@ -249,6 +255,7 @@ async function parseCodebases(root, value) {
       path: entry.path.replace(/\/$/, ''),
       scope: entry.scope,
       branch: entry.branch ?? null,
+      rootClaudeMdAccepted: entry.rootClaudeMd === 'accepted',
       resolved,
       inside: resolved.startsWith(realRoot + path.sep)
     });
@@ -491,8 +498,10 @@ export async function scoreVault(root, { config, roadmap, files, repos = [] }) {
   // root that has one inherits the vault's rules in every coding session — in real use that
   // blocked a merge, a branch switch and an edit, because the vault said its repos were read-only.
   if (await exists(path.join(root, 'CLAUDE.md'))) {
-    for (const c of codebases.filter((entry) => entry.inside && entry.present)) {
-      warnings.push(`${c.name}: sits inside the vault, so the vault's root CLAUDE.md loads in every coding session there`);
+    // Acknowledged entries drop out: a warning that cannot be answered trains people to ignore
+    // warnings, and the next one will be real.
+    for (const c of codebases.filter((entry) => entry.inside && entry.present && !entry.rootClaudeMdAccepted)) {
+      warnings.push(`${c.name}: sits inside the vault, so the vault's root CLAUDE.md loads in every coding session there (if that is intended, set "rootClaudeMd": "accepted" on this entry)`);
     }
   }
   const realRoot = await realpath(root).catch(() => path.resolve(root));
@@ -602,7 +611,8 @@ export function formatVaultReport(result, root, config, roadmap) {
     const width = Math.max(...result.codebases.map((c) => c.name.length)) + 2;
     for (const c of result.codebases) {
       const state = !c.present ? 'MISSING' : !c.repo ? 'NOT A REPO' : c.inside ? 'inside' : 'outside';
-      lines.push(`  ${c.name.padEnd(width)}${c.scope.padEnd(12)}${state.padEnd(12)}${c.path}${c.branch ? `  (${c.branch})` : ''}`);
+      const note = c.rootClaudeMdAccepted ? '  root CLAUDE.md accepted' : '';
+      lines.push(`  ${c.name.padEnd(width)}${c.scope.padEnd(12)}${state.padEnd(12)}${c.path}${c.branch ? `  (${c.branch})` : ''}${note}`);
     }
     lines.push('');
   }
