@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-04
-**Active Feature:** none — feat-016 done. blvck-pm is at **2.2.0** in the repo, **committed but not tagged or pushed**: installed users are still on 2.1.0 until the release checklist's tag-and-push step runs.
+**Active Feature:** none — feat-016 done. **blvck-pm 2.2.0 is released**: tag `blvck-pm--v2.2.0` pushed 2026-10-04 at `09cbc3e`, `main` pushed, CI green, `claude plugin details blvck-pm` reports 2.2.0. blvck-harness is unchanged at 1.2.0.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
