@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** none — feat-018 done. **blvck-harness 2.0.0 is released**: tag `blvck-harness--v2.0.0` pushed 2026-10-09 at `b440a4b`, `main` pushed, CI green, `claude plugin details blvck-harness` reports 2.0.0; the user confirmed the `/` menu shows only setup, run, check. blvck-pm is unchanged at 2.2.0. Not yet exercised: a real GitHub/GitLab PR/MR opened by Deliver (live runs used no remote, then a bare remote). Possible next: give blvck-pm the same three-command shape.
+**Active Feature:** none — feat-018 done. **blvck-harness 2.0.0 is released**: tag `blvck-harness--v2.0.0` pushed 2026-10-09 at `b440a4b`, `main` pushed, CI green, `claude plugin details blvck-harness` reports 2.0.0; the user confirmed the `/` menu shows only setup, run, check. blvck-pm is unchanged at 2.2.0. Not yet exercised: a real GitHub/GitLab PR/MR opened by Deliver (live runs used no remote, then a bare remote). Next candidate: feat-019, blvck-pm 3.0 in the same shape — plan in https://github.com/ntwrcht/blvck-ai-os/issues/1.
 
 **Fixed during feat-018:** `templates/solo/session-handoff.md` hard-coded "Read `AGENTS.md`" even when the scaffold wrote `CLAUDE.md`; it now uses `{{AGENT_FILE_NAME}}`, and init.sh asserts both names plus no unfilled token in a solo scaffold.
 
