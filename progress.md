@@ -3,9 +3,9 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** feat-018 (three commands + guided setup, blvck-harness 2.0.0) — built and committed, NOT released. Left: an interactive check that the skill is hidden from `/` and setup/run/check appear, optionally a 4th live run of the new clean-up, then tag + push (needs the user's go). Installed users are still on blvck-harness 1.2.0 and blvck-pm 2.2.0.
+**Active Feature:** feat-018 (three commands + guided setup, blvck-harness 2.0.0) — built and committed, NOT released. Left: an interactive check that the skill is hidden from `/` and setup/run/check appear, then tag + push (needs the user's go). A 4th live run delivered a two-wave feature with push and verified the new clean-up. Installed users are still on blvck-harness 1.2.0 and blvck-pm 2.2.0.
 
-**Follow-up found during feat-018 (not fixed, out of scope):** `templates/solo/session-handoff.md` hard-codes "Read `AGENTS.md`" even when the scaffold used `--agent-file CLAUDE.md` — the live run's deliver agent corrected it by hand. Fixing it changes classic output, so it is a deliberate patch, not a drive-by.
+**Fixed during feat-018:** `templates/solo/session-handoff.md` hard-coded "Read `AGENTS.md`" even when the scaffold wrote `CLAUDE.md`; it now uses `{{AGENT_FILE_NAME}}`, and init.sh asserts both names plus no unfilled token in a solo scaffold.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 

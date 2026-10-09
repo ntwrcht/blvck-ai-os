@@ -60,6 +60,13 @@ bumped here and there. Pushing commits alone ships nothing.
 - Adapted harnesses work in dynamic mode too: the workflow writes evidence to the files your
   map names.
 
+### Fixed
+
+- **The solo handoff named the wrong instruction file.** `session-handoff.md` always said
+  "Read `AGENTS.md`", even when setup wrote `CLAUDE.md` (the default), so the next session's
+  first step pointed at a file that did not exist. It now names the file setup actually wrote.
+  Found when a live workflow run's delivery agent had to correct it by hand.
+
 ## [1.2.0] - 2026-07-15
 
 ### Added

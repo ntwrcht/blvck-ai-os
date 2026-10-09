@@ -215,6 +215,7 @@ function expect(name, condition, detail = '') {
   const cleanup = calls.find((call) => call.label === 'cleanup').prompt;
   expect('clean-up names every reported worktree', cleanup.includes('/wt/implement:t01#1') && cleanup.includes('/wt/deliver'));
   expect('clean-up never force-deletes', cleanup.includes('Never use `git branch -D`') && cleanup.includes('git branch -d'));
+  expect('task branches are deleted from a checkout of the feature branch, so -d can see the merge', cleanup.includes('git worktree add --detach <temp dir> feat/feat-x') && cleanup.includes('branch -d <task branches>'));
   expect('every worktree agent is asked where it ran', calls.filter((call) => call.opts.isolation === 'worktree').every((call) => call.prompt.includes('as worktree')));
 }
 

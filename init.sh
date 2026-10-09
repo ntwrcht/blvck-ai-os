@@ -40,7 +40,12 @@ trap 'rm -rf "$TMP"' EXIT
 
 node "$SCRIPTS/create-harness.mjs" --target "$TMP/solo" >/dev/null
 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/solo" >/dev/null
-echo "solo: scaffold + validate exit 0"
+# The handoff's startup step must name the instruction file the scaffold actually wrote.
+grep -q 'Read `CLAUDE.md`' "$TMP/solo/session-handoff.md" || { echo "FAIL: handoff does not name CLAUDE.md"; exit 1; }
+node "$SCRIPTS/create-harness.mjs" --target "$TMP/solo-agents" --agent-file AGENTS.md >/dev/null
+grep -q 'Read `AGENTS.md`' "$TMP/solo-agents/session-handoff.md" || { echo "FAIL: handoff does not name AGENTS.md"; exit 1; }
+if grep -rq '{{' "$TMP/solo" "$TMP/solo-agents"; then echo "FAIL: unfilled {{TOKEN}} in a solo scaffold"; exit 1; fi
+echo "solo: scaffold + validate exit 0; handoff names the instruction file that was written"
 
 node "$SCRIPTS/create-harness.mjs" --target "$TMP/team" --layout team --owner ci >/dev/null
 FEAT_DIR="$(find "$TMP/team/features" -mindepth 1 -maxdepth 1 -type d | head -1)"

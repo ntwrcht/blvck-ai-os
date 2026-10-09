@@ -167,7 +167,7 @@ if (isTeam) {
 } else {
   results.push(await copyTemplate('solo/feature-list.json', path.join(target, 'feature_list.json'), {}, { force }));
   results.push(await copyTemplate('solo/progress.md', path.join(target, 'progress.md'), {}, { force }));
-  results.push(await copyTemplate('solo/session-handoff.md', path.join(target, 'session-handoff.md'), {}, { force }));
+  results.push(await copyTemplate('solo/session-handoff.md', path.join(target, 'session-handoff.md'), { AGENT_FILE_NAME: agentFile }, { force }));
 }
 
 // The config is only ever written in dynamic mode; its absence is what "classic" means, so a
