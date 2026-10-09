@@ -27,13 +27,14 @@ export const meta = {
 //   verification, // the repo's verification command, usually ./init.sh
 //   local,        // true when the harness is in .git/info/exclude — worktrees will not contain it
 //   repoRoot,     // absolute path of the user's checkout; where local harness files live
+//   codeStyle,    // the instruction file's Code Style section, as text (optional)
 // }
 //
 // A local harness is invisible to git, so a worktree has no CLAUDE.md, tracker or init.sh.
 // The run command passes `verification` as an absolute path for that case, and Deliver writes
 // state straight into the user's checkout instead of committing it to the feature branch.
 
-const { config, feature, grilling = '', harness = {}, verification = './init.sh', local = false, repoRoot = '' } = args || {}
+const { config, feature, grilling = '', harness = {}, verification = './init.sh', local = false, repoRoot = '', codeStyle = '' } = args || {}
 if (local && !repoRoot) throw new Error('A local harness needs args.repoRoot so Deliver can find the state files')
 if (!config || config.mode !== 'dynamic') throw new Error('blvck-feature needs a dynamic-mode config in args.config — run it through /blvck-harness:run')
 if (!feature || !feature.id) throw new Error('blvck-feature needs the picked feature in args.feature')
@@ -53,6 +54,7 @@ const skillLine = (name) => {
 }
 // The persona a stage runs as — a subagent from .claude/agents/ — or the default workflow agent.
 const as = (name) => (stages[name] && stages[name].agent ? { agentType: stages[name].agent } : {})
+const styleLine = codeStyle ? `Code style rules the user set for this repository — follow every one:\n${codeStyle}` : ''
 const brief = [
   `Feature ${feature.id}: ${feature.name || ''}`,
   feature.description ? `Description: ${feature.description}` : '',
@@ -80,9 +82,10 @@ const PLAN = {
     approach: { type: 'string' },
     doneCriteria: { type: 'array', items: { type: 'string' } },
     risks: { type: 'array', items: { type: 'string' } },
+    assumptions: { type: 'array', items: { type: 'string' } },
     openQuestions: { type: 'array', items: { type: 'string' } },
   },
-  required: ['summary', 'approach', 'doneCriteria', 'openQuestions'],
+  required: ['summary', 'approach', 'doneCriteria', 'assumptions', 'openQuestions'],
 }
 const AUDIT = {
   type: 'object',
@@ -115,7 +118,7 @@ const TASKS = {
 }
 const IMPLEMENTED = {
   type: 'object',
-  properties: {
+  properties: { worktree: { type: 'string' },
     status: { type: 'string', enum: ['done', 'blocked'] },
     branch: { type: 'string' },
     summary: { type: 'string' },
@@ -126,7 +129,7 @@ const IMPLEMENTED = {
 }
 const TESTED = {
   type: 'object',
-  properties: { pass: { type: 'boolean' }, failures: { type: 'array', items: { type: 'string' } }, ran: { type: 'array', items: { type: 'string' } } },
+  properties: { worktree: { type: 'string' }, pass: { type: 'boolean' }, failures: { type: 'array', items: { type: 'string' } }, ran: { type: 'array', items: { type: 'string' } } },
   required: ['pass', 'failures', 'ran'],
 }
 const REVIEWED = {
@@ -136,12 +139,12 @@ const REVIEWED = {
 }
 const INTEGRATED = {
   type: 'object',
-  properties: { merged: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } } },
+  properties: { worktree: { type: 'string' }, merged: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } } },
   required: ['merged', 'conflicts'],
 }
 const DELIVERED = {
   type: 'object',
-  properties: {
+  properties: { worktree: { type: 'string' },
     verificationPassed: { type: 'boolean' },
     evidence: { type: 'string' },
     recordedIn: { type: 'array', items: { type: 'string' } },
@@ -162,6 +165,15 @@ const CLEANED = {
   required: ['removedWorktrees', 'deletedBranches', 'kept'],
 }
 
+// Every agent that runs in a worktree reports where it ran, so clean-up removes exactly this
+// run's worktrees and never another session's that share the same directory.
+const WHERE = 'Report the absolute path of your working directory (`pwd`) as worktree.'
+const worktrees = new Set()
+const track = (result) => {
+  if (result && result.worktree) worktrees.add(result.worktree)
+  return result
+}
+
 const needsInput = (questions, stage) => ({
   status: 'needs-input',
   featureId: feature.id,
@@ -174,18 +186,27 @@ const needsInput = (questions, stage) => ({
 // Plan — one planner, or several independent angles merged by a synthesizer
 // ---------------------------------------------------------------------------
 phase('Plan')
+// Without a bar, "never guess" never builds: a real run asked two rounds of questions about
+// Unicode whitespace. Questions are for what the user would notice or object to; the rest is
+// decided and disclosed, so nothing is hidden and nothing stalls.
+const MATERIAL = `Decide versus ask:
+- Put a question in openQuestions only when the answer changes what gets built in a way the user would notice or object to: scope, behavior a user sees, data kept or lost, security or permissions, or anything hard to reverse.
+- Everything else — an edge case with a conventional answer, a naming or structure choice, input nobody will realistically send — decide it yourself and record the decision in assumptions, one line each, so the user sees it in the pull request.
+- Never ask about something the confirmed requirements already answer.`
 const ANGLES = ['the smallest change that meets every done criterion', 'risk first: what could break and how the plan prevents it', 'test first: how each criterion will be proven', 'reuse first: what already exists in this codebase', 'the user outcome: what the person using this will notice']
 const planPrompt = (angle) => `Plan the implementation of one feature in this repository. Read the code you need; do not edit anything.
 ${brief}
 Approach the plan from this angle: ${angle}.
 ${skillLine('plan')}
-List done criteria a test or command can check. Put anything you cannot decide from the code or the confirmed requirements in openQuestions — never guess a requirement.`
+List done criteria a test or command can check.
+${MATERIAL}`
 
 let plan
 if (stages.plan.agents > 1) {
   const drafts = (await parallel(ANGLES.slice(0, stages.plan.agents).map((angle, i) => () =>
     agent(planPrompt(angle), { label: `plan:${i + 1}`, phase: 'Plan', schema: PLAN, ...as('plan') })))).filter(Boolean)
-  plan = await agent(`Merge these independent plans for the same feature into one. Keep the strongest approach, graft the best ideas from the others, keep every open question that any of them raised.
+  plan = await agent(`Merge these independent plans for the same feature into one. Keep the strongest approach, graft the best ideas from the others, and keep every assumption. Keep an open question only if it still passes this bar:
+${MATERIAL}
 ${brief}
 Plans:
 ${JSON.stringify(drafts, null, 2)}`, { label: 'plan:merge', phase: 'Plan', schema: PLAN, ...as('plan') })
@@ -193,6 +214,7 @@ ${JSON.stringify(drafts, null, 2)}`, { label: 'plan:merge', phase: 'Plan', schem
   plan = await agent(planPrompt(ANGLES[0]), { label: 'plan', phase: 'Plan', schema: PLAN, ...as('plan') })
 }
 if (!plan) throw new Error('The plan stage returned nothing')
+plan.assumptions = plan.assumptions || []
 if (plan.openQuestions.length) return needsInput(plan.openQuestions, 'plan')
 
 // ---------------------------------------------------------------------------
@@ -206,19 +228,21 @@ ${brief}
 ${skillLine('audit')}
 Plan:
 ${JSON.stringify(plan, null, 2)}
-Put a question in blockingQuestions only when the user must answer it before work can start. Everything fixable by changing the plan goes in issues.`, { label: `audit:${i + 1}`, phase: 'Audit', schema: AUDIT, ...as('audit') })))).filter(Boolean)
+Put a question in blockingQuestions only when it passes this bar — otherwise it is an issue, fixable by deciding and recording an assumption:
+${MATERIAL}`, { label: `audit:${i + 1}`, phase: 'Audit', schema: AUDIT, ...as('audit') })))).filter(Boolean)
 
   const blocking = [...new Set(votes.flatMap((vote) => vote.blockingQuestions))]
   if (blocking.length) return needsInput(blocking, 'audit')
   const revise = votes.filter((vote) => vote.verdict === 'revise')
   if (revise.length * 2 > votes.length) {
-    const revised = await agent(`Revise this plan to resolve the audit issues. Keep what the auditors did not object to.
+    const revised = await agent(`Revise this plan to resolve the audit issues. Keep what the auditors did not object to, and record each decision you make as an assumption.
+${MATERIAL}
 ${brief}
 Plan:
 ${JSON.stringify(plan, null, 2)}
 Issues:
 ${revise.flatMap((vote) => vote.issues).map((issue) => `- ${issue}`).join('\n')}`, { label: 'audit:revise', phase: 'Audit', schema: PLAN, ...as('plan') })
-    if (revised) plan = revised
+    if (revised) plan = { ...revised, assumptions: revised.assumptions || [] }
     if (plan.openQuestions.length) return needsInput(plan.openQuestions, 'audit')
   }
 }
@@ -323,9 +347,10 @@ Task ${task.id}: ${task.title}
 ${task.spec}
 Files this task owns: ${task.files.length ? task.files.join(', ') : 'decide from the spec'}. Do not edit files outside that list; if you must, say which and why in your summary.
 ${skillLine('implement')}
-Git: ${attempt === 1 ? `run \`git checkout -B ${branch} ${featureBranch}\`` : `run \`git checkout ${branch}\``} first. Commit all of your work to ${branch}. When finished, run \`git checkout --detach\` so the branch is free for the next stage.
+${styleLine}
+Git: ${attempt === 1 ? `run \`git checkout -B ${branch} ${featureBranch}\`` : `run \`git checkout ${branch}\``} first. Commit all of your work to ${branch}. When finished, run \`git checkout --detach\` so the branch is free for the next stage. ${WHERE}
 ${feedback ? `This is attempt ${attempt}. The previous attempt was rejected for these reasons — fix every one:\n${feedback}` : ''}`,
-      { label: `implement:${task.id}#${attempt}`, phase: 'Implement', schema: IMPLEMENTED, isolation: 'worktree', ...as('implement') }))
+      { label: `implement:${task.id}#${attempt}`, phase: 'Implement', schema: IMPLEMENTED, isolation: 'worktree', ...as('implement') }).then(track))
 
     if (!built || built.status === 'blocked') {
       history.push({ attempt, result: 'blocked', reason: built ? built.blocker || built.summary : 'implementer returned nothing' })
@@ -339,14 +364,15 @@ Task ${task.id}: ${task.title}
 ${task.spec}
 What the implementer says changed: ${built.summary}
 ${skillLine('test')}
-Run ${verification} and any tests that cover this task. A done criterion with no test is a failure to report, not a test for you to add — the developer owns the task branch. Report every failure precisely enough that someone else can fix it.`,
-        { label: `test:${task.id}#${attempt}`, phase: 'Test', schema: TESTED, isolation: 'worktree', ...as('test') })) : Promise.resolve({ pass: true, failures: [], ran: [] })),
+Run ${verification} and any tests that cover this task. A done criterion with no test is a failure to report, not a test for you to add — the developer owns the task branch. Report every failure precisely enough that someone else can fix it. ${WHERE}`,
+        { label: `test:${task.id}#${attempt}`, phase: 'Test', schema: TESTED, isolation: 'worktree', ...as('test') }).then(track)) : Promise.resolve({ pass: true, failures: [], ran: [] })),
       () => (on('review') ? reviewSlot(() => agent(`Review one task's code. Read it with \`git diff ${featureBranch}...${branch}\`; do not check anything out and do not edit anything.
 ${brief}
 Task ${task.id}: ${task.title}
 ${task.spec}
 ${skillLine('review')}
-Put only defects that must be fixed before merge in mustFix: correctness, security, a missed done criterion, an edit outside the task's files without a reason. Style preferences go in suggestions.`,
+Put only defects that must be fixed before merge in mustFix: correctness, security, a missed done criterion, an edit outside the task's files without a reason${codeStyle ? ', or a break of the code style rules below — the user set them deliberately, so a violation is a defect, not a preference' : ''}. Other style preferences go in suggestions.
+${styleLine}`,
         { label: `review:${task.id}#${attempt}`, phase: 'Review', schema: REVIEWED, ...as('review') })) : Promise.resolve({ approve: true, mustFix: [] })),
     ])
     const [tested, reviewed] = checks
@@ -371,9 +397,9 @@ for (let w = 0; w < waves.length; w++) {
   if (passing.length === 0) continue
   // Later waves start from the feature branch, so each wave lands there before the next begins.
   const integrated = await agent(`Merge finished task branches into the feature branch. You are in your own git worktree.
-Run \`git checkout ${featureBranch}\`, then for each branch below run \`git merge --no-ff <branch>\`. If a merge conflicts, run \`git merge --abort\`, list that branch under conflicts, and continue with the next. Finish with \`git checkout --detach\` so the feature branch is free.
+Run \`git checkout ${featureBranch}\`, then for each branch below run \`git merge --no-ff <branch>\`. If a merge conflicts, run \`git merge --abort\`, list that branch under conflicts, and continue with the next. Finish with \`git checkout --detach\` so the feature branch is free. ${WHERE}
 Branches: ${passing.map((result) => result.branch).join(', ')}`,
-    { label: `integrate:wave${w + 1}`, phase: 'Deliver', schema: INTEGRATED, isolation: 'worktree', effort: 'low' })
+    { label: `integrate:wave${w + 1}`, phase: 'Deliver', schema: INTEGRATED, isolation: 'worktree', effort: 'low' }).then(track)
   conflicts.push(...(integrated ? integrated.conflicts : passing.map((result) => result.branch)))
 }
 
@@ -399,7 +425,8 @@ ${brief}
 Done criteria:
 ${plan.doneCriteria.map((criterion) => `- ${criterion}`).join('\n')}
 ${skillLine('review')}
-Each task was reviewed alone; look for what only shows up together — duplicated logic, mismatched interfaces, a done criterion no task covered.`,
+Each task was reviewed alone; look for what only shows up together — duplicated logic, mismatched interfaces, a done criterion no task covered.${codeStyle ? ' A break of the code style rules is mustFix.' : ''}
+${styleLine}`,
     { label: 'review:feature', phase: 'Review', schema: REVIEWED, ...as('review') })
 }
 const shipBlocked = blocked || Boolean(finalReview && !finalReview.approve && finalReview.mustFix.length)
@@ -420,10 +447,11 @@ ${JSON.stringify(harness.resolution || {}, null, 2)}
     conflicts.length ? `branches that conflicted on merge: ${conflicts.join(', ')}` : '',
     finalReview && finalReview.mustFix.length ? `whole-feature review must-fix: ${finalReview.mustFix.join('; ')}` : '',
   ].filter(Boolean).join('; ')}.` : 'Mark the feature done only if step 1 passed, with the verification output as evidence.'}
-   Write a handoff note for the next session in the harness's session handoff or progress file. ${local ? `Commit only code on ${featureBranch}; the harness files stay uncommitted in ${repoRoot}.` : `Commit on ${featureBranch}.`}
+   ${plan.assumptions.length ? `List these decisions made without asking the user in the pull request description and the handoff note, under "Assumptions":\n${plan.assumptions.map((item) => `   - ${item}`).join('\n')}\n   ` : ''}Write a handoff note for the next session in the harness's session handoff or progress file. ${local ? `Commit only code on ${featureBranch}; the harness files stay uncommitted in ${repoRoot}.` : `Commit on ${featureBranch}.`}
 3. ${shipBlocked ? `Do not open a pull request. Push ${featureBranch} only if the remote exists, so the work is not lost.` : `If verification passed, ${hostStep}. If the CLI is missing or not signed in, push the branch anyway and return the web link where the user can open it by hand as manualPrLink.`}
-Finish with \`git checkout --detach\`.`,
-  { label: 'deliver', phase: 'Deliver', schema: DELIVERED, isolation: 'worktree', ...as('deliver') })
+If a hook, guardrail, or permission rule blocks a git command, do not work around it — no alternative command, no disabling the hook. Report pushed=false and name the blocked command in notes; the user decides.
+Finish with \`git checkout --detach\`. ${WHERE}`,
+  { label: 'deliver', phase: 'Deliver', schema: DELIVERED, isolation: 'worktree', ...as('deliver') }).then(track)
 
 // ---------------------------------------------------------------------------
 // Clean up — worktrees and merged task branches go; the feature branch and any unfinished
@@ -434,10 +462,11 @@ if (on('cleanup')) {
   phase('Clean up')
   const keep = [featureBranch, ...failed.map((result) => result.branch), ...conflicts]
   cleanup = await agent(`Clean up after a feature run without touching the user's current checkout or uncommitted work.
-- Remove every git worktree whose checked-out or detached commit belongs to these task branches, then run \`git worktree prune\`: ${results.map((result) => result.branch).join(', ') || '(none)'}
+- Remove exactly these worktrees, which this run created, and no others: ${[...worktrees].join(', ') || '(none reported)'}. For each one: if \`git -C <path> status --porcelain\` prints anything, keep it and list it under kept; otherwise run \`git worktree remove <path>\`, then delete the branch the runtime created for it (usually \`worktree-<directory name>\`) with \`git branch -d\` — if git refuses because the branch holds unmerged work, keep it and list it. Never use \`git branch -D\` or \`--force\`. Finish with \`git worktree prune\`.
 - Delete these task branches, but only if \`git branch --merged ${featureBranch}\` lists them: ${results.filter((result) => !keep.includes(result.branch)).map((result) => result.branch).join(', ') || '(none)'}
 - Never delete these — they hold the delivered or unfinished work: ${keep.join(', ')}
-- Remove temporary files or folders this run created outside git (build scratch, logs) if you can identify them with certainty; leave anything you are unsure about and list it under kept.`,
+- Remove temporary files or folders this run created outside git (build scratch, logs) if you can identify them with certainty; leave anything you are unsure about and list it under kept.
+- If a hook or permission rule blocks a command, do not work around it; list what it blocked under kept.`,
     { label: 'cleanup', phase: 'Clean up', schema: CLEANED, effort: 'low', ...as('cleanup') })
 }
 
@@ -449,7 +478,7 @@ return {
   targetBranch: target,
   prUrl: delivered ? delivered.prUrl || null : null,
   manualPrLink: delivered ? delivered.manualPrLink || null : null,
-  plan: { summary: plan.summary, doneCriteria: plan.doneCriteria },
+  plan: { summary: plan.summary, doneCriteria: plan.doneCriteria, assumptions: plan.assumptions },
   tasks: taskReport,
   finalReview,
   delivery: delivered,

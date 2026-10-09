@@ -934,7 +934,7 @@ export const DEFAULT_AGENTS = ['product-owner', 'tech-lead', 'developer', 'qa-en
 const RECOMMENDED_STAGES = {
   plan: { enabled: true, agents: 1, agent: 'product-owner', skills: ['codebase-design'] },
   audit: { enabled: true, agents: 1, agent: 'tech-lead', skills: ['scrutinize'] },
-  breakdown: { enabled: true, agents: 1, agent: 'tech-lead', skills: [] },
+  breakdown: { enabled: true, agents: 1, agent: 'tech-lead', skills: ['codebase-design'] },
   implement: { enabled: true, agents: 10, agent: 'developer', skills: ['tdd'] },
   test: { enabled: true, agents: 5, agent: 'qa-engineer', skills: ['tdd', 'debug'] },
   review: { enabled: true, agents: 5, agent: 'tech-lead', skills: ['scrutinize', 'security-audit'] },
@@ -1146,7 +1146,7 @@ export async function readWorkflowConfig(root) {
 
 // Team hygiene findings that only make sense in the sharded layout.
 // File-based only — branch existence and unpushed claims are checked by the
-// /blvck-harness:validate command prompt, which can run git.
+// /blvck-harness:check command prompt, which can run git.
 export async function teamFindings(root, { staleDays = 14, now = new Date() } = {}) {
   const findings = { danglingDependencies: [], duplicateSlugs: [], staleClaims: [], unclaimedInProgress: [], invalidStatusFiles: [] };
   const featureDirs = await listFeatureDirs(root);
@@ -1248,7 +1248,7 @@ export function formatScoreReport(result, root = '.') {
     lines.push(
       '',
       'Unscored — no harness artifacts found. The nominal score below is a floor artifact, not a measurement.',
-      'If this repo does have a harness under its own file names, run /blvck-harness:migrate to map it.'
+      'If this repo does have a harness under its own file names, run /blvck-harness:check to discover and map it.'
     );
   }
 

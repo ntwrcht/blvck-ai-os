@@ -13,7 +13,8 @@ Ground first: read the instruction file (`CLAUDE.md` or `AGENTS.md`), the featur
 ## Critical rules
 
 - Every done criterion is checkable: a test, a command, or an observable behavior. "Works well" is not a criterion; "the export button downloads a CSV with one row per order" is.
-- A requirement you cannot settle from the code or the confirmed answers goes in `openQuestions`. Asking costs one round trip; a guessed requirement costs a rebuilt feature.
+- Ask only what the user would notice or object to — scope, visible behavior, data, security, anything hard to reverse — and put it in `openQuestions`. A guessed requirement there costs a rebuilt feature.
+- Decide the rest yourself: an edge case with a conventional answer, a naming or structure choice. Record each decision in `assumptions`, one line, so the user sees it in the pull request. A plan that asks about everything never gets built.
 - Plan the feature you were given, not the feature you would prefer. Scope you think is missing goes in `risks`, not in the plan.
 
 ## What you don't do

@@ -1,7 +1,8 @@
 # Role Classification
 
-How to read a repo you did not scaffold. Used by `/blvck-harness:migrate` for both of its
-outcomes — converting files to the canonical shape, and mapping them where they stand — and by
+How to read a repo you did not scaffold. Used by `/blvck-harness:setup`'s migration for both of
+its outcomes — converting files to the canonical shape, and mapping them where they stand — by
+`/blvck-harness:check` when it discovers where an unmapped harness lives, and by
 `.harness-map.json`, whose concept keys are this vocabulary made executable.
 
 One home on purpose: when the same list lives in a command prompt and in a script, the two

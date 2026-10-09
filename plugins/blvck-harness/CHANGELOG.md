@@ -8,6 +8,58 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.0.0] - 2026-10-09
+
+### Changed — breaking
+
+- **Four commands become three, one per moment.** Typing an old command now does nothing, so
+  here is where each one went:
+
+  | Removed | Use instead |
+  |---|---|
+  | `/blvck-harness:migrate` | `/blvck-harness:setup` — it detects an existing setup and runs the same convert/adapt migration |
+  | `/blvck-harness:validate` | `/blvck-harness:check` |
+  | `/blvck-harness:score` | `/blvck-harness:check` — one report: verdict, subsystem scores, findings, fix list |
+
+- **The `harness-engineering` skill is hidden from the `/` menu** (`user-invocable: false`). It
+  still loads on its own when a harness problem comes up, and it points to the commands, so
+  nobody has to guess whether to type the skill or `setup`.
+
+### Added
+
+- **Dynamic workflow mode**, opt-in per repo. `/blvck-harness:run` settles unclear requirements
+  with you in the main session, then a background workflow plans the feature, audits the plan,
+  splits it into tasks that own separate files, builds them in parallel git worktrees, tests and
+  reviews each task as soon as it finishes (sending rejected tasks back, 2 times by default,
+  3 at most), merges everything into one feature branch, and opens a PR (GitHub) or MR (GitLab)
+  against the branch you chose. It then removes its worktrees and merged task branches.
+  Classic one-agent mode stays the default, and its scaffold is byte-identical to 1.2.0.
+- **Your choices, not a fixed shape.** `.claude/harness-workflow.json` holds the stages you turned
+  on, the agent ceiling for each one, the persona that runs it, and any number of skills per
+  stage. Recommended, lean, and custom presets. A config the tool cannot trust exits 2 and never
+  falls back to defaults.
+- **Stage personas**: `product-owner` plans, `tech-lead` audits, breaks down, reviews, and
+  delivers, `developer` implements, `qa-engineer` tests. Each has its own tool budget.
+  `setup` tailors them with agent-smith when it is installed, or copies the four defaults.
+- **Built-in grilling style** for users without the `grilling` skill.
+- **Decide versus ask.** The planner only stops a run for questions you would notice or object to
+  (scope, visible behavior, data, security, anything hard to reverse). It decides conventional
+  edge cases itself and lists them as **assumptions** in the PR and in the final report, so you
+  can object before merging. A live test run without this bar asked two rounds of trivia and
+  never built anything.
+- **Code style round** in `setup`, for both modes. It reads your codebase's conventions, then
+  asks about comments (why, not what), references in code (no ticket ids or PR numbers — those
+  belong in commits), naming, and comment language. The answers become a `## Code Style` section
+  every agent reads. In dynamic mode, reviewers treat a violation as must-fix. Not scored.
+- **Local-only harness**: `--visibility local` lists the harness, personas, `.claude/skills/`,
+  and `.agents/` in `.git/info/exclude`. Nothing is pushed, and no `.gitignore` entry gives it away.
+- **`check` scores concepts, whatever your files are called.** When the script cannot find a
+  harness under the default names, `check` works out which files play each role, scores that
+  reading with the same 25 checks from a scratch map, shows which file it read for each concept,
+  and offers to save the map.
+- Adapted harnesses work in dynamic mode too: the workflow writes evidence to the files your
+  map names.
+
 ## [1.2.0] - 2026-07-15
 
 ### Added

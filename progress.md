@@ -3,7 +3,9 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** feat-018 (three commands + guided setup, blvck-harness 2.0.0) — next. feat-017 (dynamic workflow engine) is done and committed; nothing is released yet, so installed users are still on blvck-harness 1.2.0 and blvck-pm 2.2.0.
+**Active Feature:** feat-018 (three commands + guided setup, blvck-harness 2.0.0) — built and committed, NOT released. Left: an interactive check that the skill is hidden from `/` and setup/run/check appear, optionally a 4th live run of the new clean-up, then tag + push (needs the user's go). Installed users are still on blvck-harness 1.2.0 and blvck-pm 2.2.0.
+
+**Follow-up found during feat-018 (not fixed, out of scope):** `templates/solo/session-handoff.md` hard-codes "Read `AGENTS.md`" even when the scaffold used `--agent-file CLAUDE.md` — the live run's deliver agent corrected it by hand. Fixing it changes classic output, so it is a deliberate patch, not a drive-by.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,6 +28,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [ ] feat-018 Three commands + guided setup — built; live e2e delivered a real feature; release pending
 - [x] feat-017 Dynamic workflow engine — `.claude/harness-workflow.json`, `--mode dynamic`, stage personas, local visibility, `workflows/feature.js` + fake-runtime simulation; classic output byte-identical to 1.2.0; init.sh 8 → 9 steps
 - [x] feat-016 blvck-pm 2.2.0 — codebase registry (`codebases` in config, path anywhere, `CODE/` default), freshness rule, nested repos skipped by the validator, leak + undeclared-repo warnings, migrate as a non-forcing helper
 - [x] feat-015 blvck-pm 2.1.0 — per-document completeness enforced, install verified, marketplace version removed

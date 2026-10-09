@@ -53,7 +53,7 @@ function standard(overrides = {}) {
       case 'audit': return { verdict: 'approve', issues: [], blockingQuestions: [] };
       case 'prepare-branch': return 'feat/feat-x';
       case 'breakdown': return { tasks: [{ id: 't01', title: 'one', spec: 's', files: ['a.js'], dependsOn: [] }] };
-      case 'implement': return { status: 'done', branch: 'b', summary: 'did it', filesChanged: [] };
+      case 'implement': return { status: 'done', branch: 'b', summary: 'did it', filesChanged: [], worktree: `/wt/${label}` };
       case 'test': return pass;
       case 'review': return approve;
       case 'integrate': return { merged: [], conflicts: [] };
@@ -191,6 +191,31 @@ function expect(name, condition, detail = '') {
   const deliver = local.calls.find((call) => call.label === 'deliver').prompt;
   expect('a local harness is recorded in the checkout, never committed', deliver.includes('relative to /repo') && deliver.includes('never commit'));
   expect('local verification runs by absolute path', local.calls.find((call) => call.label === 'test:t01#1').prompt.includes('bash /repo/init.sh'));
+}
+
+// 7b. Code style reaches implementers and makes a violation must-fix for reviewers; assumptions
+// reach the pull request so a decision made without asking is never hidden.
+{
+  const styled = { ...baseArgs(defaultWorkflowConfig()), codeStyle: '- No ticket ids in code' };
+  const { calls, result } = await run(styled, standard({ plan: { ...PLAN, assumptions: ['Unicode spaces count as spaces'] } }));
+  const prompt = (prefix) => calls.find((call) => call.label.startsWith(prefix)).prompt;
+  expect('implementers receive the code style rules', prompt('implement').includes('No ticket ids in code'));
+  expect('reviewers treat a style break as must-fix', prompt('review:t01').includes('a violation is a defect') && prompt('review:feature').includes('code style rules is mustFix'));
+  expect('assumptions go into the pull request and the result', prompt('deliver').includes('Unicode spaces count as spaces') && result.plan.assumptions.length === 1);
+  const plain = await run(baseArgs(defaultWorkflowConfig()), standard());
+  expect('without code style, no style rule is invented', !plain.calls.find((call) => call.label.startsWith('implement')).prompt.includes('Code style rules'));
+  expect('planners get the decide-versus-ask bar', plain.calls.find((call) => call.label === 'plan').prompt.includes('Decide versus ask'));
+}
+
+// 7c. Clean-up removes exactly the worktrees this run reported, safely, and nothing else.
+{
+  const { calls } = await run(baseArgs(defaultWorkflowConfig()), standard({
+    deliver: { verificationPassed: true, evidence: 'ok', recordedIn: [], pushed: true, worktree: '/wt/deliver' },
+  }));
+  const cleanup = calls.find((call) => call.label === 'cleanup').prompt;
+  expect('clean-up names every reported worktree', cleanup.includes('/wt/implement:t01#1') && cleanup.includes('/wt/deliver'));
+  expect('clean-up never force-deletes', cleanup.includes('Never use `git branch -D`') && cleanup.includes('git branch -d'));
+  expect('every worktree agent is asked where it ran', calls.filter((call) => call.opts.isolation === 'worktree').every((call) => call.prompt.includes('as worktree')));
 }
 
 // 8. The script refuses inputs it cannot honor.

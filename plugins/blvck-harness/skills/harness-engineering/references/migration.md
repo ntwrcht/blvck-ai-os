@@ -1,13 +1,10 @@
----
-description: Reconcile an existing setup (any shape) with this harness — convert files to it, or map it where it stands
-argument-hint: [convert|adapt]
-disable-model-invocation: true
----
-Reconcile the current repository's existing agent-workflow setup with the harness-engineering skill. Sources are generic — an upstream harness-creator repo, a hand-rolled CLAUDE.md with ad-hoc trackers, this plugin's solo layout moving to team, or a deliberate structure of the user's own. This is a staged, gated operation: three read-only phases before the first write, and nothing is ever deleted.
+# Migrating an Existing Harness
+
+`/blvck-harness:setup` follows this when the repo already has an agent setup that is not a blvck harness. Reconcile it with the harness-engineering skill. Sources are generic — an upstream harness-creator repo, a hand-rolled CLAUDE.md with ad-hoc trackers, this plugin's solo layout moving to team, or a deliberate structure of the user's own. This is a staged, gated operation: three read-only phases before the first write, and nothing is ever deleted.
 
 There are two ways this ends, and the scan is identical for both. **Convert** moves the user's files into the canonical shape. **Adapt** leaves every file where it is and writes `.harness-map.json` so the same checks score it in place. Do not assume convert — a structure the user built on purpose is not a mistake to be corrected.
 
-**Phase 1 — Scan (read-only).** Inventory the repo and classify files by the role they play, never by matching a known layout. The role vocabulary, the map concept each role corresponds to, and the rules for recording the repo's own wording are in [Role Classification](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references/role-classification.md) — read it before classifying.
+**Phase 1 — Scan (read-only).** Inventory the repo and classify files by the role they play, never by matching a known layout. The role vocabulary, the map concept each role corresponds to, and the rules for recording the repo's own wording are in [Role Classification](role-classification.md) — read it before classifying.
 
 Known origins are classification hints, not requirements. A file that fits no role is **unknown** — ask the user what it is; never guess. While scanning, note the words the instruction file actually uses for the startup path, definition of done, one-feature rule, and end-of-session routine; those become the map's `vocabulary` if this ends in adapt.
 
@@ -18,9 +15,9 @@ Then ask the fork, with a recommendation and the reason for it:
 - **Convert** — recommend when the current shape is accidental (files that accreted, a half-abandoned tracker) or when the user wants the standard layout. Also recommend it for solo → team, which is a real restructure, not a naming difference.
 - **Adapt** — recommend when the structure is deliberate, load-bearing, or referenced by other tooling (CI, scripts, a docs site). Renaming a repo's files to satisfy a scorer is the tail wagging the dog.
 
-If `$ARGUMENTS` names a fork, still present the reading first — but skip the question and say which you are doing.
+If the user already named a fork, still present the reading first — but skip the question and say which you are doing.
 
-For **convert**, recommend a target layout the same way `/blvck-harness:setup` does (`git shortlog -sn --no-merges | head -5`; one committer → solo, several → team).
+For **convert**, recommend a target layout the same way a new setup does (`git shortlog -sn --no-merges | head -5`; one committer → solo, several → team).
 
 ---
 
@@ -62,3 +59,5 @@ Get explicit approval of the map before writing it.
 - Show before → after. For an adapt, the "before" is usually `unscored` or a floor score, and the delta is the point: nothing about the repo changed except that the scorer can now see it.
 
 Close with the summary: for a convert, what was created, converted, and moved to backup, and where; for an adapt, which concept resolves to which file, and which checks are now earned by the repo's own wording rather than the built-in phrases.
+
+After either path, `setup` continues with the mode and visibility rounds — a migrated harness can run dynamic mode, adapted included.

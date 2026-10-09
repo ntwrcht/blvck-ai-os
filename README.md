@@ -43,7 +43,9 @@ Both follow the same design principle: **very few commands, capability in scaffo
 
 ## Key Features
 
-- **Five-subsystem engineering harness** — instructions, state, verification, scope, and session lifecycle, scored by 25 automated checks (`/blvck-harness:score`).
+- **Five-subsystem engineering harness** — instructions, state, verification, scope, and session lifecycle, scored by 25 automated checks (`/blvck-harness:check`).
+- **Dynamic workflow, if you want it** — `/blvck-harness:run` settles unclear requirements with you, then a background workflow plans, splits the feature into independent tasks, builds them in parallel git worktrees, tests and reviews each one as it finishes, and opens a PR/MR from one feature branch. Product owner, tech lead, developer, and QA personas run the stages; you choose the stages, how many agents each gets, and which skills they use. Classic one-agent mode stays the default.
+- **Code style you set once** — setup reads your codebase's conventions and asks how agents should comment (why, not what), name things, and whether references like ticket ids may appear in code (by default, never — they belong in commits). Every agent follows the answers; in dynamic mode a violation is a review blocker.
 - **Scores your structure, not just ours** — already have a harness under your own file names and your own wording? Declare where the five concepts live in `.harness-map.json` and the same 25 checks grade it, up to 100/100, naming the file behind each concept. Declaring a path never passes a check on its own: the file still has to exist and still has to carry its meaning in real structure.
 - **Team layout built for parallel work** — one directory per feature under `features/`, with date- or Jira-keyed IDs (`feat-YYYYMMDD-slug`) so parallel branches never race a shared counter or collide in merges.
 - **PM vault with routed workflows** — capture who you are, what you build, and how you speak once; 21 workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review) reuse it automatically.
@@ -51,7 +53,7 @@ Both follow the same design principle: **very few commands, capability in scaffo
 - **A roadmap that ends at *measured*, not *shipped*** — `roadmap.json` tracks business outcomes bound to numbers, and an outcome cannot be closed until someone records whether the number actually moved, verdict included. A missed outcome recorded honestly is worth more than three shipped ones nobody checked.
 - **Plans checked against the real code** — a vault registers the codebases it plans against (in `CODE/` by default, or a clone shared with another vault), each marked `mine` or `dependency`. Before citing code, pm-os pulls or fetches and names the commit it read, so a plan never cites a stale clone. Planning reads from the vault; building happens in a session started inside the repo, under its own harness.
 - **An agent team you are interviewed for, not handed** — setup asks *who do you normally have to go ask?* and maps the answer onto eight archetypes (lead-engineer, customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst), each with its own tool and model budget. "Nobody, I work alone" is the most informative answer, not an empty one — it means the agents are standing in for a team that does not exist. Anything unmatched gets built with the bundled `agent-smith` skill.
-- **Safe, generic migration — that can decide not to migrate** — `migrate` scans any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
+- **Safe, generic migration — that can decide not to migrate** — `/blvck-harness:setup` and `/blvck-pm:migrate` scan any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
 - **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks all six scripts, JSON-validates every manifest and template, round-trips a full solo + team harness scaffold, and round-trips a PM vault — where a *fresh scaffold must fail*, because a skeleton nobody has answered is not a vault. Ten adversarial cases keep the scores honest: a score bar is not a gate, so anything that is a broken promise rather than a weak result fails on its own.
 
 ## Architecture Overview
@@ -61,11 +63,12 @@ blvck-ai-os/
 ├── .claude-plugin/marketplace.json        # marketplace manifest (both plugins)
 ├── plugins/
 │   ├── blvck-harness/
-│   │   ├── commands/                      # setup · migrate · validate · score
+│   │   ├── commands/                      # setup · run · check
 │   │   └── skills/harness-engineering/
-│   │       ├── SKILL.md                   # conventions the commands follow
+│   │       ├── SKILL.md                   # background knowledge (hidden from the / menu)
 │   │       ├── scripts/                   # create-harness.mjs, validate-harness.mjs (Node)
-│   │       ├── templates/                 # solo/ and team/ scaffolds
+│   │       ├── workflows/feature.js       # the dynamic workflow /blvck-harness:run launches
+│   │       ├── templates/                 # solo/ and team/ scaffolds + four stage personas
 │   │       └── references/                # harness design patterns + role classification
 │   └── blvck-pm/
 │       ├── commands/                      # setup · migrate · validate · score
@@ -77,6 +80,7 @@ blvck-ai-os/
 │           ├── templates/                 # 24 doc/context templates + 8 agent archetypes
 │           └── references/                # frameworks, voice, integrations
 ├── tests/fixtures/foreign-harness/         # a harness using none of the names above
+├── tests/workflow-sim.mjs                  # runs the real workflow script on a fake runtime
 ├── tests/fixtures/pm-vault/                # a filled vault that must score 100/100
 └── CLAUDE.md · feature_list.json · progress.md · init.sh    # this repo's own harness
 ```
@@ -86,7 +90,7 @@ Four ideas hold the system together:
 1. **Template–instance pattern.** Plugins hold templates; your repos hold instances. `setup` copies and fills templates into your project, where they become plain files you own. Nothing stays locked inside the plugin.
 2. **Machine-filled vs. human-filled placeholders.** `{{TOKEN}}` placeholders are resolved by scripts and commands; `[bracketed]` text is yours to edit. Scripts depend on this contract, so it never breaks.
 3. **Thin commands, thick skills.** Command files stay short and procedural; judgment and conventions live in each plugin's skill, which Claude loads on demand.
-4. **Concepts, not filenames.** A harness is five concepts (instructions, tracker, progress log, handoff, verification); `CLAUDE.md` and `feature_list.json` are just their default names. Solo, team, and adapted layouts are three ways of resolving the same concepts, so one set of checks grades all three — `/blvck-harness:score` on a team repo and on a mapped foreign repo run identical code.
+4. **Concepts, not filenames.** A harness is five concepts (instructions, tracker, progress log, handoff, verification); `CLAUDE.md` and `feature_list.json` are just their default names. Solo, team, and adapted layouts are three ways of resolving the same concepts, so one set of checks grades all three — `/blvck-harness:check` on a team repo and on a mapped foreign repo run identical code.
 
 The two plugins also compose: a PRD written in a **blvck-pm** vault feeds the prototype-builder agent, which builds inside a **blvck-harness** repo.
 
@@ -120,18 +124,19 @@ Enable each plugin per project or globally when prompted. To update later, `git 
 
 ### Engineering repos: blvck-harness
 
-Scaffold a harness in any repository — the command inspects what exists first and recommends a layout (solo for one committer, team for parallel humans):
+Three commands, one for each moment:
 
 ```text
-/blvck-harness:setup
+/blvck-harness:setup   # guided walkthrough: new harness, migrate an existing one, or reconfigure
+/blvck-harness:run     # start the next feature: grilling, then the dynamic workflow or the classic ritual
+/blvck-harness:check   # score, findings, and a fix list — whatever your files are called
 ```
 
-Then work the daily ritual the scaffolded `CLAUDE.md` defines: **startup workflow → one feature → verify → end of session.** Health checks when you need them:
+`setup` inspects what exists first and picks the path: a new harness (solo for one committer, team for parallel humans), a migration of a setup in another shape, or a reconfigure of an existing one. It then asks, with a recommendation each time:
 
-```text
-/blvck-harness:validate   # structural pass/fail + claim hygiene, with a fix list
-/blvck-harness:score      # five-subsystem grades from 25 automated checks
-```
+- **Mode** — classic (one agent follows the startup ritual) or dynamic (the multi-agent workflow)
+- **Visibility** — shared with your remote, or local only via `.git/info/exclude`
+- **Dynamic only** — preset (recommended, lean, custom), which stages run, the agent ceiling per stage, the persona behind each stage (tailored with agent-smith if you have it), any number of skills per stage, the repair limit, and where PRs/MRs go
 
 ### PM vaults: blvck-pm
 
@@ -156,14 +161,14 @@ Integrations (Jira, Confluence, Google Drive, BigQuery) are per-project switches
 Already have a hand-rolled `CLAUDE.md` with ad-hoc trackers, an upstream harness, a solo layout that needs to go team, or PM notes in another structure? Both plugins share a staged, confirm-at-every-gate reconciliation:
 
 ```text
-/blvck-harness:migrate    # engineering repos
+/blvck-harness:setup      # engineering repos — migration is a path inside setup
 /blvck-pm:migrate         # PM material
 ```
 
 A read-only scan classifies your files **by the role they play, never by matching a known layout** — then you pick how it ends:
 
 - **Convert** — move things into the standard shape. You approve a `source → destination` plan before the first write, and cleanup moves superseded files to `.migration-backup/<date>/` — group by group, with your confirmation, never a delete.
-- **Adapt** — change nothing. `/blvck-harness:migrate` writes a `.harness-map.json` describing what you already have; `/blvck-pm:migrate` records your real folders in `pm-os.config.md`. Your files stay exactly where they are and the tools read them there.
+- **Adapt** — change nothing. `/blvck-harness:setup` writes a `.harness-map.json` describing what you already have; `/blvck-pm:migrate` records your real folders in `pm-os.config.md`. Your files stay exactly where they are and the tools read them there.
 
 Adapting is not the lesser option. A mapped harness is scored by the same 25 checks and can reach 100/100 — the report just marks the layout `adapted` and shows which file satisfied which concept:
 

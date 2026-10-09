@@ -67,6 +67,15 @@ cp -R tests/fixtures/foreign-harness "$TMP/foreign"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign"
 echo "adapted: foreign-shaped harness scores (exit 0)"
 
+# /blvck-harness:check discovers a map and scores it from a scratch file before the user agrees
+# to save anything: the map must work from outside the repo, and the repo must stay untouched.
+cp -R tests/fixtures/foreign-harness "$TMP/discover"
+mv "$TMP/discover/.harness-map.json" "$TMP/discovered-map.json"
+expect_exit 1 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/discover"
+expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/discover" --map "$TMP/discovered-map.json"
+[ ! -e "$TMP/discover/.harness-map.json" ] || { echo "FAIL: scoring a scratch map wrote into the repo"; exit 1; }
+echo "adapted: a discovered map scores from outside the repo without writing into it"
+
 # The same 25 checks, expressed two ways: natively as team, and as a user map with layout:solo
 # so the team adapter never runs and the globs do all the work. If these disagree, the map is
 # not a real generalization of the layouts — it is a parallel implementation that will drift.
