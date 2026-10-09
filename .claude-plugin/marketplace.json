@@ -10,9 +10,9 @@
     {
       "name": "blvck-harness",
       "source": "./plugins/blvck-harness",
-      "description": "Engineering harness for AI coding agents — five subsystems, solo/team layouts, setup·migrate·validate·score.",
+      "description": "Engineering harness for AI coding agents — five subsystems, solo/team layouts, optional dynamic multi-agent workflow, setup·run·check.",
       "category": "development",
-      "keywords": ["harness", "agent-reliability", "verification", "session-continuity"],
+      "keywords": ["harness", "agent-reliability", "verification", "session-continuity", "multi-agent", "workflow"],
       "author": {
         "name": "Worachote Suwanyothin"
       },
