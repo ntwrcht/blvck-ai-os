@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-10-09
-**Active Feature:** feat-018 (three commands + guided setup, blvck-harness 2.0.0) — built and committed, NOT released. Left: an interactive check that the skill is hidden from `/` and setup/run/check appear, then tag + push (needs the user's go). A 4th live run delivered a two-wave feature with push and verified the new clean-up. Installed users are still on blvck-harness 1.2.0 and blvck-pm 2.2.0.
+**Active Feature:** none — feat-018 done. **blvck-harness 2.0.0 is released**: tag `blvck-harness--v2.0.0` pushed 2026-10-09 at `b440a4b`, `main` pushed, CI green, `claude plugin details blvck-harness` reports 2.0.0; the user confirmed the `/` menu shows only setup, run, check. blvck-pm is unchanged at 2.2.0. Not yet exercised: a real GitHub/GitLab PR/MR opened by Deliver (live runs used no remote, then a bare remote). Possible next: give blvck-pm the same three-command shape.
 
 **Fixed during feat-018:** `templates/solo/session-handoff.md` hard-coded "Read `AGENTS.md`" even when the scaffold wrote `CLAUDE.md`; it now uses `{{AGENT_FILE_NAME}}`, and init.sh asserts both names plus no unfilled token in a solo scaffold.
 
@@ -28,7 +28,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
-- [ ] feat-018 Three commands + guided setup — built; live e2e delivered a real feature; release pending
+- [x] feat-018 blvck-harness 2.0.0 — setup·run·check, guided setup (code style, visibility, stages, personas, skills, delivery), dynamic workflow proven by 4 live runs; released
 - [x] feat-017 Dynamic workflow engine — `.claude/harness-workflow.json`, `--mode dynamic`, stage personas, local visibility, `workflows/feature.js` + fake-runtime simulation; classic output byte-identical to 1.2.0; init.sh 8 → 9 steps
 - [x] feat-016 blvck-pm 2.2.0 — codebase registry (`codebases` in config, path anywhere, `CODE/` default), freshness rule, nested repos skipped by the validator, leak + undeclared-repo warnings, migrate as a non-forcing helper
 - [x] feat-015 blvck-pm 2.1.0 — per-document completeness enforced, install verified, marketplace version removed
