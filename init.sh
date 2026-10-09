@@ -19,21 +19,22 @@ expect_exit () {
   fi
 }
 
-echo "=== 1/8 Script syntax ==="
+echo "=== 1/9 Script syntax ==="
 node --check "$SCRIPTS/create-harness.mjs"
 node --check "$SCRIPTS/validate-harness.mjs"
 node --check "$SCRIPTS/lib/harness-utils.mjs"
 node --check "$PM_SCRIPTS/create-vault.mjs"
 node --check "$PM_SCRIPTS/validate-vault.mjs"
 node --check "$PM_SCRIPTS/lib/vault-utils.mjs"
+node --check tests/workflow-sim.mjs
 echo "OK"
 
-echo "=== 2/8 JSON validity (manifests, templates, trackers, fixtures) ==="
+echo "=== 2/9 JSON validity (manifests, templates, trackers, fixtures) ==="
 find . -name '*.json' -not -path './.git/*' -not -path '*/node_modules/*' -print0 \
   | xargs -0 -I{} node -e "JSON.parse(require('fs').readFileSync('{}','utf8'))" \
   && echo "OK"
 
-echo "=== 3/8 Scaffold + validate round-trip (solo and team) ==="
+echo "=== 3/9 Scaffold + validate round-trip (solo and team) ==="
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -61,7 +62,7 @@ if node "$SCRIPTS/validate-harness.mjs" --target "$TMP/team" >/dev/null 2>&1; th
 fi
 echo "team: seeded findings correctly rejected (exit 1)"
 
-echo "=== 4/8 Adapted layout scores a foreign structure ==="
+echo "=== 4/9 Adapted layout scores a foreign structure ==="
 cp -R tests/fixtures/foreign-harness "$TMP/foreign"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign"
 echo "adapted: foreign-shaped harness scores (exit 0)"
@@ -97,7 +98,7 @@ if (native.overall !== mapped.overall) {
 ' "$TMP/native.json" "$TMP/mapped.json"
 echo "adapted: team layout expressed as a map scores identically"
 
-echo "=== 5/8 Adapted layout cannot be gamed ==="
+echo "=== 5/9 Adapted layout cannot be gamed ==="
 
 # Declaring a path is an assertion, not a pass: point the map at a file that is not there and
 # the run must fail rather than quietly falling back to the built-in name.
@@ -152,7 +153,7 @@ if (result.unscored !== true) {
 ' "$TMP/empty.json"
 echo "empty: reports unscored rather than a floor score (exit 1)"
 
-echo "=== 6/8 PM vault round-trip (scaffold, then a filled vault) ==="
+echo "=== 6/9 PM vault round-trip (scaffold, then a filled vault) ==="
 
 # The fixture's current-focus.md carries a placeholder date rather than a real one. The
 # freshness check is genuinely time-dependent, so a hardcoded date would pass today and fail
@@ -183,7 +184,7 @@ if (result.overall !== 100) {
 ' "$TMP/pm.json"
 echo "pm: filled vault scores 100/100 (exit 0)"
 
-echo "=== 7/8 PM vault cannot be gamed ==="
+echo "=== 7/9 PM vault cannot be gamed ==="
 
 # Same rule as the harness map: a declared path is an assertion, and a broken one fails the run
 # rather than costing a few points. Without this a typo'd config reads as a passing vault.
@@ -319,7 +320,7 @@ if (result.unscored !== true) {
 ' "$TMP/pm-empty.json"
 echo "pm: an empty directory reports unscored (exit 1)"
 
-echo "=== 8/8 PM codebase registry ==="
+echo "=== 8/9 PM codebase registry ==="
 
 # Repos are built here rather than committed as fixtures: a nested .git cannot live inside this
 # repo's history. Each case starts from the filled fixture, so a regression shows as a score or
@@ -421,6 +422,105 @@ expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
 registry "$TMP/pm-code" '{"billing-api":"CODE/billing-api"}'
 expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
 echo "pm: an unknown scope, an unknown key, or a non-array registry is a config error (exit 2)"
+
+echo "=== 9/9 Dynamic workflow mode ==="
+
+# Mode decides how work runs, never how the harness scores: a dynamic scaffold must score exactly
+# what a classic one does, in both layouts, and classic output must not change at all.
+for LAYOUT in solo team; do
+  node "$SCRIPTS/create-harness.mjs" --target "$TMP/classic-$LAYOUT" --layout $LAYOUT --owner ci >/dev/null
+  node "$SCRIPTS/create-harness.mjs" --target "$TMP/dynamic-$LAYOUT" --layout $LAYOUT --owner ci --mode dynamic --host github --target-branch develop >/dev/null
+  if [ "$LAYOUT" = team ]; then
+    for R in classic dynamic; do
+      D="$(find "$TMP/$R-team/features" -mindepth 1 -maxdepth 1 -type d | head -1)"
+      cp plugins/blvck-harness/skills/harness-engineering/templates/team/progress-entry.md "$D/progress/$(date +%F)-ci.md"
+    done
+  fi
+  node "$SCRIPTS/validate-harness.mjs" --target "$TMP/classic-$LAYOUT" --json > "$TMP/c.json"
+  node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-$LAYOUT" --json > "$TMP/d.json"
+  node -e '
+const c = require(process.argv[1]), d = require(process.argv[2]);
+if (c.overall !== d.overall) { console.error(`FAIL: classic ${c.overall} vs dynamic ${d.overall}`); process.exit(1); }
+if (c.workflow.mode !== "classic" || d.workflow.mode !== "dynamic") { console.error("FAIL: mode not reported"); process.exit(1); }
+' "$TMP/c.json" "$TMP/d.json"
+  grep -q "blvck-harness:workflow-mode:start" "$TMP/dynamic-$LAYOUT/CLAUDE.md" || { echo "FAIL: no Workflow Mode section"; exit 1; }
+  if grep -q "workflow-mode" "$TMP/classic-$LAYOUT/CLAUDE.md"; then echo "FAIL: classic scaffold changed"; exit 1; fi
+done
+for NAME in product-owner tech-lead developer qa-engineer; do
+  F="$TMP/dynamic-solo/.claude/agents/$NAME.md"
+  [ -f "$F" ] || { echo "FAIL: persona $NAME not scaffolded"; exit 1; }
+  # The workflow calls each persona by name, so the frontmatter name must match the file.
+  grep -q "^name: $NAME$" "$F" || { echo "FAIL: $NAME.md frontmatter name does not match its file"; exit 1; }
+  grep -q "^tools: " "$F" || { echo "FAIL: $NAME.md has no explicit tool budget"; exit 1; }
+done
+[ ! -d "$TMP/classic-solo/.claude" ] || { echo "FAIL: classic scaffold wrote .claude/"; exit 1; }
+echo "dynamic: solo and team score identically to classic; classic output untouched; four personas scaffolded"
+
+# A 1.x harness upgrades in place: the section is inserted once, and re-running is a no-op.
+node "$SCRIPTS/create-harness.mjs" --target "$TMP/classic-solo" --mode dynamic --preset lean >/dev/null
+node "$SCRIPTS/create-harness.mjs" --target "$TMP/classic-solo" --mode dynamic --preset lean >/dev/null
+[ "$(grep -c 'blvck-harness:workflow-mode:start' "$TMP/classic-solo/CLAUDE.md")" = 1 ] || { echo "FAIL: section duplicated on re-run"; exit 1; }
+grep -q '| audit | off |' "$TMP/classic-solo/CLAUDE.md" || { echo "FAIL: lean preset not rendered"; exit 1; }
+expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/classic-solo"
+echo "dynamic: a classic harness upgrades in place, idempotently"
+
+# A broken config is a broken command, not a weak harness: exit 2, never a fallback to defaults.
+CFG="$TMP/dynamic-solo/.claude/harness-workflow.json"
+cp "$CFG" "$TMP/good.json"
+for BAD in \
+  '.mode = "turbo"' \
+  '.stages.implement.enabled = false' \
+  '.stages.implement.agents = 17' \
+  '.stages.plan.agents = 0' \
+  '.stages.deploy = {"enabled":true,"agents":1,"skills":[]}' \
+  '.stages.review.skills = ["ok", 3]' \
+  '.stages.plan.agent = "Product Owner"' \
+  '.repair.maxAttempts = 4' \
+  '.delivery.host = "bitbucket"' \
+  '.delivery.targetBranch = ""' \
+  'delete .version'; do
+  node -e "
+const fs = require('fs'); const c = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+const set = (p, v) => { const k = p.split('.').slice(1); let o = c; while (k.length > 1) o = o[k.shift()]; o[k[0]] = v; };
+const expr = process.argv[3];
+if (expr.startsWith('delete ')) { delete c[expr.slice(8)]; }
+else { const [p, v] = expr.split(' = '); set(p, JSON.parse(v)); }
+fs.writeFileSync(process.argv[2], JSON.stringify(c));
+" "$TMP/good.json" "$CFG" "$BAD"
+  expect_exit 2 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
+done
+printf 'not json' > "$CFG"
+expect_exit 2 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
+cp "$TMP/good.json" "$CFG"
+expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
+echo "dynamic: 12 broken configs exit 2; the restored config passes"
+
+# Local visibility: listed in .git/info/exclude (never .gitignore), reported by validate, and
+# refused for a team layout whose claims only work when shared.
+mkdir -p "$TMP/local" && git -C "$TMP/local" init -q
+node "$SCRIPTS/create-harness.mjs" --target "$TMP/local" --mode dynamic --visibility local >/dev/null
+grep -q '^/CLAUDE.md$' "$TMP/local/.git/info/exclude" || { echo "FAIL: harness not excluded"; exit 1; }
+grep -q '^/.claude/agents/developer.md$' "$TMP/local/.git/info/exclude" || { echo "FAIL: personas not excluded"; exit 1; }
+[ ! -e "$TMP/local/.gitignore" ] || { echo "FAIL: local visibility wrote a .gitignore"; exit 1; }
+[ -z "$(git -C "$TMP/local" status --porcelain)" ] || { echo "FAIL: local harness shows in git status"; exit 1; }
+node "$SCRIPTS/validate-harness.mjs" --target "$TMP/local" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{if(JSON.parse(s).visibility!=="local"){console.error("FAIL: visibility not reported");process.exit(1)}})'
+expect_exit 2 node "$SCRIPTS/create-harness.mjs" --target "$TMP/local-team" --layout team --visibility local
+expect_exit 2 node "$SCRIPTS/create-harness.mjs" --target "$TMP/not-a-repo" --visibility local
+echo "local: excluded via .git/info/exclude, invisible to git status; team+local and non-repo exit 2"
+
+# Adapted layouts get dynamic mode too: the workflow reads where state lives from resolution.
+cp -R tests/fixtures/foreign-harness "$TMP/foreign-dynamic"
+mkdir -p "$TMP/foreign-dynamic/.claude" && cp "$TMP/good.json" "$TMP/foreign-dynamic/.claude/harness-workflow.json"
+node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign-dynamic" --json > "$TMP/fd.json"
+node -e '
+const r = require(process.argv[1]);
+if (r.layout !== "adapted" || r.workflow.mode !== "dynamic") { console.error("FAIL: adapted+dynamic not reported"); process.exit(1); }
+if (!r.resolution.featureTracker.sources.includes(".harness/features.json")) { console.error("FAIL: tracker not resolved for the workflow"); process.exit(1); }
+' "$TMP/fd.json"
+echo "adapted: dynamic mode resolves the foreign tracker for the workflow"
+
+node tests/workflow-sim.mjs >/dev/null || { node tests/workflow-sim.mjs; exit 1; }
+echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, waves, local)"
 
 echo "=== Verification Complete ==="
 echo ""

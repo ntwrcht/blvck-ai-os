@@ -900,6 +900,250 @@ export async function loadHarnessFilesAuto(root, { layout: explicit, mapPath } =
   };
 }
 
+// ---------------------------------------------------------------------------
+// Workflow config (.claude/harness-workflow.json) — how work runs, never how the harness scores.
+// ---------------------------------------------------------------------------
+
+export const WORKFLOW_CONFIG_PATH = '.claude/harness-workflow.json';
+export const WORKFLOW_SCRIPT = path.join(SKILL_ROOT, 'workflows', 'feature.js');
+export const WORKFLOW_PRESETS = ['recommended', 'lean', 'custom'];
+export const DELIVERY_HOSTS = ['github', 'gitlab', 'none'];
+export const MAX_REPAIR_ATTEMPTS = 3;
+
+// One row per stage the workflow knows. `required` stages carry the feature from spec to
+// delivered branch, so turning one off would leave a run that cannot finish. `maxAgents` is a
+// ceiling, never a target: parallel stages scale with the number of independent tasks, and plan
+// and audit use extra agents as independent attempts (a judge panel, a skeptic vote).
+export const WORKFLOW_STAGES = {
+  plan: { required: true, maxAgents: 5 },
+  audit: { required: false, maxAgents: 5 },
+  breakdown: { required: false, maxAgents: 1 },
+  implement: { required: true, maxAgents: 16 },
+  test: { required: false, maxAgents: 16 },
+  review: { required: false, maxAgents: 16 },
+  deliver: { required: true, maxAgents: 1 },
+  cleanup: { required: false, maxAgents: 1 }
+};
+
+// Each stage runs as a persona: a subagent definition in .claude/agents/ whose tool budget fits
+// the job — the product owner who plans cannot edit code, the developer who implements can.
+// These four ship as templates; setup can replace any of them with the user's own agents, or
+// have agent-smith write a roster tailored to the project.
+export const DEFAULT_AGENTS = ['product-owner', 'tech-lead', 'developer', 'qa-engineer'];
+
+const RECOMMENDED_STAGES = {
+  plan: { enabled: true, agents: 1, agent: 'product-owner', skills: ['codebase-design'] },
+  audit: { enabled: true, agents: 1, agent: 'tech-lead', skills: ['scrutinize'] },
+  breakdown: { enabled: true, agents: 1, agent: 'tech-lead', skills: [] },
+  implement: { enabled: true, agents: 10, agent: 'developer', skills: ['tdd'] },
+  test: { enabled: true, agents: 5, agent: 'qa-engineer', skills: ['tdd', 'debug'] },
+  review: { enabled: true, agents: 5, agent: 'tech-lead', skills: ['scrutinize', 'security-audit'] },
+  deliver: { enabled: true, agents: 1, agent: 'tech-lead', skills: [] },
+  cleanup: { enabled: true, agents: 1, agent: null, skills: [] }
+};
+
+// Lean keeps parallel implementation but drops the second opinions: no plan audit and no
+// separate review pass. Test still gates every task, so nothing ships unverified.
+const LEAN_DISABLED = new Set(['audit', 'review']);
+
+export function defaultWorkflowConfig({ preset = 'recommended', host = 'none', targetBranch = 'main' } = {}) {
+  const stages = Object.fromEntries(Object.entries(RECOMMENDED_STAGES).map(([name, stage]) =>
+    [name, { ...stage, skills: [...stage.skills], enabled: preset === 'lean' ? !LEAN_DISABLED.has(name) : stage.enabled }]));
+  return {
+    version: 1,
+    mode: 'dynamic',
+    preset,
+    stages,
+    repair: { maxAttempts: 2 },
+    delivery: { host, targetBranch, branchPrefix: 'feat/' },
+    grilling: { skill: 'grilling' }
+  };
+}
+
+function isPositiveInteger(value) {
+  return Number.isInteger(value) && value > 0;
+}
+
+// Same contract as the harness map: a config that cannot be trusted stops the run with exit 2
+// and names the problem. It never falls back to defaults, because a typo'd stage that silently
+// reverted to "recommended" would spend tokens the user explicitly declined to spend.
+export function validateWorkflowConfig(config, label = WORKFLOW_CONFIG_PATH) {
+  const fail = (message) => {
+    throw new HarnessMapError(`${label}: ${message}`);
+  };
+  if (!config || typeof config !== 'object' || Array.isArray(config)) fail('must be a JSON object');
+  if (config.version !== 1) {
+    fail(config.version === undefined
+      ? 'missing "version". If this is not a harness workflow config, rename it'
+      : `unsupported "version" ${JSON.stringify(config.version)} — this build understands 1`);
+  }
+  if (config.mode !== 'classic' && config.mode !== 'dynamic') {
+    fail(`"mode" must be "classic" or "dynamic" (got ${JSON.stringify(config.mode)})`);
+  }
+  if (config.mode === 'classic') return;
+
+  if (config.preset !== undefined && !WORKFLOW_PRESETS.includes(config.preset)) {
+    fail(`"preset" must be one of ${WORKFLOW_PRESETS.join(', ')} (got ${JSON.stringify(config.preset)})`);
+  }
+  const stages = config.stages;
+  if (!stages || typeof stages !== 'object' || Array.isArray(stages)) fail('dynamic mode needs a "stages" object');
+  for (const name of Object.keys(stages)) {
+    if (!WORKFLOW_STAGES[name]) fail(`unknown stage "${name}". Known stages: ${Object.keys(WORKFLOW_STAGES).join(', ')}`);
+  }
+  for (const [name, rule] of Object.entries(WORKFLOW_STAGES)) {
+    const stage = stages[name];
+    if (stage === undefined) {
+      if (rule.required) fail(`stages.${name} is required — the workflow cannot deliver a feature without it`);
+      continue;
+    }
+    if (!stage || typeof stage !== 'object' || Array.isArray(stage)) fail(`stages.${name} must be an object`);
+    if (typeof stage.enabled !== 'boolean') fail(`stages.${name}.enabled must be true or false`);
+    if (rule.required && !stage.enabled) fail(`stages.${name} cannot be disabled — the workflow cannot deliver a feature without it`);
+    if (!isPositiveInteger(stage.agents) || stage.agents > rule.maxAgents) {
+      fail(`stages.${name}.agents must be a whole number from 1 to ${rule.maxAgents} (got ${JSON.stringify(stage.agents)})`);
+    }
+    if (!Array.isArray(stage.skills) || stage.skills.some((skill) => typeof skill !== 'string' || !skill.trim())) {
+      fail(`stages.${name}.skills must be an array of skill names (empty is fine)`);
+    }
+    // Same shape Claude Code requires of a subagent name, so a value that passes here can resolve.
+    if (stage.agent !== undefined && stage.agent !== null && (typeof stage.agent !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(stage.agent))) {
+      fail(`stages.${name}.agent must be a subagent name in lowercase-hyphen form, or null for the default workflow agent (got ${JSON.stringify(stage.agent)})`);
+    }
+  }
+
+  const attempts = config.repair?.maxAttempts;
+  if (!Number.isInteger(attempts) || attempts < 0 || attempts > MAX_REPAIR_ATTEMPTS) {
+    fail(`repair.maxAttempts must be a whole number from 0 to ${MAX_REPAIR_ATTEMPTS} (got ${JSON.stringify(attempts)})`);
+  }
+
+  const delivery = config.delivery;
+  if (!delivery || typeof delivery !== 'object' || Array.isArray(delivery)) fail('dynamic mode needs a "delivery" object');
+  if (!DELIVERY_HOSTS.includes(delivery.host)) {
+    fail(`delivery.host must be one of ${DELIVERY_HOSTS.join(', ')} (got ${JSON.stringify(delivery.host)})`);
+  }
+  if (typeof delivery.targetBranch !== 'string' || !delivery.targetBranch.trim()) {
+    fail('delivery.targetBranch must name the branch a PR/MR merges into');
+  }
+  if (delivery.branchPrefix !== undefined && typeof delivery.branchPrefix !== 'string') {
+    fail('delivery.branchPrefix must be a string');
+  }
+
+  if (config.grilling !== undefined) {
+    const skill = config.grilling?.skill;
+    if (!config.grilling || typeof config.grilling !== 'object' || (skill !== null && (typeof skill !== 'string' || !skill.trim()))) {
+      fail('grilling.skill must be a skill name, or null for the built-in grilling style');
+    }
+  }
+}
+
+const SECTION_START = '<!-- blvck-harness:workflow-mode:start -->';
+const SECTION_END = '<!-- blvck-harness:workflow-mode:end -->';
+
+// The instruction file's view of the config. Subagents read CLAUDE.md on their own, so the
+// skills table here is what wires each stage — the config is the source, this is the render.
+export function workflowModeSection(config) {
+  const rows = Object.keys(WORKFLOW_STAGES).map((name) => {
+    const stage = config.stages[name];
+    if (!stage || !stage.enabled) return `| ${name} | off | — | — |`;
+    return `| ${name} | ${stage.agent ? `\`${stage.agent}\`` : 'default'} | ${stage.agents} | ${stage.skills.length ? stage.skills.map((skill) => `\`${skill}\``).join(', ') : '—'} |`;
+  });
+  const grillingSkill = config.grilling?.skill;
+  return `${SECTION_START}
+## Workflow Mode: dynamic
+
+- **Start a feature with \`/blvck-harness:run\`.** It settles unclear requirements with you in this session first, then runs the feature workflow in the background so this session stays free.
+- **Grilling**: ${grillingSkill ? `use the \`${grillingSkill}\` skill; if it is not installed, use the plugin's built-in grilling style` : 'use the plugin\'s built-in grilling style'}
+- **Delivery**: one feature branch (\`${config.delivery.branchPrefix ?? 'feat/'}<id>\`) collects every task's worktree; ${config.delivery.host === 'none' ? 'the user opens the pull request' : `a ${config.delivery.host === 'gitlab' ? 'merge request' : 'pull request'} targets \`${config.delivery.targetBranch}\``}
+- **Config**: \`${WORKFLOW_CONFIG_PATH}\` — change it with \`/blvck-harness:setup\`, which also regenerates this section
+- **Reply rule**: explain results in plain language that stands on its own; never point the reader at numbered items elsewhere that they would have to scroll back to find
+
+### Agents and Skills
+
+Each stage runs as the agent named here (definitions in \`.claude/agents/\`), using these skills when they are installed.
+
+| Stage | Agent | Max agents | Skills |
+|---|---|---|---|
+${rows.join('\n')}
+${SECTION_END}
+`;
+}
+
+// Inserts or replaces the marked block. Placed before Definition of Done when there is no block
+// yet, which is where the scaffold puts it — an upgraded 1.x file ends up shaped like a new one.
+export function upsertWorkflowModeSection(markdown, section) {
+  const start = markdown.indexOf(SECTION_START);
+  const end = markdown.indexOf(SECTION_END);
+  if (start !== -1 && end > start) {
+    const after = markdown.slice(end + SECTION_END.length).replace(/^\n/, '');
+    return markdown.slice(0, start) + section + after;
+  }
+  const anchor = markdown.search(/^## Definition of Done/m);
+  if (anchor === -1) return `${markdown.replace(/\n*$/, '\n\n')}${section}`;
+  return `${markdown.slice(0, anchor)}${section}\n${markdown.slice(anchor)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Local-only harness — kept out of the remote through .git/info/exclude, never .gitignore
+// (.gitignore is itself committed, so it would publish the fact the harness exists)
+// ---------------------------------------------------------------------------
+
+const EXCLUDE_START = '# blvck-harness:local:start';
+const EXCLUDE_END = '# blvck-harness:local:end';
+
+// Agent definitions are listed by file, not as the whole .claude/agents/ directory: a user's own
+// agents may be meant for the team even when the harness is not.
+export function localHarnessPaths({ layout, agentFile }) {
+  const state = layout === 'team' ? ['features/'] : ['feature_list.json', 'progress.md', 'session-handoff.md'];
+  return [
+    `/${agentFile}`, ...state.map((entry) => `/${entry}`), '/init.sh', `/${MAP_FILENAME}`, `/${WORKFLOW_CONFIG_PATH}`,
+    ...DEFAULT_AGENTS.map((name) => `/.claude/agents/${name}.md`), '/.claude/skills/', '/.agents/'
+  ];
+}
+
+// The marked block is the single record of "this harness is local": /blvck-harness:run reads it
+// to know worktrees will not contain the harness files.
+export async function readLocalExclude(root) {
+  const excludePath = path.join(root, '.git', 'info', 'exclude');
+  if (!await exists(excludePath)) return null;
+  const text = await readText(excludePath);
+  const start = text.indexOf(EXCLUDE_START);
+  const end = text.indexOf(EXCLUDE_END);
+  if (start === -1 || end < start) return null;
+  return text.slice(start + EXCLUDE_START.length, end).split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+export async function writeLocalExclude(root, entries) {
+  const gitDir = path.join(root, '.git');
+  if (!await isDirectory(gitDir)) {
+    throw new HarnessMapError('--visibility local needs a git repository with a .git directory (a worktree or submodule checkout cannot hold its own exclude file)');
+  }
+  const excludePath = path.join(gitDir, 'info', 'exclude');
+  const current = await exists(excludePath) ? await readText(excludePath) : '';
+  const block = `${EXCLUDE_START}\n${entries.join('\n')}\n${EXCLUDE_END}\n`;
+  const start = current.indexOf(EXCLUDE_START);
+  const end = current.indexOf(EXCLUDE_END);
+  const next = start !== -1 && end > start
+    ? current.slice(0, start) + block + current.slice(end + EXCLUDE_END.length).replace(/^\n/, '')
+    : `${current.replace(/\n*$/, current ? '\n\n' : '')}${block}`;
+  await writeText(excludePath, next);
+  return { path: excludePath, status: 'written' };
+}
+
+// Absent config means classic mode — the common case, and the reason a 1.x harness behaves
+// exactly as it did before this file existed.
+export async function readWorkflowConfig(root) {
+  const configPath = path.join(root, WORKFLOW_CONFIG_PATH);
+  if (!await exists(configPath)) return { mode: 'classic', path: null };
+  let raw;
+  try {
+    raw = await readJson(configPath);
+  } catch (error) {
+    throw new HarnessMapError(`${WORKFLOW_CONFIG_PATH} is not valid JSON: ${error.message}`);
+  }
+  validateWorkflowConfig(raw);
+  return { ...raw, path: WORKFLOW_CONFIG_PATH };
+}
+
 // Team hygiene findings that only make sense in the sharded layout.
 // File-based only — branch existence and unpushed claims are checked by the
 // /blvck-harness:validate command prompt, which can run git.

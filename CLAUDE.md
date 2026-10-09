@@ -78,7 +78,7 @@ For each plugin with user-visible changes:
 ```
 
 Required checks:
-- `node --check` on all six scripts (three harness, three PM vault)
+- `node --check` on all six scripts (three harness, three PM vault) plus the workflow simulation
 - JSON parse of every manifest, template, tracker, and fixture in the repo
 - Solo + team scaffold and validate round-trip in a temp directory (validate must exit 0 for solo, and team must report the seeded hygiene findings)
 - Adapted layout: the foreign-shaped fixture scores (exit 0), and team layout re-expressed as a user map scores identically to native team — if those two ever diverge, the map has stopped being a generalization of the layouts and has become a parallel implementation
@@ -86,6 +86,10 @@ Required checks:
 - PM vault round-trip: a fresh `create-vault.mjs` scaffold must exit **1** (a scaffold is not a vault — an untouched skeleton passing is how the identity-file defect hid for two releases), and `tests/fixtures/pm-vault` must score 100/100 and exit 0
 - PM vault cannot be gamed: a declared path that is gone fails, a `measured` outcome with no result blocks regardless of score, an unknown or out-of-tree config path exits 2, and an empty directory reports `unscored`
 - PM codebase registry: codebases inside and outside the vault score 100/100 and a repo's `{{TOKEN}}` is never read, a non-repo folder named `CODE/` still is, an undeclared repo and a leaking root `CLAUDE.md` warn without blocking, `"rootClaudeMd": "accepted"` silences only its own warning, a `mine` repo with no harness scores but never blocks, a codebase that is gone or not a repo fails, and a malformed registry exits 2
+
+- Dynamic workflow mode: a dynamic scaffold scores exactly what classic does (solo and team), classic output is untouched, a 1.x harness upgrades in place idempotently, every malformed `.claude/harness-workflow.json` exits **2**, `--visibility local` lands in `.git/info/exclude` and nowhere git can see, adapted + dynamic resolves the foreign tracker, and `tests/workflow-sim.mjs` runs the real `workflows/feature.js` against a fake runtime
+
+**Mode is not a layout.** `.claude/harness-workflow.json` decides how work runs, never how the harness scores — it is read beside `scoreHarness`, never inside it. The workflow script has no filesystem access, so everything it needs (config, the picked feature, resolution, verification command) arrives through `args` from `/blvck-harness:run`; a new input belongs there, not in a file the script would have to read.
 
 Three layouts, one check set. A change to scoring must keep solo, team, **and** adapted passing — and `scoreHarness` must stay layout-agnostic. If you find yourself adding a branch on layout inside it, that is the signal the change belongs in an adapter instead.
 

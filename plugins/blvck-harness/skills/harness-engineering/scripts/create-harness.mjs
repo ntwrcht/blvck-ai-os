@@ -1,25 +1,40 @@
 #!/usr/bin/env node
 // Adapted from harness-creator (walkinglabs/learn-harness-engineering, MIT).
 // Additions: --layout solo|team. Team scaffolds features/<id>/ directories
-// (status.json + progress/) instead of a single feature_list.json.
+// (status.json + progress/) instead of a single feature_list.json. --mode dynamic adds the
+// workflow config; --visibility local keeps the harness out of the remote.
 import { chmod, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  DEFAULT_AGENTS,
+  DELIVERY_HOSTS,
+  HarnessMapError,
+  WORKFLOW_CONFIG_PATH,
+  WORKFLOW_PRESETS,
   copyTemplate,
+  defaultWorkflowConfig,
   detectLayout,
   detectPackageManager,
   detectProject,
   exists,
   initScriptFromCommands,
+  localHarnessPaths,
   parseArgs,
+  readText,
+  upsertWorkflowModeSection,
+  validateWorkflowConfig,
   verificationCommands,
+  workflowModeSection,
+  writeLocalExclude,
   writeText
 } from './lib/harness-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 
 if (args.help) {
-  console.log(`Usage: node scripts/create-harness.mjs [--target DIR] [--layout solo|team] [--agent-file AGENTS.md|CLAUDE.md] [--package-manager npm|pnpm|yarn|bun] [--commands "cmd one,cmd two"] [--feature-slug slug] [--jira-key KEY-123] [--owner name] [--force]
+  console.log(`Usage: node scripts/create-harness.mjs [--target DIR] [--layout solo|team] [--agent-file AGENTS.md|CLAUDE.md] [--package-manager npm|pnpm|yarn|bun] [--commands "cmd one,cmd two"] [--feature-slug slug] [--jira-key KEY-123] [--owner name]
+       [--mode classic|dynamic] [--preset recommended|lean|custom] [--host github|gitlab|none] [--target-branch main]
+       [--visibility shared|local] [--no-agents] [--force]
 
 Creates a minimal production harness.
 
@@ -32,9 +47,32 @@ solo layout (default):        team layout (parallel humans):
 
 Team feature IDs avoid running-number collisions: the date (or a Jira key via
 --jira-key) is the allocator, so parallel branches never mint the same ID.
-Existing files are skipped unless --force is set.`);
+--mode dynamic writes ${WORKFLOW_CONFIG_PATH} and a Workflow Mode section in the
+instruction file (inserted into an existing one, so a 1.x harness upgrades in place).
+--mode dynamic also copies the four default stage personas (product-owner, tech-lead,
+developer, qa-engineer) into .claude/agents/, skipping any that exist; --no-agents skips them
+for a user who brings their own roster.
+--visibility local lists the harness in .git/info/exclude so it never reaches the remote.
+
+Existing files are skipped unless --force is set.
+
+Exit codes: 0 written, 2 invalid flags.`);
   process.exit(0);
 }
+
+function usage(message) {
+  console.error(`Error: ${message}`);
+  process.exit(2);
+}
+
+const mode = args.mode ?? 'classic';
+if (mode !== 'classic' && mode !== 'dynamic') usage(`--mode must be classic or dynamic (got ${JSON.stringify(mode)})`);
+const preset = args.preset ?? 'recommended';
+if (!WORKFLOW_PRESETS.includes(preset)) usage(`--preset must be one of ${WORKFLOW_PRESETS.join(', ')}`);
+const host = args.host ?? 'none';
+if (!DELIVERY_HOSTS.includes(host)) usage(`--host must be one of ${DELIVERY_HOSTS.join(', ')}`);
+const visibility = args.visibility ?? 'shared';
+if (visibility !== 'shared' && visibility !== 'local') usage('--visibility must be shared or local');
 
 const target = path.resolve(args.target || args._[0] || process.cwd());
 const agentFile = args.agentFile || 'CLAUDE.md';
@@ -47,6 +85,11 @@ project.packageManager = detectPackageManager(target, args.packageManager);
 const commands = args.commands
   ? String(args.commands).split(',').map((command) => command.trim()).filter(Boolean)
   : verificationCommands(project, args.packageManager);
+
+// A team harness is shared state by definition — claims and status only work if teammates see them.
+if (layout === 'team' && visibility === 'local') {
+  usage('a team layout cannot be local: teammates coordinate through the committed features/ directory. Use solo, or share the harness');
+}
 
 await mkdir(target, { recursive: true });
 
@@ -100,6 +143,7 @@ const replacements = {
     : `Project harness for reliable agent-assisted development in a ${project.stack} codebase.`,
   VERIFICATION_COMMANDS: commands.map((command) => `- \`${command}\``).join('\n'),
   PRIMARY_VERIFICATION_COMMAND: './init.sh',
+  WORKFLOW_MODE_SECTION: '',
   ...(isTeam ? teamBlocks : soloBlocks)
 };
 
@@ -126,6 +170,52 @@ if (isTeam) {
   results.push(await copyTemplate('solo/session-handoff.md', path.join(target, 'session-handoff.md'), {}, { force }));
 }
 
+// The config is only ever written in dynamic mode; its absence is what "classic" means, so a
+// classic scaffold stays byte-identical to what 1.x produced.
+if (mode === 'dynamic') {
+  const configPath = path.join(target, WORKFLOW_CONFIG_PATH);
+  let config = defaultWorkflowConfig({ preset: preset === 'custom' ? 'recommended' : preset, host, targetBranch: args.targetBranch || 'main' });
+  if (preset === 'custom') config.preset = 'custom';
+  if (force || !await exists(configPath)) {
+    await writeText(configPath, `${JSON.stringify(config, null, 2)}\n`);
+    results.push({ path: configPath, status: 'written' });
+  } else {
+    try {
+      config = JSON.parse(await readText(configPath));
+      validateWorkflowConfig(config);
+    } catch (error) {
+      usage(`${WORKFLOW_CONFIG_PATH} exists but is not usable: ${error.message}`);
+    }
+    results.push({ path: configPath, status: 'skipped', reason: 'exists — section rendered from it' });
+  }
+  // The section is a render of the config, so it is refreshed even when the instruction file
+  // itself was skipped. That refresh is what makes setup's reconfigure path a single command.
+  const agentPath = path.join(target, agentFile);
+  const current = await readText(agentPath);
+  const next = upsertWorkflowModeSection(current, workflowModeSection(config));
+  if (next !== current) {
+    await writeText(agentPath, next);
+    const entry = results.find((result) => result.path === agentPath);
+    entry.status = entry.status === 'written' ? 'written' : 'updated';
+    entry.reason = 'Workflow Mode section';
+  }
+}
+
+if (mode === 'dynamic' && !args.noAgents) {
+  for (const name of DEFAULT_AGENTS) {
+    results.push(await copyTemplate(`agents/${name}.md`, path.join(target, '.claude', 'agents', `${name}.md`), {}, { force }));
+  }
+}
+
+if (visibility === 'local') {
+  try {
+    results.push(await writeLocalExclude(target, localHarnessPaths({ layout, agentFile })));
+  } catch (error) {
+    if (error instanceof HarnessMapError) usage(error.message);
+    throw error;
+  }
+}
+
 const initPath = path.join(target, 'init.sh');
 if (force || !await exists(initPath)) {
   await writeText(initPath, initScriptFromCommands(commands, layout));
@@ -135,7 +225,7 @@ if (force || !await exists(initPath)) {
   results.push({ path: initPath, status: 'skipped', reason: 'exists' });
 }
 
-console.log(`Created ${layout} harness for ${target}`);
+console.log(`Created ${layout} harness for ${target} (mode: ${mode}${mode === 'dynamic' ? `, preset: ${preset}` : ''}, visibility: ${visibility})`);
 console.log(`Detected stack: ${project.stack}`);
 console.log(`Verification commands:`);
 for (const command of commands) {

@@ -2,8 +2,8 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-04
-**Active Feature:** none — feat-016 done. **blvck-pm 2.2.0 is released**: tag `blvck-pm--v2.2.0` pushed 2026-10-04 at `09cbc3e`, `main` pushed, CI green, `claude plugin details blvck-pm` reports 2.2.0. blvck-harness is unchanged at 1.2.0.
+**Last Updated:** 2026-10-09
+**Active Feature:** feat-018 (three commands + guided setup, blvck-harness 2.0.0) — next. feat-017 (dynamic workflow engine) is done and committed; nothing is released yet, so installed users are still on blvck-harness 1.2.0 and blvck-pm 2.2.0.
 
 **Released:** v1.2.0 — tags `blvck-harness--v1.2.0`, `blvck-pm--v1.2.0`, `v1.2.0`, all pushed and pointing at `6461019`. Installed users are current.
 
@@ -26,6 +26,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-017 Dynamic workflow engine — `.claude/harness-workflow.json`, `--mode dynamic`, stage personas, local visibility, `workflows/feature.js` + fake-runtime simulation; classic output byte-identical to 1.2.0; init.sh 8 → 9 steps
 - [x] feat-016 blvck-pm 2.2.0 — codebase registry (`codebases` in config, path anywhere, `CODE/` default), freshness rule, nested repos skipped by the validator, leak + undeclared-repo warnings, migrate as a non-forcing helper
 - [x] feat-015 blvck-pm 2.1.0 — per-document completeness enforced, install verified, marketplace version removed
 - [x] feat-014 blvck-pm 2.0.0 — markdown config retired with a deterministic upgrade, escalation rule inverted, completeness overrides enforced

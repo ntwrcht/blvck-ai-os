@@ -26,7 +26,7 @@ If baseline verification is failing, repair that first before adding new scope.
 ## Required Artifacts
 
 {{REQUIRED_ARTIFACTS}}
-{{TEAM_RULES_SECTION}}
+{{TEAM_RULES_SECTION}}{{WORKFLOW_MODE_SECTION}}
 ## Definition of Done
 
 A feature is done only when ALL of the following are true:

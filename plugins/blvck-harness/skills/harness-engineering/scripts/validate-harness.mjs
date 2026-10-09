@@ -11,6 +11,8 @@ import {
   formatTeamFindings,
   loadHarnessFilesAuto,
   parseArgs,
+  readLocalExclude,
+  readWorkflowConfig,
   scoreHarness,
   teamFindings
 } from './lib/harness-utils.mjs';
@@ -34,7 +36,11 @@ marks the layout "adapted" and names the file behind each concept.
 Exit codes:
   0  scored at least --min-score (default 70), no blocking findings
   1  scored below the bar, or has blocking findings, or nothing scoreable
-  2  this command was misconfigured (bad flag, unreadable or invalid map)`);
+  2  this command was misconfigured (bad flag, unreadable or invalid map, or an
+     invalid .claude/harness-workflow.json)
+
+The workflow config decides how work runs, never how the harness scores: a dynamic
+and a classic harness with the same files get the same score.`);
   process.exit(0);
 }
 
@@ -66,6 +72,12 @@ try {
   result.resolution = resolution;
   result.mapErrors = mapErrors;
 
+  // Read after scoring and kept beside it, never inside it — scoreHarness stays blind to mode.
+  const workflow = await readWorkflowConfig(target);
+  const localExclude = await readLocalExclude(target);
+  result.workflow = { mode: workflow.mode, preset: workflow.preset ?? null, path: workflow.path };
+  result.visibility = localExclude ? 'local' : 'shared';
+
   // "We could not find your harness" and "your harness is bad" are different claims, and the
   // Math.max(1,...) floor cannot tell them apart — it reports 20/100 for an empty directory.
   // A boolean carries the distinction without widening `overall` from a number to a maybe-null.
@@ -83,6 +95,7 @@ try {
     console.log(JSON.stringify(result, null, 2));
   } else {
     console.log(formatScoreReport(result, target));
+    console.log(`Workflow mode: ${result.workflow.mode}${result.workflow.preset ? ` (${result.workflow.preset})` : ''} · visibility: ${result.visibility}`);
     if (findings) {
       console.log(formatTeamFindings(findings));
     }
