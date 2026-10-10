@@ -24,7 +24,7 @@ AI agents drift. A coding agent forgets project rules between sessions, claims w
 - **blvck-harness** gives engineering repos a harness: five subsystems that make agent sessions restartable, verifiable, and safe to run in parallel across a team.
 - **blvck-pm** gives product managers a vault: identity, product context, and terminology captured once, then reused by 21 routed workflows and a scaffolded agent team.
 
-Both follow the same design principle: **very few commands, capability in scaffolded files.** Each plugin exposes exactly four commands (`setup`, `migrate`, `validate`, `score`); everything else lives in templates and skills that become *your* files, editable and versioned in *your* repos.
+Both follow the same design principle: **very few commands, capability in scaffolded files.** Each plugin exposes exactly three commands (`setup`, `run`, `check`); everything else lives in templates and skills that become *your* files, editable and versioned in *your* repos.
 
 ## Table of Contents
 
@@ -52,8 +52,9 @@ Both follow the same design principle: **very few commands, capability in scaffo
 - **Agents that decide, then flag** — a lead-engineer agent audits a plan and answers the questions an engineering lead would answer, marking each **Decided** or **Flagged** by three testable rules. A solo founder gets the answers with no one to ask; a PM walks into the meeting with the disagreements already named.
 - **A roadmap that ends at *measured*, not *shipped*** — `roadmap.json` tracks business outcomes bound to numbers, and an outcome cannot be closed until someone records whether the number actually moved, verdict included. A missed outcome recorded honestly is worth more than three shipped ones nobody checked.
 - **Plans checked against the real code** — a vault registers the codebases it plans against (in `CODE/` by default, or a clone shared with another vault), each marked `mine` or `dependency`. Before citing code, pm-os pulls or fetches and names the commit it read, so a plan never cites a stale clone. Planning reads from the vault; building happens in a session started inside the repo, under its own harness.
+- **PM work in parallel, if you want it** — `/blvck-pm:run` settles the brief with you, then a background workflow researches each source, drafts, reviews through blind lenses (engineer, designer, customer, executive), revises, checks completeness, and delivers the document to your vault (and to Confluence, Drive, or Jira when you chose that). It runs PRDs, research syntheses, competitor teardowns, and PRD reviews. Decisions the run made without asking are listed in the document, so you can object. Classic one-session mode stays the default.
 - **An agent team you are interviewed for, not handed** — setup asks *who do you normally have to go ask?* and maps the answer onto eight archetypes (lead-engineer, customer-voice, competitive-intel, business-analyst, board-executive, prototype-builder, blind-reviewer, research-analyst), each with its own tool and model budget. "Nobody, I work alone" is the most informative answer, not an empty one — it means the agents are standing in for a team that does not exist. Anything unmatched gets built with the bundled `agent-smith` skill.
-- **Safe, generic migration — that can decide not to migrate** — `/blvck-harness:setup` and `/blvck-pm:migrate` scan any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
+- **Safe, generic migration — that can decide not to migrate** — `/blvck-harness:setup` and `/blvck-pm:setup` scan any existing setup (hand-rolled, upstream, or legacy vault) and classifies it by role, then forks: **convert** it to the standard shape, or **adapt** to it, leaving every file where it is. A structure you built on purpose is not a mistake to be corrected. Converting stays conservative: read-only scan, confirmed plan, additive apply, per-group cleanup that moves files to backup — never deletes.
 - **Self-verifying repository** — this repo runs its own harness; `./init.sh` syntax-checks all six scripts, JSON-validates every manifest and template, round-trips a full solo + team harness scaffold, and round-trips a PM vault — where a *fresh scaffold must fail*, because a skeleton nobody has answered is not a vault. Ten adversarial cases keep the scores honest: a score bar is not a gate, so anything that is a broken promise rather than a weak result fails on its own.
 
 ## Architecture Overview
@@ -71,7 +72,7 @@ blvck-ai-os/
 │   │       ├── templates/                 # solo/ and team/ scaffolds + four stage personas
 │   │       └── references/                # harness design patterns + role classification
 │   └── blvck-pm/
-│       ├── commands/                      # setup · migrate · validate · score
+│       ├── commands/                      # setup · run · check
 │       ├── skills/agent-smith/          # bundled agent builder (tool + model budgets)
 │       └── skills/pm-os/
 │           ├── SKILL.md                   # session ritual, vault rules, workflow router
@@ -146,7 +147,7 @@ Run the setup interview in a dedicated vault repo or directly in a product repo:
 /blvck-pm:setup
 ```
 
-It builds `ABOUT-ME/`, `PROJECTS/<product>/`, `TEMPLATES/`, `CLAUDE-OUTPUTS/`, `pm-os.config.md`, and your agent team in `.claude/agents/`. After that, just ask — the skill routes your request to the right workflow and writes date-stamped artifacts to `CLAUDE-OUTPUTS/`:
+It builds `ABOUT-ME/`, `PROJECTS/<product>/`, `TEMPLATES/`, `CLAUDE-OUTPUTS/`, `pm-os.config.json`, and your agent team in `.claude/agents/`, and asks how documents should be written (banned words, tone, language, and whether ticket ids may reach customers). After that, just ask — the skill routes your request to the right workflow and writes date-stamped artifacts to `CLAUDE-OUTPUTS/`:
 
 ```text
 draft a PRD for the onboarding revamp
@@ -154,7 +155,15 @@ prioritize these five ideas with RICE
 review this PRD like a skeptical board member
 ```
 
-Integrations (Jira, Confluence, Google Drive, BigQuery) are per-project switches in `pm-os.config.md`; nothing blocks when a tool is absent.
+Integrations (Jira, Confluence, Google Drive, BigQuery) are per-project switches in `pm-os.config.json`; nothing blocks when a tool is absent.
+
+```text
+/blvck-pm:setup   # guided walkthrough: new vault, migrate PM material, or reconfigure
+/blvck-pm:run     # one piece of work: pick its outcome, settle the brief, run it
+/blvck-pm:check   # score, findings, readiness, and a fix list — whatever your folders are called
+```
+
+Turn on dynamic mode in setup and `run` sends PRDs, research syntheses, competitor teardowns, and PRD reviews through a background workflow while you keep working.
 
 ### Reconciling an existing setup
 
@@ -162,13 +171,13 @@ Already have a hand-rolled `CLAUDE.md` with ad-hoc trackers, an upstream harness
 
 ```text
 /blvck-harness:setup      # engineering repos — migration is a path inside setup
-/blvck-pm:migrate         # PM material
+/blvck-pm:setup           # PM material — migration is a path inside setup
 ```
 
 A read-only scan classifies your files **by the role they play, never by matching a known layout** — then you pick how it ends:
 
 - **Convert** — move things into the standard shape. You approve a `source → destination` plan before the first write, and cleanup moves superseded files to `.migration-backup/<date>/` — group by group, with your confirmation, never a delete.
-- **Adapt** — change nothing. `/blvck-harness:setup` writes a `.harness-map.json` describing what you already have; `/blvck-pm:migrate` records your real folders in `pm-os.config.md`. Your files stay exactly where they are and the tools read them there.
+- **Adapt** — change nothing. `/blvck-harness:setup` writes a `.harness-map.json` describing what you already have; `/blvck-pm:setup` records your real folders in `pm-os.config.json`. Your files stay exactly where they are and the tools read them there.
 
 Adapting is not the lesser option. A mapped harness is scored by the same 25 checks and can reach 100/100 — the report just marks the layout `adapted` and shows which file satisfied which concept:
 

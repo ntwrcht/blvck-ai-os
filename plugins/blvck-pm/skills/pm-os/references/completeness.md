@@ -110,7 +110,7 @@ not in plain prose, or it will read as a filled-in section.
 ## What the gate does not do
 
 - It does not judge quality. "Has a success metric" is checkable; "has a *good* success metric"
-  is a conversation, and belongs in `/blvck-pm:validate` or a review agent, not in a gate
+  is a conversation, and belongs in `/blvck-pm:check` or a review agent, not in a gate
 - It does not compare against other documents. A PRD contradicting the vision is a real
   problem and a different feature
 - It does not run unasked. The gate fires when a document is finished or when the user asks

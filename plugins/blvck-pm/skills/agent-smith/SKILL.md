@@ -2,6 +2,7 @@
 name: agent-smith
 description: "Designs specialized subagents as a persona-and-operations definition with an explicit tool and model budget, boundaries against sibling agents, and a delegation test run before the agent ships. Use when creating an agent, writing a subagent, defining an agent persona, reviewing an agent definition file, or planning a roster of specialized agents."
 argument-hint: "<agent idea, role, or draft agent file>"
+user-invocable: false
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 license: MIT
 ---

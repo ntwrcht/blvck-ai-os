@@ -2,7 +2,7 @@
 // Structural validation of a PM vault. Mechanical checks only.
 //
 // The division of labour is the point: this script answers "does the PRD have a success
-// metric", and /blvck-pm:validate answers "is it a good one". Putting judgment in here would
+// metric", and /blvck-pm:check answers "is it a good one". Putting judgment in here would
 // make the score non-reproducible, which is the whole reason the script exists.
 import path from 'node:path';
 import {
@@ -13,6 +13,8 @@ import {
   loadConfig,
   loadRoadmap,
   parseArgs,
+  readLocalExclude,
+  readWorkflow,
   scoreVault,
   walkVault
 } from './lib/vault-utils.mjs';
@@ -20,7 +22,7 @@ import {
 const args = parseArgs(process.argv.slice(2));
 
 if (args.help) {
-  console.log(`Usage: node scripts/validate-vault.mjs [--target DIR] [--json] [--min-score N]
+  console.log(`Usage: node scripts/validate-vault.mjs [--target DIR] [--json] [--min-score N] [--config FILE]
 
 Scores a PM vault across five modules:
   identity, product, plan, roadmap, config
@@ -29,6 +31,12 @@ Paths resolve through ${CONFIG_JSON}, then defaults. A declared path that escape
 vault is a config error, not a low score. The one exception is the codebases registry:
 a codebase may live anywhere, because it earns no points. Git repos nested inside the
 vault are codebases and are never read as vault material.
+
+--config FILE scores the vault through a config that is not saved in it yet (a reading
+/blvck-pm:check discovered). Paths inside it still resolve from --target.
+
+The "workflow" key (classic or dynamic mode) is validated and reported, never scored:
+the same vault scores the same in either mode.
 
 Exit codes:
   0  scored at least --min-score (default 70)
@@ -51,13 +59,20 @@ try {
     throw new VaultConfigError(`--min-score must be a number (got ${JSON.stringify(args.minScore)})`);
   }
 
-  const config = await loadConfig(target);
+  const config = await loadConfig(target, { configPath: flagValue('config') });
+  // Read beside the score, never inside it: mode decides how work runs, not how the vault grades.
+  const workflow = readWorkflow(config.raw);
+  const localEntries = await readLocalExclude(target);
   const roadmap = await loadRoadmap(target, config.paths);
   const { files, repos } = await walkVault(target);
   const result = await scoreVault(target, { config, roadmap, files, repos });
 
   result.config = { source: config.source, language: config.language, paths: config.paths, declared: config.declared };
   result.roadmap = { present: roadmap.present, errors: roadmap.errors, count: roadmap.items.length };
+  result.workflow = workflow.mode === 'dynamic'
+    ? { mode: 'dynamic', preset: workflow.preset ?? 'custom', pipelines: Object.keys(workflow.pipelines).filter((name) => workflow.pipelines[name].enabled) }
+    : { mode: 'classic' };
+  result.visibility = localEntries ? 'local' : 'shared';
 
   // A path the user declared is an assertion. If it is not there, the run fails on its own
   // rather than costing a few points — otherwise a typo'd config reads as a passing vault,
@@ -90,6 +105,8 @@ try {
     console.log(JSON.stringify(result, null, 2));
   } else {
     console.log(formatVaultReport(result, target, config, roadmap));
+    console.log(`Mode: ${result.workflow.mode}${result.workflow.pipelines ? ` (${result.workflow.pipelines.join(', ')})` : ''} · visibility: ${result.visibility}`);
+    console.log('');
     if (missingDeclared.length) {
       console.log('Config errors (a declared path is an assertion; these are broken):');
       for (const message of missingDeclared) console.log(`  - ${message}`);

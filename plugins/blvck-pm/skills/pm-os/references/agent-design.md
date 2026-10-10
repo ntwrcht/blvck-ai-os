@@ -84,8 +84,8 @@ and the delegation test properly. What it does not know is this vault, so bring:
    product context before anything else. Subagents share files, not conversation.
 3. Product placeholders filled from the vault (product, slug, stage, NSM, terminology).
 4. Registration: write to `.claude/agents/<name>.md` and add it to the roster in
-   `pm-os.config.json` — `/blvck-pm:validate` fails on a roster that names a file that is not
-   there, and on a file no roster mentions.
+   `pm-os.config.json` — `/blvck-pm:check` fails on a roster that names a file that is not
+   there, and reports a file no roster mentions.
 
 Refuse an agent whose job overlaps an existing one. Extend the existing one instead — two agents
 with the same lens produce two answers and no way to choose between them.

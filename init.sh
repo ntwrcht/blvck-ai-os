@@ -19,7 +19,7 @@ expect_exit () {
   fi
 }
 
-echo "=== 1/9 Script syntax ==="
+echo "=== 1/10 Script syntax ==="
 node --check "$SCRIPTS/create-harness.mjs"
 node --check "$SCRIPTS/validate-harness.mjs"
 node --check "$SCRIPTS/lib/harness-utils.mjs"
@@ -27,14 +27,15 @@ node --check "$PM_SCRIPTS/create-vault.mjs"
 node --check "$PM_SCRIPTS/validate-vault.mjs"
 node --check "$PM_SCRIPTS/lib/vault-utils.mjs"
 node --check tests/workflow-sim.mjs
+node --check tests/pm-workflow-sim.mjs
 echo "OK"
 
-echo "=== 2/9 JSON validity (manifests, templates, trackers, fixtures) ==="
+echo "=== 2/10 JSON validity (manifests, templates, trackers, fixtures) ==="
 find . -name '*.json' -not -path './.git/*' -not -path '*/node_modules/*' -print0 \
   | xargs -0 -I{} node -e "JSON.parse(require('fs').readFileSync('{}','utf8'))" \
   && echo "OK"
 
-echo "=== 3/9 Scaffold + validate round-trip (solo and team) ==="
+echo "=== 3/10 Scaffold + validate round-trip (solo and team) ==="
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -67,7 +68,7 @@ if node "$SCRIPTS/validate-harness.mjs" --target "$TMP/team" >/dev/null 2>&1; th
 fi
 echo "team: seeded findings correctly rejected (exit 1)"
 
-echo "=== 4/9 Adapted layout scores a foreign structure ==="
+echo "=== 4/10 Adapted layout scores a foreign structure ==="
 cp -R tests/fixtures/foreign-harness "$TMP/foreign"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign"
 echo "adapted: foreign-shaped harness scores (exit 0)"
@@ -112,7 +113,7 @@ if (native.overall !== mapped.overall) {
 ' "$TMP/native.json" "$TMP/mapped.json"
 echo "adapted: team layout expressed as a map scores identically"
 
-echo "=== 5/9 Adapted layout cannot be gamed ==="
+echo "=== 5/10 Adapted layout cannot be gamed ==="
 
 # Declaring a path is an assertion, not a pass: point the map at a file that is not there and
 # the run must fail rather than quietly falling back to the built-in name.
@@ -167,7 +168,7 @@ if (result.unscored !== true) {
 ' "$TMP/empty.json"
 echo "empty: reports unscored rather than a floor score (exit 1)"
 
-echo "=== 6/9 PM vault round-trip (scaffold, then a filled vault) ==="
+echo "=== 6/10 PM vault round-trip (scaffold, then a filled vault) ==="
 
 # The fixture's current-focus.md carries a placeholder date rather than a real one. The
 # freshness check is genuinely time-dependent, so a hardcoded date would pass today and fail
@@ -198,7 +199,7 @@ if (result.overall !== 100) {
 ' "$TMP/pm.json"
 echo "pm: filled vault scores 100/100 (exit 0)"
 
-echo "=== 7/9 PM vault cannot be gamed ==="
+echo "=== 7/10 PM vault cannot be gamed ==="
 
 # Same rule as the harness map: a declared path is an assertion, and a broken one fails the run
 # rather than costing a few points. Without this a typo'd config reads as a passing vault.
@@ -334,7 +335,7 @@ if (result.unscored !== true) {
 ' "$TMP/pm-empty.json"
 echo "pm: an empty directory reports unscored (exit 1)"
 
-echo "=== 8/9 PM codebase registry ==="
+echo "=== 8/10 PM codebase registry ==="
 
 # Repos are built here rather than committed as fixtures: a nested .git cannot live inside this
 # repo's history. Each case starts from the filled fixture, so a regression shows as a score or
@@ -437,7 +438,7 @@ registry "$TMP/pm-code" '{"billing-api":"CODE/billing-api"}'
 expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
 echo "pm: an unknown scope, an unknown key, or a non-array registry is a config error (exit 2)"
 
-echo "=== 9/9 Dynamic workflow mode ==="
+echo "=== 9/10 Dynamic workflow mode ==="
 
 # Mode decides how work runs, never how the harness scores: a dynamic scaffold must score exactly
 # what a classic one does, in both layouts, and classic output must not change at all.
@@ -535,6 +536,159 @@ echo "adapted: dynamic mode resolves the foreign tracker for the workflow"
 
 node tests/workflow-sim.mjs >/dev/null || { node tests/workflow-sim.mjs; exit 1; }
 echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, waves, local)"
+
+echo "=== 10/10 PM dynamic workflow mode ==="
+
+# Mode decides how PM work runs, never how the vault scores: the same vault scores the same in
+# classic and dynamic, and a classic scaffold carries nothing of dynamic mode.
+node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/pm-classic" --product "CI Product" --agents blind-reviewer >/dev/null
+node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/pm-dynamic" --product "CI Product" --agents blind-reviewer --mode dynamic >/dev/null
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-classic" --json > "$TMP/pc.json" || true
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-dynamic" --json > "$TMP/pd.json" || true
+node -e '
+const c = require(process.argv[1]), d = require(process.argv[2]);
+if (c.overall !== d.overall) { console.error(`FAIL: classic scaffold ${c.overall} vs dynamic ${d.overall}`); process.exit(1); }
+if (c.workflow.mode !== "classic" || d.workflow.mode !== "dynamic") { console.error("FAIL: mode not reported"); process.exit(1); }
+' "$TMP/pc.json" "$TMP/pd.json"
+grep -q '"workflow"' "$TMP/pm-classic/pm-os.config.json" && { echo "FAIL: classic scaffold wrote a workflow key"; exit 1; }
+[ ! -e "$TMP/pm-classic/.claude/agents/product-manager.md" ] || { echo "FAIL: classic scaffold wrote a dynamic persona"; exit 1; }
+for NAME in product-manager research-analyst lead-engineer customer-voice board-executive competitive-intel; do
+  F="$TMP/pm-dynamic/.claude/agents/$NAME.md"
+  [ -f "$F" ] || { echo "FAIL: persona $NAME not scaffolded"; exit 1; }
+  # The workflow calls each persona by name, so the frontmatter name must match the file.
+  grep -q "^name: $NAME$" "$F" || { echo "FAIL: $NAME.md frontmatter name does not match its file"; exit 1; }
+done
+
+cp -R tests/fixtures/pm-vault "$TMP/pm-mode"
+stamp_focus "$TMP/pm-mode"
+node --input-type=module -e "
+import { defaultWorkflowConfig } from '$PWD/$PM_SCRIPTS/lib/vault-utils.mjs';
+import fs from 'node:fs';
+const file = process.argv[1];
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+config.workflow = defaultWorkflowConfig();
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+" "$TMP/pm-mode/pm-os.config.json"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-mode"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-mode" --json > "$TMP/pm-mode.json"
+node -e '
+const r = require(process.argv[1]);
+if (r.overall !== 100 || r.workflow.mode !== "dynamic") { console.error(`FAIL: the filled vault in dynamic mode scored ${r.overall} (${r.workflow.mode})`); process.exit(1); }
+' "$TMP/pm-mode.json"
+echo "pm-dynamic: classic and dynamic score identically; the filled vault stays 100/100 in dynamic mode; classic carries no workflow"
+
+# A 2.x vault upgrades in place: the key is added once, personas carry the vault's own product,
+# and re-running changes nothing.
+cp -R tests/fixtures/pm-vault "$TMP/pm-upgrade"
+stamp_focus "$TMP/pm-upgrade"
+node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/pm-upgrade" --mode dynamic --preset lean >/dev/null
+cp "$TMP/pm-upgrade/pm-os.config.json" "$TMP/pm-upgrade.json"
+node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/pm-upgrade" --mode dynamic --preset lean >/dev/null
+cmp -s "$TMP/pm-upgrade/pm-os.config.json" "$TMP/pm-upgrade.json" || { echo "FAIL: a second upgrade changed the config"; exit 1; }
+grep -q "Northwind" "$TMP/pm-upgrade/.claude/agents/product-manager.md" || { echo "FAIL: upgrade filled a persona with another product"; exit 1; }
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-upgrade"
+echo "pm-dynamic: a 2.x vault upgrades in place, idempotently, with its own product name"
+
+# A workflow config the validator cannot trust is a config error (2), never a fallback to defaults.
+cp "$TMP/pm-mode/pm-os.config.json" "$TMP/pm-good.json"
+for BAD in \
+  '.workflow.mode = "turbo"' \
+  '.workflow.version = 2' \
+  '.workflow.colour = "blue"' \
+  '.workflow.pipelines.roadmap = {"enabled":true,"stages":{}}' \
+  '.workflow.pipelines.prd.stages.draft.enabled = false' \
+  '.workflow.pipelines.prd.stages.discover.agents = 17' \
+  '.workflow.pipelines.prd.stages.review.agents = 0' \
+  '.workflow.pipelines.prd.stages.publish = {"enabled":true,"agents":1,"skills":[]}' \
+  '.workflow.pipelines.prd.stages.draft.agent = "Product Manager"' \
+  '.workflow.pipelines.prd.stages.draft.skills = ["ok", 3]' \
+  '.workflow.pipelines.prd.stages.review.lenses = []' \
+  '.workflow.pipelines.prd.stages.review.lenses = [{"name":"engineer","agent":null},{"name":"engineer","agent":null}]' \
+  '.workflow.pipelines.prd.stages.draft.lenses = [{"name":"engineer","agent":null}]' \
+  '.workflow.pipelines.prd.stages.review.enabled = false' \
+  '.workflow.pipelines.prd.stages.deliver.targets = ["confluence"]' \
+  '.workflow.pipelines.prd.stages.deliver.targets = ["slack"]' \
+  '.workflow.pipelines.prd-review.stages.deliver.targets = ["jira"]' \
+  '.workflow.destinations = {"notion":"x"}' \
+  '.workflow.grilling = {"skill":""}' \
+  '.workflow.pipelines.prd.enabled = "yes"'; do
+  node -e "
+const fs = require('fs'); const c = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+const [p, v] = process.argv[3].split(' = ');
+const k = p.split('.').slice(1); let o = c; while (k.length > 1) o = o[k.shift()]; o[k[0]] = JSON.parse(v);
+fs.writeFileSync(process.argv[2], JSON.stringify(c));
+" "$TMP/pm-good.json" "$TMP/pm-mode/pm-os.config.json" "$BAD"
+  expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-mode"
+done
+# Every pipeline off is dynamic mode with nothing to run.
+node -e "
+const fs = require('fs'); const c = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+for (const p of Object.values(c.workflow.pipelines)) p.enabled = false;
+fs.writeFileSync(process.argv[2], JSON.stringify(c));
+" "$TMP/pm-good.json" "$TMP/pm-mode/pm-os.config.json"
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-mode"
+# A target is valid only with its integration on and a destination named.
+node -e "
+const fs = require('fs'); const c = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+c.integrations.confluence = true; c.workflow.destinations = { confluence: 'PM/Specs' };
+c.workflow.pipelines.prd.stages.deliver.targets = ['confluence'];
+fs.writeFileSync(process.argv[2], JSON.stringify(c));
+" "$TMP/pm-good.json" "$TMP/pm-mode/pm-os.config.json"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-mode"
+cp "$TMP/pm-good.json" "$TMP/pm-mode/pm-os.config.json"
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-mode"
+echo "pm-dynamic: 21 broken workflow configs exit 2; a target with its integration and destination passes"
+
+# Local visibility: listed in .git/info/exclude (never .gitignore), invisible to git status, and
+# reported; a directory that is not a repository cannot be local this way.
+mkdir -p "$TMP/pm-local" && git -C "$TMP/pm-local" init -q
+node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/pm-local" --product "CI Product" --mode dynamic --visibility local >/dev/null
+grep -q '^/ABOUT-ME/$' "$TMP/pm-local/.git/info/exclude" || { echo "FAIL: vault not excluded"; exit 1; }
+grep -q '^/.claude/agents/product-manager.md$' "$TMP/pm-local/.git/info/exclude" || { echo "FAIL: personas not excluded"; exit 1; }
+[ ! -e "$TMP/pm-local/.gitignore" ] || { echo "FAIL: local visibility wrote a .gitignore"; exit 1; }
+[ -z "$(git -C "$TMP/pm-local" status --porcelain)" ] || { echo "FAIL: local vault shows in git status"; git -C "$TMP/pm-local" status --porcelain; exit 1; }
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-local" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{if(JSON.parse(s).visibility!=="local"){console.error("FAIL: visibility not reported");process.exit(1)}})'
+expect_exit 2 node "$PM_SCRIPTS/create-vault.mjs" --target "$TMP/pm-not-a-repo" --visibility local
+echo "pm-local: excluded via .git/info/exclude, invisible to git status; a non-repo exits 2"
+
+# /blvck-pm:check scores a discovered reading from a scratch config before the user agrees to
+# save it: the reading must work from outside the vault and leave the vault untouched.
+cp -R tests/fixtures/pm-vault "$TMP/pm-discover"
+stamp_focus "$TMP/pm-discover"
+mv "$TMP/pm-discover/ABOUT-ME" "$TMP/pm-discover/00-me"
+mv "$TMP/pm-discover/pm-os.config.json" "$TMP/pm-discovered.json"
+node -e '
+const fs = require("fs");
+const file = process.argv[1];
+const c = JSON.parse(fs.readFileSync(file, "utf8"));
+for (const [role, value] of Object.entries(c.paths)) c.paths[role] = value.replace(/^ABOUT-ME/, "00-me");
+fs.writeFileSync(file, JSON.stringify(c, null, 2));
+' "$TMP/pm-discovered.json"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-discover" --json > "$TMP/pm-before.json" || true
+expect_exit 0 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-discover" --config "$TMP/pm-discovered.json"
+node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-discover" --config "$TMP/pm-discovered.json" --json > "$TMP/pm-after.json"
+node -e '
+const before = require(process.argv[1]), after = require(process.argv[2]);
+if (!(before.overall < 100 && after.overall === 100)) { console.error(`FAIL: discovery should lift ${before.overall} to 100, got ${after.overall}`); process.exit(1); }
+' "$TMP/pm-before.json" "$TMP/pm-after.json"
+[ ! -e "$TMP/pm-discover/pm-os.config.json" ] || { echo "FAIL: scoring a scratch config wrote into the vault"; exit 1; }
+expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-discover" --config "$TMP/no-such-config.json"
+echo "pm-check: a discovered config scores from outside the vault without writing into it; a missing one exits 2"
+
+node tests/pm-workflow-sim.mjs >/dev/null || { node tests/pm-workflow-sim.mjs; exit 1; }
+# The simulation has to be able to fail: break a ceiling and the needs-input stop in copies of
+# the script, and each copy must be caught.
+PM_WF="plugins/blvck-pm/skills/pm-os/workflows/pm-work.js"
+sed 's/limiter(stages\[researchStage\]\.agents)/limiter(Infinity)/' "$PM_WF" > "$TMP/mut-ceiling.js"
+sed 's/limiter(stages\.review\.agents)/limiter(Infinity)/' "$PM_WF" > "$TMP/mut-review.js"
+sed 's/if (doc\.openQuestions\.length) return needsInput/if (false) return needsInput/' "$PM_WF" > "$TMP/mut-ask.js"
+for MUT in mut-ceiling mut-review mut-ask; do
+  cmp -s "$PM_WF" "$TMP/$MUT.js" && { echo "FAIL: mutation $MUT did not change the script"; exit 1; }
+  if PM_WORKFLOW_SCRIPT="$TMP/$MUT.js" node tests/pm-workflow-sim.mjs >/dev/null 2>&1; then
+    echo "FAIL: the simulation did not catch $MUT"; exit 1
+  fi
+done
+echo "pm-workflow: orchestration simulation passes and catches a broken ceiling or a skipped stop"
 
 echo "=== Verification Complete ==="
 echo ""

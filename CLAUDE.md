@@ -78,7 +78,7 @@ For each plugin with user-visible changes:
 ```
 
 Required checks:
-- `node --check` on all six scripts (three harness, three PM vault) plus the workflow simulation
+- `node --check` on all six scripts (three harness, three PM vault) plus both workflow simulations
 - JSON parse of every manifest, template, tracker, and fixture in the repo
 - Solo + team scaffold and validate round-trip in a temp directory (validate must exit 0 for solo, and team must report the seeded hygiene findings)
 - Adapted layout: the foreign-shaped fixture scores (exit 0), and team layout re-expressed as a user map scores identically to native team — if those two ever diverge, the map has stopped being a generalization of the layouts and has become a parallel implementation
@@ -87,14 +87,15 @@ Required checks:
 - PM vault cannot be gamed: a declared path that is gone fails, a `measured` outcome with no result blocks regardless of score, an unknown or out-of-tree config path exits 2, and an empty directory reports `unscored`
 - PM codebase registry: codebases inside and outside the vault score 100/100 and a repo's `{{TOKEN}}` is never read, a non-repo folder named `CODE/` still is, an undeclared repo and a leaking root `CLAUDE.md` warn without blocking, `"rootClaudeMd": "accepted"` silences only its own warning, a `mine` repo with no harness scores but never blocks, a codebase that is gone or not a repo fails, and a malformed registry exits 2
 - Dynamic workflow mode: a dynamic scaffold scores exactly what classic does (solo and team), classic output is untouched, a 1.x harness upgrades in place idempotently, every malformed `.claude/harness-workflow.json` exits **2**, `--visibility local` lands in `.git/info/exclude` and nowhere git can see, adapted + dynamic resolves the foreign tracker, and `tests/workflow-sim.mjs` runs the real `workflows/feature.js` against a fake runtime
+- PM dynamic mode: a dynamic vault scores exactly what classic does (and the filled fixture stays 100/100), a classic scaffold carries no `workflow` key, a 2.x vault upgrades in place idempotently with its own product name, every malformed `workflow` key exits **2**, `--visibility local` lands in `.git/info/exclude`, a discovered `--config` scores from outside the vault without writing into it, and `tests/pm-workflow-sim.mjs` runs the real `workflows/pm-work.js` — and fails on a copy with a broken ceiling or a skipped needs-input stop
 
-**Mode is not a layout.** `.claude/harness-workflow.json` decides how work runs, never how the harness scores — it is read beside `scoreHarness`, never inside it. The workflow script has no filesystem access, so everything it needs (config, the picked feature, resolution, verification command) arrives through `args` from `/blvck-harness:run`; a new input belongs there, not in a file the script would have to read.
+**Mode is not a layout.** `.claude/harness-workflow.json` decides how work runs, never how the harness scores — it is read beside `scoreHarness`, never inside it. The workflow script has no filesystem access, so everything it needs (config, the picked feature, resolution, verification command) arrives through `args` from `/blvck-harness:run`; a new input belongs there, not in a file the script would have to read. The same holds for blvck-pm: its mode lives under `workflow` in `pm-os.config.json` (one config file), is read beside `scoreVault` in `validate-vault.mjs`, and `workflows/pm-work.js` gets everything through `args` from `/blvck-pm:run`.
 
 Three layouts, one check set. A change to scoring must keep solo, team, **and** adapted passing — and `scoreHarness` must stay layout-agnostic. If you find yourself adding a branch on layout inside it, that is the signal the change belongs in an adapter instead.
 
 **The two plugins' scripts stay separate.** `harness-utils.mjs` scores repos, `vault-utils.mjs` scores vaults, and they share no code on purpose: they track different units with different terminal states (verification passes vs. the number moved). A helper that looks worth sharing is usually a sign one of them is drifting toward the other's job.
 
-**Keep judgment out of `vault-utils.mjs`.** It answers only what a machine can answer — "does the PRD name a success metric", never "is it a good one". A check that needs an opinion belongs in `validate.md`, which is a prompt. Adding one here makes the score non-reproducible, which removes the reason the script exists.
+**Keep judgment out of `vault-utils.mjs`.** It answers only what a machine can answer — "does the PRD name a success metric", never "is it a good one". A check that needs an opinion belongs in `commands/check.md` and its review rubric, which are prompts. Adding one here makes the score non-reproducible, which removes the reason the script exists.
 
 Never commit a `.harness-map.json` at this repo's root — discovery is root-only, so it would flip blvck-ai-os's own validate to `adapted`. Fixtures live under `tests/`.
 

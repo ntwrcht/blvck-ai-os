@@ -2,8 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-09
-**Active Feature:** none — feat-018 done. **blvck-harness 2.0.0 is released**: tag `blvck-harness--v2.0.0` pushed 2026-10-09 at `b440a4b`, `main` pushed, CI green, `claude plugin details blvck-harness` reports 2.0.0; the user confirmed the `/` menu shows only setup, run, check. blvck-pm is unchanged at 2.2.0. Not yet exercised: a real GitHub/GitLab PR/MR opened by Deliver (live runs used no remote, then a bare remote). Next candidate: feat-019, blvck-pm 3.0 in the same shape — plan in https://github.com/ntwrcht/blvck-ai-os/issues/1.
+**Last Updated:** 2026-10-10
+**Active Feature:** none — feat-019 done, **blvck-pm 3.0.0 built and verified, NOT released**. `plugin.json` is at 3.0.0 with a CHANGELOG entry; tag `blvck-pm--v3.0.0` and the push await the user. Still open before release: the user's interactive check that the `/` menu shows only setup, run, check under `/blvck-pm:`; optionally a research-synthesis re-run after its fixes and one real Confluence/Drive/Jira deliver target. blvck-harness is unchanged at 2.0.0.
+
+**feat-019 in one paragraph:** three commands (setup absorbs migrate, check merges validate+score and discovers a config with `validate-vault.mjs --config`, run grills then launches), an opt-in `workflow` key in `pm-os.config.json`, and `workflows/pm-work.js` for PRD, research synthesis, competitor teardown, and PRD review. Four live runs in a scratch vault all delivered. Run 1 exposed three defects that are now fixed: it stopped on a roadmap question that belongs under "Decisions for the PM", it listed a run instruction as an assumption, and a review found problems no revise stage could fix. Writing into `.git/` asks permission (a sensitive path), so `run` falls back to passing the script inline.
 
 **Fixed during feat-018:** `templates/solo/session-handoff.md` hard-coded "Read `AGENTS.md`" even when the scaffold wrote `CLAUDE.md`; it now uses `{{AGENT_FILE_NAME}}`, and init.sh asserts both names plus no unfilled token in a solo scaffold.
 
@@ -28,6 +30,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-007 Rebrand to blvck — marketplace blvck-ai-os, plugins blvck-harness/blvck-pm; all manifests, prefixes, docs, and the repo folder renamed
 - [x] feat-008 Official-grade packaging — permission wall fixed, write commands gated, semver + CHANGELOGs + release checklist, LICENSE/NOTICE split, CI, community files
 - [x] feat-009 Flexible harness scoring — `.harness-map.json`, adapted layouts, check ids, vocabulary synonyms, `unscored`, exit code 2; init.sh 3 → 5 steps
+- [x] feat-019 blvck-pm 3.0.0 — setup·run·check, writing-style round, local visibility, dynamic PM workflow (4 pipelines, personas, lenses, deliver targets) proven by 4 live runs; init.sh 9 → 10 steps; not yet tagged
 - [x] feat-018 blvck-harness 2.0.0 — setup·run·check, guided setup (code style, visibility, stages, personas, skills, delivery), dynamic workflow proven by 4 live runs; released
 - [x] feat-017 Dynamic workflow engine — `.claude/harness-workflow.json`, `--mode dynamic`, stage personas, local visibility, `workflows/feature.js` + fake-runtime simulation; classic output byte-identical to 1.2.0; init.sh 8 → 9 steps
 - [x] feat-016 blvck-pm 2.2.0 — codebase registry (`codebases` in config, path anywhere, `CODE/` default), freshness rule, nested repos skipped by the validator, leak + undeclared-repo warnings, migrate as a non-forcing helper

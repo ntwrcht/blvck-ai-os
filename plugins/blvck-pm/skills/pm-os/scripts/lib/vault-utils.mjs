@@ -2,7 +2,7 @@
 //
 // Split of responsibility, deliberately: this file decides only what a machine can decide.
 // "Does the PRD have a success metric" is checkable; "is it a good success metric" is a
-// conversation and belongs to /blvck-pm:validate, which is a prompt. Nothing here judges
+// conversation and belongs to /blvck-pm:check, which is a prompt. Nothing here judges
 // quality, and adding a check that does is the signal it belongs on the other side of the line.
 import { readdir, readFile, realpath, stat, writeFile, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -263,8 +263,14 @@ async function parseCodebases(root, value) {
   return codebases;
 }
 
-export async function loadConfig(root) {
-  const jsonPath = path.join(root, CONFIG_JSON);
+// `configPath` scores a reading of the vault that is not saved yet: /blvck-pm:check discovers
+// which folder plays each role, writes that as a scratch config outside the vault, and scores it
+// with the same checks before the user agrees to save anything.
+export async function loadConfig(root, { configPath } = {}) {
+  const jsonPath = configPath ? path.resolve(configPath) : path.join(root, CONFIG_JSON);
+  if (configPath && !await exists(jsonPath)) {
+    throw new VaultConfigError(`--config: "${configPath}" does not exist`);
+  }
   const mdPath = path.join(root, CONFIG_MD);
   let source = null;
   let declared = {};
@@ -508,7 +514,7 @@ export async function scoreVault(root, { config, roadmap, files, repos = [] }) {
   const declaredInside = new Set(codebases.filter((c) => c.inside).map((c) => path.relative(realRoot, c.resolved)));
   for (const repo of repos) {
     if (!declaredInside.has(repo)) {
-      warnings.push(`${repo}: a git repo inside the vault that the codebases registry does not list (run /blvck-pm:migrate to declare it)`);
+      warnings.push(`${repo}: a git repo inside the vault that the codebases registry does not list (run /blvck-pm:setup to declare it)`);
     }
   }
 
@@ -593,7 +599,7 @@ export function formatVaultReport(result, root, config, roadmap) {
     lines.push(
       '',
       'Unscored — no vault found here. The score below is arithmetic on an empty directory, not a measurement.',
-      'If this directory does hold PM material in another shape, run /blvck-pm:migrate to declare it.'
+      'If this directory does hold PM material in another shape, /blvck-pm:check can discover it and /blvck-pm:setup can declare it.'
     );
   }
   lines.push('', `Overall: ${result.overall}/100 (${result.passed}/${result.total} checks)`,
@@ -652,4 +658,294 @@ export async function copyTemplate(name, target, replacements = {}, { force = fa
   }
   await writeText(target, body);
   return { path: target, status: 'written' };
+}
+
+// --- workflow mode (pm-os.config.json "workflow") --------------------------------------
+//
+// How PM work runs, never how the vault scores: validate-vault.mjs reads this beside
+// scoreVault, not inside it, so the same vault scores the same in classic and dynamic. Absent
+// key = classic, which is why a 2.x vault keeps working unchanged.
+
+export const WORKFLOW_PRESETS = ['recommended', 'lean', 'custom'];
+export const DELIVER_TARGETS = ['confluence', 'drive', 'jira'];
+
+// One entry per pipeline, one row per stage. `required` stages carry the work from brief to a
+// delivered document, so turning one off leaves a run that cannot finish. `maxAgents` is a
+// ceiling, never a target: a parallel stage runs one agent per real source, competitor or lens,
+// at most that many at once.
+export const PIPELINES = {
+  prd: {
+    discover: { required: false, maxAgents: 16 },
+    draft: { required: true, maxAgents: 1 },
+    review: { required: false, maxAgents: 8, lenses: true },
+    revise: { required: false, maxAgents: 1, needs: 'review' },
+    completeness: { required: false, maxAgents: 1 },
+    deliver: { required: true, maxAgents: 1, targets: true }
+  },
+  'research-synthesis': {
+    analyze: { required: true, maxAgents: 16 },
+    synthesize: { required: true, maxAgents: 1 },
+    review: { required: false, maxAgents: 8, lenses: true },
+    revise: { required: false, maxAgents: 1, needs: 'review' },
+    deliver: { required: true, maxAgents: 1, targets: true }
+  },
+  'competitor-teardown': {
+    analyze: { required: true, maxAgents: 16 },
+    compare: { required: true, maxAgents: 1 },
+    review: { required: false, maxAgents: 8, lenses: true },
+    revise: { required: false, maxAgents: 1, needs: 'review' },
+    deliver: { required: true, maxAgents: 1, targets: true }
+  },
+  'prd-review': {
+    review: { required: true, maxAgents: 8, lenses: true },
+    consolidate: { required: true, maxAgents: 1 },
+    deliver: { required: true, maxAgents: 1, targets: true }
+  }
+};
+
+// Jira tickets come from a PRD's Must requirements; no other document has anything to ticket.
+const TARGETS_BY_PIPELINE = { prd: DELIVER_TARGETS };
+const targetsFor = (pipeline) => TARGETS_BY_PIPELINE[pipeline] ?? ['confluence', 'drive'];
+
+const stage = (enabled, agents, agent, skills, extra = {}) => ({ enabled, agents, agent, skills, ...extra });
+const lens = (name, agent) => ({ name, agent });
+const FOUR_LENSES = [lens('engineer', 'lead-engineer'), lens('designer', 'blind-reviewer'),
+  lens('customer', 'customer-voice'), lens('executive', 'board-executive')];
+// Lean keeps one persona for every review: two blind lenses cost far less than four specialists.
+const TWO_BLIND_LENSES = [lens('engineer', 'blind-reviewer'), lens('executive', 'blind-reviewer')];
+
+function presetPipelines(preset) {
+  const lean = preset === 'lean';
+  return {
+    prd: {
+      enabled: true,
+      stages: {
+        discover: stage(!lean, 5, 'research-analyst', ['research', 'discovery-synthesis']),
+        draft: stage(true, 1, 'product-manager', ['write-a-prd']),
+        review: stage(true, lean ? 2 : 4, null, ['scrutinize'], { lenses: lean ? TWO_BLIND_LENSES : FOUR_LENSES }),
+        revise: stage(!lean, 1, 'product-manager', ['write-a-prd']),
+        completeness: stage(true, 1, null, []),
+        deliver: stage(true, 1, null, ['stakeholder-comms'], { targets: [] })
+      }
+    },
+    'research-synthesis': {
+      enabled: true,
+      stages: {
+        analyze: stage(true, 5, 'research-analyst', ['research']),
+        synthesize: stage(true, 1, 'customer-voice', ['discovery-synthesis']),
+        review: stage(!lean, 1, null, ['scrutinize'], { lenses: [lens('skeptic', 'blind-reviewer')] }),
+        revise: stage(!lean, 1, 'customer-voice', ['discovery-synthesis']),
+        deliver: stage(true, 1, null, [], { targets: [] })
+      }
+    },
+    'competitor-teardown': {
+      enabled: true,
+      stages: {
+        analyze: stage(true, 5, 'competitive-intel', ['research']),
+        compare: stage(true, 1, 'product-manager', []),
+        review: stage(!lean, 1, null, ['scrutinize'], { lenses: [lens('executive', 'board-executive')] }),
+        revise: stage(!lean, 1, 'product-manager', []),
+        deliver: stage(true, 1, null, [], { targets: [] })
+      }
+    },
+    'prd-review': {
+      enabled: true,
+      stages: {
+        review: stage(true, lean ? 2 : 4, null, ['scrutinize'], { lenses: lean ? TWO_BLIND_LENSES : FOUR_LENSES }),
+        consolidate: stage(true, 1, 'product-manager', []),
+        deliver: stage(true, 1, null, [], { targets: [] })
+      }
+    }
+  };
+}
+
+export function defaultWorkflowConfig({ preset = 'recommended' } = {}) {
+  return {
+    version: 1,
+    mode: 'dynamic',
+    preset,
+    pipelines: presetPipelines(preset === 'lean' ? 'lean' : 'recommended'),
+    destinations: {},
+    grilling: { skill: 'grilling' }
+  };
+}
+
+// Every persona an enabled stage runs as, so setup can scaffold exactly those and no others.
+export function workflowPersonas(workflow) {
+  const names = new Set();
+  for (const pipeline of Object.values(workflow?.pipelines ?? {})) {
+    if (!pipeline.enabled) continue;
+    for (const s of Object.values(pipeline.stages)) {
+      if (!s.enabled) continue;
+      if (s.agent) names.add(s.agent);
+      for (const l of s.lenses ?? []) if (l.agent) names.add(l.agent);
+    }
+  }
+  return [...names].sort();
+}
+
+const AGENT_NAME = /^[a-z0-9][a-z0-9-]*$/;
+const WORKFLOW_KEYS = new Set(['version', 'mode', 'preset', 'pipelines', 'destinations', 'grilling']);
+const PIPELINE_KEYS = new Set(['enabled', 'stages']);
+const STAGE_KEYS = new Set(['enabled', 'agents', 'agent', 'skills', 'lenses', 'targets']);
+
+function unknownKeys(object, known, where) {
+  for (const key of Object.keys(object)) {
+    if (!known.has(key)) throw new VaultConfigError(`${where}: unknown key "${key}" (known: ${[...known].join(', ')})`);
+  }
+}
+
+const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+// Same contract as the rest of the config: anything the tool cannot trust stops the run with
+// exit 2 and names the problem. It never falls back to a preset, because a typo'd stage that
+// silently reverted to "recommended" would spend tokens the user declined to spend.
+export function validateWorkflowConfig(workflow, rootConfig = {}) {
+  const where = `${CONFIG_JSON}: workflow`;
+  const fail = (message) => { throw new VaultConfigError(`${where}${message}`); };
+  if (!isObject(workflow)) fail(' must be an object');
+  unknownKeys(workflow, WORKFLOW_KEYS, where);
+  if (workflow.version !== 1) {
+    fail(`.version must be 1 (got ${JSON.stringify(workflow.version)})`);
+  }
+  if (workflow.mode !== 'classic' && workflow.mode !== 'dynamic') {
+    fail(`.mode must be "classic" or "dynamic" (got ${JSON.stringify(workflow.mode)})`);
+  }
+  if (workflow.mode === 'classic') return;
+
+  if (workflow.preset !== undefined && !WORKFLOW_PRESETS.includes(workflow.preset)) {
+    fail(`.preset must be one of ${WORKFLOW_PRESETS.join(', ')} (got ${JSON.stringify(workflow.preset)})`);
+  }
+  const destinations = workflow.destinations ?? {};
+  if (!isObject(destinations)) fail('.destinations must be an object');
+  for (const [target, value] of Object.entries(destinations)) {
+    if (!DELIVER_TARGETS.includes(target)) fail(`.destinations: unknown target "${target}" (known: ${DELIVER_TARGETS.join(', ')})`);
+    if (typeof value !== 'string' || !value.trim()) fail(`.destinations.${target} must name where documents go (a space, folder, or project key)`);
+  }
+  if (workflow.grilling !== undefined) {
+    const skill = workflow.grilling?.skill;
+    if (!isObject(workflow.grilling) || (skill !== null && (typeof skill !== 'string' || !skill.trim()))) {
+      fail('.grilling.skill must be a skill name, or null for the built-in grilling style');
+    }
+  }
+
+  const pipelines = workflow.pipelines;
+  if (!isObject(pipelines)) fail('.pipelines must be an object');
+  let anyOn = false;
+  for (const [name, pipeline] of Object.entries(pipelines)) {
+    const rules = PIPELINES[name];
+    const at = `.pipelines.${name}`;
+    if (!rules) fail(`.pipelines: unknown pipeline "${name}" (known: ${Object.keys(PIPELINES).join(', ')})`);
+    if (!isObject(pipeline)) fail(`${at} must be an object`);
+    unknownKeys(pipeline, PIPELINE_KEYS, `${where}${at}`);
+    if (typeof pipeline.enabled !== 'boolean') fail(`${at}.enabled must be true or false`);
+    anyOn ||= pipeline.enabled;
+    if (!isObject(pipeline.stages)) fail(`${at}.stages must be an object`);
+    for (const stageName of Object.keys(pipeline.stages)) {
+      if (!rules[stageName]) fail(`${at}: unknown stage "${stageName}" (known: ${Object.keys(rules).join(', ')})`);
+    }
+    for (const [stageName, rule] of Object.entries(rules)) {
+      const s = pipeline.stages[stageName];
+      const sat = `${at}.stages.${stageName}`;
+      if (s === undefined) {
+        if (rule.required) fail(`${sat} is required — the ${name} pipeline cannot deliver without it`);
+        continue;
+      }
+      if (!isObject(s)) fail(`${sat} must be an object`);
+      unknownKeys(s, STAGE_KEYS, `${where}${sat}`);
+      if (typeof s.enabled !== 'boolean') fail(`${sat}.enabled must be true or false`);
+      if (rule.required && !s.enabled) fail(`${sat} cannot be disabled — the ${name} pipeline cannot deliver without it`);
+      if (!Number.isInteger(s.agents) || s.agents < 1 || s.agents > rule.maxAgents) {
+        fail(`${sat}.agents must be a whole number from 1 to ${rule.maxAgents} (got ${JSON.stringify(s.agents)})`);
+      }
+      if (s.agent !== undefined && s.agent !== null && (typeof s.agent !== 'string' || !AGENT_NAME.test(s.agent))) {
+        fail(`${sat}.agent must be a subagent name in lowercase-hyphen form, or null for the default workflow agent (got ${JSON.stringify(s.agent)})`);
+      }
+      if (!Array.isArray(s.skills) || s.skills.some((skill) => typeof skill !== 'string' || !skill.trim())) {
+        fail(`${sat}.skills must be an array of skill names (empty is fine)`);
+      }
+      if (s.lenses !== undefined && !rule.lenses) fail(`${sat}.lenses: only a review stage has lenses`);
+      if (rule.lenses && s.enabled) {
+        if (!Array.isArray(s.lenses) || s.lenses.length === 0) fail(`${sat}.lenses must list at least one review lens`);
+        if (s.lenses.length > rule.maxAgents) fail(`${sat}.lenses: at most ${rule.maxAgents} lenses`);
+        const seen = new Set();
+        for (const [i, l] of s.lenses.entries()) {
+          if (!isObject(l) || typeof l.name !== 'string' || !AGENT_NAME.test(l.name)) {
+            fail(`${sat}.lenses[${i}] must be { "name": "<lowercase-hyphen>", "agent": <subagent name or null> }`);
+          }
+          unknownKeys(l, new Set(['name', 'agent']), `${where}${sat}.lenses[${i}]`);
+          if (l.agent !== undefined && l.agent !== null && (typeof l.agent !== 'string' || !AGENT_NAME.test(l.agent))) {
+            fail(`${sat}.lenses[${i}].agent must be a subagent name in lowercase-hyphen form, or null`);
+          }
+          if (seen.has(l.name)) fail(`${sat}.lenses: "${l.name}" appears twice — two identical lenses give two answers and no way to choose`);
+          seen.add(l.name);
+        }
+      }
+      if (s.targets !== undefined && !rule.targets) fail(`${sat}.targets: only the deliver stage has targets`);
+      if (rule.targets && s.targets !== undefined) {
+        if (!Array.isArray(s.targets)) fail(`${sat}.targets must be an array (empty = the vault only)`);
+        for (const target of s.targets) {
+          if (!targetsFor(name).includes(target)) {
+            fail(`${sat}.targets: "${target}" is not a target for ${name} (allowed: ${targetsFor(name).join(', ')})`);
+          }
+          // A target whose integration is switched off, or that names nowhere to publish, reads
+          // as configured and delivers nothing.
+          if (rootConfig.integrations?.[target] !== true) {
+            fail(`${sat}.targets: "${target}" needs integrations.${target} set to true`);
+          }
+          if (!destinations[target]) fail(`${sat}.targets: "${target}" needs workflow.destinations.${target}`);
+        }
+      }
+      if (rule.needs && s.enabled && pipeline.stages[rule.needs]?.enabled !== true) {
+        fail(`${sat} needs the ${rule.needs} stage on — it has nothing to work from otherwise`);
+      }
+    }
+  }
+  if (!anyOn) fail('.pipelines: dynamic mode needs at least one pipeline on (or set mode to "classic")');
+}
+
+export function readWorkflow(rawConfig) {
+  if (!rawConfig || rawConfig.workflow === undefined) return { mode: 'classic' };
+  validateWorkflowConfig(rawConfig.workflow, rawConfig);
+  return rawConfig.workflow;
+}
+
+// --- local-only vault --------------------------------------------------------------------
+// Kept out of the remote through .git/info/exclude, never .gitignore: .gitignore is itself
+// committed, so it would announce the vault it hides.
+
+const EXCLUDE_START = '# blvck-pm:local:start';
+const EXCLUDE_END = '# blvck-pm:local:end';
+
+// Agent files are listed one by one rather than as .claude/agents/: a user's other agents may be
+// meant for the team even when the vault is not.
+export function localVaultPaths(paths, agents = []) {
+  const dirs = new Set([paths.identity, path.dirname(paths.productContext), paths.templates, paths.outputs]
+    .map((dir) => `/${dir.replace(/\/$/, '')}/`));
+  return [...dirs, `/${CONFIG_JSON}`, ...agents.map((name) => `/${paths.agents}/${name}.md`), '/.claude/skills/', '/.agents/'];
+}
+
+export async function readLocalExclude(root) {
+  const text = await readText(path.join(root, '.git', 'info', 'exclude'));
+  if (text === null) return null;
+  const start = text.indexOf(EXCLUDE_START);
+  const end = text.indexOf(EXCLUDE_END);
+  if (start === -1 || end < start) return null;
+  return text.slice(start + EXCLUDE_START.length, end).split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+export async function writeLocalExclude(root, entries) {
+  if (!await isDir(path.join(root, '.git'))) {
+    throw new VaultConfigError('--visibility local needs a git repository with a .git directory (a worktree or submodule checkout cannot hold its own exclude file)');
+  }
+  const excludePath = path.join(root, '.git', 'info', 'exclude');
+  const current = (await readText(excludePath)) ?? '';
+  const block = `${EXCLUDE_START}\n${entries.join('\n')}\n${EXCLUDE_END}\n`;
+  const start = current.indexOf(EXCLUDE_START);
+  const end = current.indexOf(EXCLUDE_END);
+  const next = start !== -1 && end > start
+    ? current.slice(0, start) + block + current.slice(end + EXCLUDE_END.length).replace(/^\n/, '')
+    : `${current.replace(/\n*$/, current ? '\n\n' : '')}${block}`;
+  await writeText(excludePath, next);
+  return { path: excludePath, status: 'written' };
 }

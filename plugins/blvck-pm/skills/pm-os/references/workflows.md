@@ -10,6 +10,12 @@ is finished or when the user asks whether it is ready — never mid-draft. The g
 unmet, offers to fill it, and if the user proceeds anyway records the override inside the
 document. It warns; it never blocks. Defaults and how a vault adjusts them: `references/completeness.md`.
 
+**Dynamic mode.** When the config's `workflow` key is `dynamic`, four of these run as background
+pipelines through `/blvck-pm:run`: **prd**, **research-synthesis**, **competitor-teardown**, and
+**prd-review**. The steps below still describe what each produces; the pipeline spreads the work
+across parallel agents and personas. Everything else, and any pipeline the config turns off, runs
+in the session as written here.
+
 Language comes from `pm-os.config.json`'s `language` (default `en`), never from the language
 the user happened to type in. Structural writing rules hold in every language; the banned-word
 list is language-specific — see `references/voice.md`.

@@ -1,9 +1,8 @@
----
-description: Reconcile existing PM material (any structure) with the PM OS vault — relocate it, or declare it where it stands
-argument-hint: [relocate|adapt]
-disable-model-invocation: true
----
-Reconcile existing PM material in the current directory with the pm-os vault. Sources are generic — a course-built vault, an Obsidian folder, a `docs/` tree, loose markdown. Templates live in `${CLAUDE_PLUGIN_ROOT}/skills/pm-os/templates/`. This is a staged, gated operation: three read-only phases before the first write, and nothing is ever deleted.
+# Migration — PM Material in Another Shape
+
+`/blvck-pm:setup` follows this when the directory already holds PM material in a structure other than a blvck-pm vault. Templates live in `${CLAUDE_PLUGIN_ROOT}/skills/pm-os/templates/`.
+
+Sources are generic — a course-built vault, an Obsidian folder, a `docs/` tree, loose markdown. This is a staged, gated operation: three read-only phases before the first write, and nothing is ever deleted.
 
 There are two ways this ends, and the scan is identical for both. **Relocate** moves material into the default vault folders. **Adapt** leaves it where it is and records the real locations in `pm-os.config.json`'s `paths`, which every workflow reads the vault through. Do not assume relocate — a structure the user built on purpose is not a mess to be tidied.
 
@@ -20,12 +19,12 @@ There are two ways this ends, and the scan is identical for both. **Relocate** m
 
 Known origins (ai-native-pm-os course vaults) are classification hints, not requirements. A file that fits no role is **unknown** — ask the user what it is; never guess.
 
-**Phase 2 — Reflect back, then fork (read-only).** Present your reading: what the existing setup is, what each group contains, and what maps where. Existing filled content counts as pre-answered interview sections — plan to interview only for what is genuinely missing, exactly like `/blvck-pm:setup`'s gap mode. The user corrects or confirms this reading before you plan anything.
+**Phase 2 — Reflect back, then fork (read-only).** Present your reading: what the existing setup is, what each group contains, and what maps where. Existing filled content counts as pre-answered interview sections — plan to interview only for what is genuinely missing, exactly like setup's gap mode. The user corrects or confirms this reading before you plan anything.
 
 Then ask how it should end, with a recommendation:
 
 - **Relocate** — move their material into the default vault folders. Right when the current structure is accidental (loose files, a half-organised `docs/` tree).
-- **Adapt** — leave the folders where they are and record them in `pm-os.config.json`'s `paths`, which every workflow, `/blvck-pm:validate` and `/blvck-pm:score` read the vault through. Right when the structure is deliberate — an Obsidian vault with its own conventions, a numbered folder scheme, anything other tooling or teammates depend on. Only `pm-os.config.json` has a fixed name; everything else is free to stay put.
+- **Adapt** — leave the folders where they are and record them in `pm-os.config.json`'s `paths`, which every workflow and `/blvck-pm:check` read the vault through. Right when the structure is deliberate — an Obsidian vault with its own conventions, a numbered folder scheme, anything other tooling or teammates depend on. Only `pm-os.config.json` has a fixed name; everything else is free to stay put.
 
 Either way the content work is identical — the fork is only whether files move.
 
@@ -51,4 +50,4 @@ Get explicit approval of the plan before touching anything.
 
 Ask each repo's `scope` (`mine` / `dependency`) and `branch`; do not infer them. Repos are moved by the user's yes, not by the plan's approval as a whole.
 
-**Phase 6 — Verify.** Run the `/blvck-pm:validate` checks on the migrated vault; repair failures the migration caused before finishing. Confirm every path declared in `paths` resolves to something that exists. Close with the vault tree, the migration summary (created / converted / declared in place / moved to backup and where), and the daily entry points: just ask for any artifact, `/blvck-pm:validate` monthly, `/blvck-pm:score` when the vault feels messy.
+**Phase 6 — Verify.** Run `validate-vault.mjs` on the migrated vault; repair failures the migration caused before finishing, and report each repair. Confirm every path declared in `paths` resolves to something that exists. Then return to setup's next round (writing style, then mode) — the migration summary (created / converted / declared in place / moved to backup and where) goes in setup's final report.

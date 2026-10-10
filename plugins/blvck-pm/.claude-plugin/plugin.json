@@ -2,13 +2,13 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "blvck-pm",
   "displayName": "blvck · pm",
-  "version": "2.2.0",
-  "description": "Product-manager operating system — PM vault (ABOUT-ME, PROJECTS, TEMPLATES, CLAUDE-OUTPUTS), 21 routed workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review), an interviewed per-product agent team built from 8 archetypes with the bundled agent-smith skill, a roadmap of business outcomes, scaffold and validate scripts, and setup/migrate/validate/score commands. Vault patterns follow ai-native-pm-os.",
+  "version": "3.0.0",
+  "description": "Product-manager operating system — PM vault (ABOUT-ME, PROJECTS, TEMPLATES, CLAUDE-OUTPUTS), 21 routed workflows (vision, roadmap, PRD, RICE, JTBD, GTM, tracking plans, weekly updates, PRD review), an interviewed per-product agent team built from 9 archetypes, a roadmap of business outcomes, an optional dynamic workflow that researches, drafts, reviews and delivers PRDs, research syntheses, competitor teardowns and PRD reviews in parallel, and three commands: setup, run, check. Vault patterns follow ai-native-pm-os.",
   "author": {
     "name": "Worachote Suwanyothin"
   },
   "homepage": "https://github.com/ntwrcht/blvck-ai-os",
   "repository": "https://github.com/ntwrcht/blvck-ai-os",
   "license": "MIT",
-  "keywords": ["product-management", "pm-vault", "prd", "rice", "jtbd", "gtm", "agents"]
+  "keywords": ["product-management", "pm-vault", "prd", "rice", "jtbd", "gtm", "agents", "workflow"]
 }

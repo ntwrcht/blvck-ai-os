@@ -15,18 +15,26 @@ import {
   OPTIONAL_OUTPUT_DIRS,
   REQUIRED_OUTPUT_DIRS,
   VaultConfigError,
+  WORKFLOW_PRESETS,
   copyTemplate,
+  defaultWorkflowConfig,
   exists,
+  localVaultPaths,
   parseArgs,
   parseLanguageFromMarkdown,
   parsePathsFromMarkdown,
+  validateWorkflowConfig,
+  workflowPersonas,
+  writeLocalExclude,
   writeText
 } from './lib/vault-utils.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 
 if (args.help) {
-  console.log(`Usage: node scripts/create-vault.mjs [--target DIR] [--product NAME] [--slug SLUG] [--language en] [--agents a,b] [--force]
+  console.log(`Usage: node scripts/create-vault.mjs [--target DIR] [--product NAME] [--slug SLUG] [--language en] [--agents a,b]
+                                    [--mode classic|dynamic] [--preset recommended|lean|custom]
+                                    [--visibility shared|local] [--force]
        node scripts/create-vault.mjs --upgrade-config --target DIR
 
 Scaffolds a PM vault:
@@ -36,6 +44,12 @@ Scaffolds a PM vault:
   CLAUDE-OUTPUTS/      ${REQUIRED_OUTPUT_DIRS.join(', ')} (+ ${OPTIONAL_OUTPUT_DIRS.join(', ')})
   .claude/agents/      the chosen archetypes
   pm-os.config.json    the config (paths, language, completeness, roster)
+
+--mode dynamic adds a "workflow" key to pm-os.config.json and scaffolds the personas its
+stages run as. On an existing vault it upgrades in place: the key is added once, missing
+personas are added to the roster, and nothing else is touched.
+
+--visibility local lists the vault in .git/info/exclude so it never reaches the remote.
 
 --upgrade-config converts a pre-2.0.0 pm-os.config.md into pm-os.config.json and exits. The
 markdown file is left in place for you to read and delete; nothing else is touched.
@@ -87,13 +101,30 @@ try {
     process.exit(0);
   }
 
-  const product = typeof args.product === 'string' ? args.product : 'Example Product';
-  const slug = typeof args.slug === 'string' ? args.slug : product.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const language = typeof args.language === 'string' ? args.language : 'en';
   const force = Boolean(args.force);
+  const configPath = path.join(target, CONFIG_JSON);
+  // An existing vault keeps its own product, paths and language: an upgrade in place must not
+  // fill a new persona with the scaffold's "Example Product".
+  const existing = !force && await exists(configPath)
+    ? await readFile(configPath, 'utf8').then(JSON.parse).catch((error) => {
+      throw new VaultConfigError(`${CONFIG_JSON} is not valid JSON: ${error.message}`);
+    })
+    : null;
+  const product = typeof args.product === 'string' ? args.product : existing?.productName ?? existing?.product ?? 'Example Product';
+  const slug = typeof args.slug === 'string' ? args.slug : existing?.product ?? product.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const language = typeof args.language === 'string' ? args.language : existing?.language ?? 'en';
   const agents = typeof args.agents === 'string'
     ? args.agents.split(',').map((a) => a.trim()).filter(Boolean)
     : [];
+  const mode = args.mode ?? 'classic';
+  if (mode !== 'classic' && mode !== 'dynamic') throw new VaultConfigError(`--mode must be classic or dynamic (got ${JSON.stringify(mode)})`);
+  const preset = args.preset ?? 'recommended';
+  if (!WORKFLOW_PRESETS.includes(preset)) throw new VaultConfigError(`--preset must be one of ${WORKFLOW_PRESETS.join(', ')}`);
+  const visibility = args.visibility ?? 'shared';
+  if (visibility !== 'shared' && visibility !== 'local') throw new VaultConfigError('--visibility must be shared or local');
+  if (visibility === 'local' && !await exists(path.join(target, '.git'))) {
+    throw new VaultConfigError('--visibility local needs a git repository at --target; a vault outside git is already local');
+  }
 
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
     throw new VaultConfigError(`--slug must be lowercase alphanumeric with dashes (got ${JSON.stringify(slug)})`);
@@ -101,7 +132,7 @@ try {
 
   const paths = {};
   for (const [role, value] of Object.entries(DEFAULT_PATHS)) {
-    paths[role] = value.replaceAll('{{PRODUCT_SLUG}}', slug);
+    paths[role] = existing?.paths?.[role] ?? value.replaceAll('{{PRODUCT_SLUG}}', slug);
   }
 
   // {{PRODUCT}} and {{PRODUCT_NAME}} are both in use across templates and agent archetypes.
@@ -147,31 +178,51 @@ try {
     if (force || !await exists(keep)) await writeFile(keep, '');
   }
 
-  for (const agent of agents) {
+  // Dynamic mode on an existing vault keeps the user's workflow choices; only a vault without
+  // one gets the preset. The personas follow whatever config wins.
+  const workflow = mode === 'dynamic' ? (existing?.workflow ?? defaultWorkflowConfig({ preset })) : null;
+  const personas = workflow ? workflowPersonas(workflow) : [];
+  const roster = [...new Set([...(existing?.agents ?? agents), ...personas])];
+
+  for (const agent of [...new Set([...agents, ...personas])]) {
     record(await copyTemplate(path.join('agents', `${agent}.md`), path.join(target, paths.agents, `${agent}.md`), replacements, { force }));
   }
 
-  const config = {
-    version: 1,
-    product: slug,
-    productName: product,
-    language,
-    paths,
-    completeness: {},
-    integrations: { jira: false, confluence: false, drive: false, bigquery: false },
-    agents
-  };
-  const configPath = path.join(target, 'pm-os.config.json');
-  if (force || !await exists(configPath)) {
+  if (existing) {
+    if (workflow && !existing.workflow) {
+      const upgraded = { ...existing, agents: roster, workflow };
+      validateWorkflowConfig(workflow, upgraded);
+      await writeText(configPath, JSON.stringify(upgraded, null, 2) + '\n');
+      written.push({ path: configPath, status: 'written' });
+    } else if (workflow && roster.length !== existing.agents?.length) {
+      await writeText(configPath, JSON.stringify({ ...existing, agents: roster }, null, 2) + '\n');
+      written.push({ path: configPath, status: 'written' });
+    } else {
+      written.push({ path: configPath, status: 'skipped' });
+    }
+  } else {
+    const config = {
+      version: 1,
+      product: slug,
+      productName: product,
+      language,
+      paths,
+      completeness: {},
+      integrations: { jira: false, confluence: false, drive: false, bigquery: false },
+      agents: roster
+    };
+    if (workflow) config.workflow = workflow;
     await writeText(configPath, JSON.stringify(config, null, 2) + '\n');
     written.push({ path: configPath, status: 'written' });
-  } else {
-    written.push({ path: configPath, status: 'skipped' });
+  }
+
+  if (visibility === 'local') {
+    record(await writeLocalExclude(target, localVaultPaths(paths, roster)));
   }
 
   const writtenCount = written.filter((w) => w.status === 'written').length;
   const skipped = written.filter((w) => w.status === 'skipped');
-  console.log(`Vault scaffolded at ${target}`);
+  console.log(`Vault scaffolded at ${target} (mode: ${mode}${workflow ? `, preset: ${workflow.preset ?? preset}` : ''}, visibility: ${visibility})`);
   console.log(`  ${writtenCount} files written, ${skipped.length} skipped (already present)`);
   for (const item of skipped) console.log(`  skipped: ${path.relative(target, item.path)}`);
   console.log('');

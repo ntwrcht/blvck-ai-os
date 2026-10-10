@@ -42,15 +42,15 @@ node <plugin>/skills/pm-os/scripts/create-vault.mjs --upgrade-config --target .
     { "name": "billing-api", "path": "CODE/billing-api", "scope": "mine", "branch": "main" },
     { "name": "point-service", "path": "~/work/point-service", "scope": "dependency", "branch": "develop" }
   ],
-  "agents": ["lead-engineer", "blind-reviewer"]
+  "agents": ["lead-engineer", "blind-reviewer"],
+  "workflow": { "version": 1, "mode": "dynamic", "preset": "recommended", "pipelines": { "…": "…" } }
 }
 ```
 
 ## The fields
 
-**`paths`** — move anything you like and record it here. Every workflow, `/blvck-pm:validate`,
-`/blvck-pm:score`, and both scripts read the vault through this, not through hardcoded folder
-names. A declared path that does not exist fails the run rather than falling back quietly: a
+**`paths`** — move anything you like and record it here. Every workflow, `/blvck-pm:check`,
+and both scripts read the vault through this, not through hardcoded folder names. A declared path that does not exist fails the run rather than falling back quietly: a
 declaration is an assertion, and a typo that reads as configured is worse than no config at all.
 
 **`language`** — output language for generated documents, default `en`. Structural writing rules
@@ -94,8 +94,22 @@ inheritance is intended — say the root file's rules were scoped to vault-root 
 `"rootClaudeMd": "accepted"` on that entry. A recorded trade-off is a decision, not a gap, and a
 warning that can never be answered teaches people to skip warnings.
 
-**`agents`** — the roster. `/blvck-pm:validate` fails on a roster naming a file that is not there,
-and on an agent file the roster does not mention.
+**`agents`** — the roster. `validate-vault.mjs` fails on a roster naming a file that is not there;
+`/blvck-pm:check` also reports an agent file the roster does not mention.
+
+**`workflow`** — how PM work runs (3.0.0, optional). Absent or `"mode": "classic"` is classic: one
+session does the work. `"mode": "dynamic"` turns on pipelines for PRDs, research syntheses,
+competitor teardowns, and PRD reviews, each with its stages, agent ceilings, personas, review
+lenses, skills, and deliver targets. Every field and round: `references/workflow-setup.md`. It is
+read beside the score, never inside it, so a vault scores the same in either mode. Anything the
+validator cannot trust exits 2, and it never falls back to a preset: an unknown key, pipeline, or
+stage; a required stage turned off; a ceiling out of range; a persona name Claude Code could not
+resolve; two lenses with the same name; revise on without review; a deliver target whose
+integration is off or that names no destination.
+
+**Visibility** is not a config field. A local-only vault is recorded in `.git/info/exclude`
+between `# blvck-pm:local:start` and `# blvck-pm:local:end`, which `create-vault.mjs --visibility
+local` writes and the validator reports as `visibility: local`.
 
 ## The write zone
 

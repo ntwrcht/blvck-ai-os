@@ -12,6 +12,7 @@ description: >-
   never says "pm-os". Also use before reading or citing code from the vault's codebases — "which
   files would X touch", "tech read", "check this against the code", "does the code support",
   "where is X implemented" — because it carries the freshness rule that keeps citations current.
+user-invocable: false
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 ---
 
@@ -19,17 +20,29 @@ allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 
 You operate inside a PM vault. The vault is the source of truth; conversation memory is not.
 
+## The Three Commands
+
+This skill is the natural-language entry point ("draft a PRD for…") and it is hidden from the `/` menu on purpose, so the menu shows exactly three commands. When the user needs one, send them to it:
+
+| The user wants to… | Command |
+|---|---|
+| Create a vault, migrate PM material in another structure, or change identity, writing style, mode, visibility, pipelines, personas, skills, or deliver targets | `/blvck-pm:setup` |
+| Start a piece of work through its pipeline: pick the outcome, grill the brief, then run it | `/blvck-pm:run` |
+| Know how healthy the vault is, and what to fix first | `/blvck-pm:check` |
+
+`setup` and `run` write files, so only the user can start them. `check` only reads, and you may use it directly.
+
 ## Session Ritual (always first, once per session)
 
-1. Read `pm-os.config.json` — paths, language, completeness overrides, decision thresholds, integrations, agent roster, codebases. Shape and field meanings: `references/config.md`. It is the one fixed name and, as of 2.0.0, the only config: a vault still carrying `pm-os.config.md` fails with the one-line conversion command rather than being half-read. Every path below is the configured one; the defaults in parentheses apply only when the config is silent. Everything except that file is free to move.
+1. Read `pm-os.config.json` — paths, language, completeness overrides, decision thresholds, integrations, agent roster, codebases, workflow mode. Shape and field meanings: `references/config.md`. It is the one fixed name and, as of 2.0.0, the only config: a vault still carrying `pm-os.config.md` fails with the one-line conversion command rather than being half-read. Every path below is the configured one; the defaults in parentheses apply only when the config is silent. Everything except that file is free to move.
 2. Read the identity file, anti-style, and current focus from the configured identity path (`ABOUT-ME/CLAUDE.md`, `ABOUT-ME/anti-style.md`, `ABOUT-ME/current-focus.md`)
 3. Read the configured product context (`PROJECTS/<product>/CLAUDE.md`), the vision (`PROJECTS/<product>/vision.md`) if present, and `roadmap.json` if present — the roadmap is where "where do we stand" is answered
 4. Note the configured output language (`language`, default `en`). Do not infer it from the language the user typed in
 5. Confirm in ≤6 lines: product + one-liner, vision horizon and review date, current focus, active OKR, writing rules status, output target, missing files. Then work.
 
-If the identity file is named `about-me.md`, read it and mention the rename once — vaults scaffolded before 1.2.0 got that name from setup while everything reads `CLAUDE.md`. `/blvck-pm:validate` gives the one-line fix. Don't block on it.
+If the identity file is named `about-me.md`, read it and mention the rename once — vaults scaffolded before 1.2.0 got that name from setup while everything reads `CLAUDE.md`. `/blvck-pm:check` gives the one-line fix. Don't block on it.
 
-No vault found (no identity dir and no `pm-os.config.json`): say so, offer `/blvck-pm:setup` — or `/blvck-pm:migrate` if the directory already holds PM material in another structure — and fall back to the bundled defaults in `references/voice.md` and `references/frameworks.md` for one-off work.
+No vault found (no identity dir and no `pm-os.config.json`): say so, offer `/blvck-pm:setup` — it also migrates PM material kept in another structure — and fall back to the bundled defaults in `references/voice.md` and `references/frameworks.md` for one-off work.
 
 ## Vault Rules
 
@@ -57,7 +70,14 @@ Full catalog with per-workflow steps: `references/workflows.md`. Summary:
 | Weekly update / launch / decision | weekly-update, launch-checklist, decision-log | stakeholder-comms/, strategy-docs/ |
 | GTM / tracking / funnel | gtm-brief, tracking-plan, funnel-analysis | strategy-docs/, data-analysis/ |
 | Brief a new PM | onboard | — |
-| "I need an agent that does X" | load the bundled `agent-smith` skill + `references/agent-design.md` | .claude/agents/ |
+| "I need an agent that does X" | `agent-smith` (see Agents below) + `references/agent-design.md` | .claude/agents/ |
+
+## Two Modes
+
+- **Classic** (default): you run the workflow in this session. No `workflow` key in the config means classic, so a 2.x vault works unchanged.
+- **Dynamic**: the config's `workflow` key turns on pipelines for four kinds of work: `prd`, `research-synthesis`, `competitor-teardown`, and `prd-review`. `/blvck-pm:run` settles the brief with the user, then a background workflow researches each source in parallel, drafts, reviews through blind lenses, revises, checks completeness, and delivers to the outputs folder (and to Confluence, Drive, or Jira when the user chose that at setup). Each stage runs as a persona with the skills the user wired to it. Shape and rounds: `references/workflow-setup.md`.
+
+When a dynamic vault asks for one of the four in conversation, offer `/blvck-pm:run` before working inline. Mode never changes the score. A vault can also be **local only**: listed in `.git/info/exclude` and never pushed.
 
 ## Scripts
 
@@ -69,11 +89,13 @@ node ${CLAUDE_SKILL_DIR}/scripts/validate-vault.mjs --target /path [--json] [--m
 ```
 
 `create-vault.mjs` scaffolds without an interview — it is how CI builds a vault, not how a human
-should. `/blvck-pm:setup` stays the human path.
+should. `/blvck-pm:setup` stays the human path. It also takes `--mode dynamic --preset
+recommended|lean|custom` and `--visibility local`; `validate-vault.mjs` takes `--config FILE` to
+score a reading of the vault that is not saved yet.
 
 `validate-vault.mjs` scores five modules (identity, product, plan, roadmap, config) over 28
 mechanical checks. Exit `0` passed, `1` scored under the bar or has a blocking finding, `2` the
-config is invalid or unsafe. Three things block regardless of score, because each is a broken
+config (its `workflow` key included) is invalid or unsafe. Three things block regardless of score, because each is a broken
 promise rather than a weak vault: a declared path that does not exist (a registered codebase
 that is gone or is not a git repo included), an unresolved
 `{{PLACEHOLDER}}`, and a roadmap error.
@@ -131,7 +153,9 @@ The gate **warns, it never blocks**, and it never silently fills a gap to make a
 
 There is no default roster. `/blvck-pm:setup` asks who the PM normally has to go ask and scaffolds only the matching archetypes into `.claude/agents/`, pre-filled with product context. Eight archetypes ship as starting shapes — `lead-engineer`, `blind-reviewer`, `customer-voice`, `competitive-intel`, `business-analyst`, `board-executive`, `research-analyst`, `prototype-builder` — each declaring its own `tools` and `model` budget.
 
-Anything the interview surfaces with no archetype gets built: **the `agent-smith` skill ships with this plugin**. Load it rather than improvising an agent file.
+Anything the interview surfaces with no archetype gets built with `agent-smith` rather than an improvised agent file. Prefer the current one when it is installed (`agent-smith` in `.claude/skills/`, `.agents/skills/`, `~/.claude/skills/`, `~/.agents/skills/`, or the `blvck-skills` plugin), because it also writes a `skills:` preload list. Otherwise load the copy bundled with this plugin.
+
+A ninth archetype, `product-manager`, drafts and revises in dynamic mode; setup scaffolds it only for a vault that turns pipelines on.
 
 Spawn rules, budgets, and the agent contract: `references/agent-design.md`. Everything works without agents — every fallback is single-session.
 

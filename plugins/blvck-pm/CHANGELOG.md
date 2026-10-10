@@ -8,6 +8,90 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [3.0.0] - 2026-10-10
+
+The blvck-harness 2.0.0 shape, for product work: three commands, a guided setup that recommends
+a default for every choice, and an optional dynamic workflow that runs PM work in parallel while
+your session stays free. Classic stays the default, so a 2.x vault changes nothing until it
+opts in. The plan is issue #1.
+
+### Changed — breaking
+
+- **Four commands become three, one per moment.** Typing a removed command now does nothing, so
+  here is where each one went:
+
+  | Removed | Use instead |
+  |---|---|
+  | `/blvck-pm:migrate` | `/blvck-pm:setup` — it detects PM material in another structure and runs the same relocate/adapt migration |
+  | `/blvck-pm:validate` | `/blvck-pm:check` |
+  | `/blvck-pm:score` | `/blvck-pm:check` — one report: verdict, module scores, blocking findings, readiness, fix list |
+
+- **The `pm-os` and `agent-smith` skills are hidden from the `/` menu** (`user-invocable: false`),
+  so the menu shows exactly setup, run, and check. `pm-os` stays the natural-language entry point
+  ("draft a PRD for…") and points to the commands.
+
+### Added
+
+- **`/blvck-pm:run`**: pick the roadmap outcome the work serves, settle the brief with you in the
+  main session (the `grilling` skill when installed, a built-in style otherwise), then run it:
+  in this session (classic), or as a background workflow (dynamic).
+- **Dynamic workflow mode**, opt-in per vault, for four kinds of work:
+
+  | Pipeline | Stages (∥ = parallel) |
+  |---|---|
+  | PRD | discover (∥ one analyst per source) → draft → review (∥ blind lenses) → revise → completeness → deliver |
+  | Research synthesis | ∥ one analyst per source → synthesize → review → revise → deliver |
+  | Competitor teardown | ∥ one analyst per competitor → compare → review → revise → deliver |
+  | PRD review | ∥ blind lenses → consolidate decided vs flagged → deliver |
+
+  Each stage runs as a persona with the skills you wired to it, up to the agent ceiling you set.
+  Ceilings are not targets: the number of agents follows the real number of sources,
+  competitors, or lenses. Only the deliver stage writes, so parallel agents never share a file
+  and no git worktree is needed.
+- **Decide versus ask.** A PRD run stops only for questions you would notice or object to
+  (scope, a promise to customers or executives, pricing, a metric, anything hard to reverse); a
+  research or teardown run stops only when it cannot do the work at all. Everything else is
+  decided and listed under **Assumptions** in the delivered document, and a choice the findings
+  raise for you (where work goes on the roadmap) is listed under **Decisions for the PM** instead
+  of stopping the run. The first live run stopped twice over exactly that kind of question.
+- **Deliver targets**: the vault's outputs folder always, with the document recorded on its
+  roadmap outcome; optionally Confluence, Google Drive, or (PRDs) Jira tickets. A target needs
+  its integration on and a destination, and choosing it at setup is the approval to publish
+  there. A missing integration is reported as skipped and never blocks delivery.
+- **The completeness gate runs as a stage** and keeps its contract: it names what is unmet and
+  never fills a gap. `run` then asks whether to fill each one or release the document, and
+  records an override only with your reason.
+- **Proposed harness features.** A PRD that touches a `mine` codebase ends with feature entries
+  for that repo's blvck-harness tracker. They are proposals: you apply them inside the repo,
+  because planning never writes into a codebase.
+- **`product-manager`**, a ninth archetype that drafts, revises, compares, and consolidates.
+  Setup scaffolds it only when a pipeline uses it.
+- **Writing style round** in setup, in both modes: banned words, tone, output language, and
+  whether internal references (ticket ids, codenames, repo names) may appear in documents for
+  customers or executives. The answers live in a marked block in `anti-style.md`. Not scored.
+- **Local-only vault**: `--visibility local` lists the vault in `.git/info/exclude`. Nothing is
+  pushed, and no `.gitignore` entry gives it away.
+- **`check` scores roles, whatever your folders are called.** When the script cannot find the
+  vault under the default names, `check` works out which folder plays each role, scores that
+  reading from a scratch config (`validate-vault.mjs --config FILE`) with the same 28 checks,
+  shows what it read, and offers to save the paths.
+- **agent-smith**: setup uses the current one from `ntwrcht/blvck-skills` when it is installed
+  (it also writes a `skills:` preload list), and the bundled copy otherwise.
+- `create-vault.mjs --mode dynamic --preset recommended|lean|custom` writes the `workflow` key and
+  scaffolds its personas. On an existing vault it upgrades in place, once, using the vault's own
+  product name.
+
+### Notes
+
+- **One config file.** The workflow lives under `workflow` in `pm-os.config.json`. It is read
+  beside the score, never inside it: the same vault scores the same in classic and dynamic. A
+  workflow config the validator cannot trust exits 2 and never falls back to a preset.
+- **A classic scaffold is byte-identical to 2.2.0** except one line: `current-focus.md` names
+  `/blvck-pm:check` instead of the removed `/blvck-pm:score`.
+- `/blvck-pm:run` copies the workflow script into the vault's `.git/blvck-pm/` before launch
+  (`.claude/blvck-pm/` outside git), because the Workflow tool only loads scripts from
+  directories the session can read.
+
 ## [2.2.0] - 2026-10-04
 
 Lets a vault plan against the real code. Designed from two production vaults and about 140 of

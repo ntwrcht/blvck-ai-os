@@ -1,6 +1,6 @@
 # Current Focus
 
-**Updated:** FIXTURE_DATE  ← update weekly; `/blvck-pm:score` flags this file when stale
+**Updated:** FIXTURE_DATE  ← update weekly; `/blvck-pm:check` flags this file when stale
 
 ## This Week's Top Priority
 Ship the dunning-retry PRD to engineering with the success metric agreed by Finance.
