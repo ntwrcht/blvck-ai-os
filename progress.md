@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-11-09
-**Active Feature:** none. **blvck-harness 2.2.0** (feat-021) is built and committed on `main`, not yet pushed or tagged: verify it with a live run first. 2.1.0 is released (tag `blvck-harness--v2.1.0`, CI run 42562357928 green).
+**Active Feature:** none. **blvck-harness 2.2.0 is released** (feat-021): `main` pushed at `d115fb6`, tag `blvck-harness--v2.2.0` pushed 2026-11-09, CI run 42563646971 green. The plugin is installed per project (local scope), so each botnoi project was updated with `claude plugin update blvck-harness` from inside it; all five report 2.2.0. A live re-run by the user is the next check.
 
 **feat-021 in one paragraph:** the user saw implement #1 then test #1 with no second implementer. 30 real journals showed why: 110 tasks in 87 waves, so runs were serial, and a retried task held up its wave. The breakdown now agrees interfaces (`provides`), keeps tests with their code, frees docs tasks, and makes no harness-state tasks; waves are replaced by per-task scheduling with a merge queue; the tester reuses the implementer's worktree; the final verification runs beside the feature review; stages take optional `effort` and `model`. Replaying the real breakdowns: the scheduler alone saves 1%, the mechanical breakdown rules 16%. Anything beyond that depends on the agent following the interface rule, which only a live run can show.
 
