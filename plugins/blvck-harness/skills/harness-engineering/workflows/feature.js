@@ -28,16 +28,24 @@ export const meta = {
 //   local,        // true when the harness is in .git/info/exclude — worktrees will not contain it
 //   repoRoot,     // absolute path of the user's checkout; where local harness files live
 //   codeStyle,    // the instruction file's Code Style section, as text (optional)
+//   stackOn,      // feature branches of delivered dependencies this one builds on (optional)
+//   siblings,     // other features from the same /blvck-harness:run: [{ id, name }] (optional)
 // }
+//
+// One run of this script delivers one feature. /blvck-harness:run launches one run per feature
+// when the user picks several, and starts a dependent feature only after its dependency
+// delivers, passing that dependency's branch as stackOn.
 //
 // A local harness is invisible to git, so a worktree has no CLAUDE.md, tracker or init.sh.
 // The run command passes `verification` as an absolute path for that case, and Deliver writes
 // state straight into the user's checkout instead of committing it to the feature branch.
 
-const { config, feature, grilling = '', harness = {}, verification = './init.sh', local = false, repoRoot = '', codeStyle = '' } = args || {}
+const { config, feature, grilling = '', harness = {}, verification = './init.sh', local = false, repoRoot = '', codeStyle = '', stackOn = [], siblings = [] } = args || {}
 if (local && !repoRoot) throw new Error('A local harness needs args.repoRoot so Deliver can find the state files')
 if (!config || config.mode !== 'dynamic') throw new Error('blvck-feature needs a dynamic-mode config in args.config — run it through /blvck-harness:run')
 if (!feature || !feature.id) throw new Error('blvck-feature needs the picked feature in args.feature')
+if (!Array.isArray(stackOn) || stackOn.some((branch) => typeof branch !== 'string' || !branch.trim())) throw new Error('args.stackOn must be an array of branch names')
+if (!Array.isArray(siblings) || siblings.some((sibling) => !sibling || !sibling.id)) throw new Error('args.siblings must be an array of { id, name } entries')
 
 const stages = config.stages
 const on = (name) => Boolean(stages[name] && stages[name].enabled)
@@ -59,6 +67,8 @@ const brief = [
   `Feature ${feature.id}: ${feature.name || ''}`,
   feature.description ? `Description: ${feature.description}` : '',
   grilling ? `Requirements the user confirmed before this run:\n${grilling}` : '',
+  stackOn.length ? `This feature builds on ${stackOn.join(', ')}, which hold features already delivered in this batch but not yet merged into ${config.delivery.targetBranch}. Their code is already reviewed: use it, and do not redo or change it unless this feature needs that.` : '',
+  siblings.length ? `Other features are being built at the same time on their own branches, so leave their work to them:\n${siblings.map((sibling) => `- ${sibling.id}: ${sibling.name || ''}`).join('\n')}` : '',
 ].filter(Boolean).join('\n')
 
 // Per-stage ceilings. The workflow runtime has its own global cap; this one is the user's
@@ -136,6 +146,11 @@ const REVIEWED = {
   type: 'object',
   properties: { approve: { type: 'boolean' }, mustFix: { type: 'array', items: { type: 'string' } }, suggestions: { type: 'array', items: { type: 'string' } } },
   required: ['approve', 'mustFix'],
+}
+const PREPARED = {
+  type: 'object',
+  properties: { worktree: { type: 'string' }, branch: { type: 'string' }, conflicts: { type: 'array', items: { type: 'string' } } },
+  required: ['branch', 'conflicts'],
 }
 const INTEGRATED = {
   type: 'object',
@@ -251,9 +266,26 @@ ${revise.flatMap((vote) => vote.issues).map((issue) => `- ${issue}`).join('\n')}
 // Breakdown — tasks that own disjoint files, grouped into waves by dependency
 // ---------------------------------------------------------------------------
 phase('Breakdown')
-const prepared = await agent(`Create the feature branch for this run without touching the current checkout. Run: git fetch --quiet origin ${target} 2>/dev/null || true; then create ${featureBranch} from origin/${target} if that ref exists, otherwise from ${target}, using \`git branch\` (never git checkout or git switch in this directory — the user is working here). If ${featureBranch} already exists, leave it as it is. Return the branch name.`,
-  { label: 'prepare-branch', phase: 'Breakdown', effort: 'low' })
+// A stacked feature starts from its first dependency's branch. Further dependencies are merged
+// in from a worktree, because the user's checkout must never switch branches under them.
+const prepared = stackOn.length
+  ? await agent(`Create the feature branch for this run. If ${featureBranch} already exists, leave it as it is and return it with no conflicts.
+Otherwise run \`git branch ${featureBranch} ${stackOn[0]}\`.${stackOn.length > 1 ? ` Then, in your own git worktree, run \`git checkout ${featureBranch}\` and \`git merge --no-ff\` each of ${stackOn.slice(1).join(', ')}. If a merge conflicts, run \`git merge --abort\` and list that branch under conflicts. Finish with \`git checkout --detach\`. ${WHERE}` : ' Never run git checkout or git switch in this directory — the user is working here.'}`,
+    { label: 'prepare-branch', phase: 'Breakdown', effort: 'low', schema: PREPARED, ...(stackOn.length > 1 ? { isolation: 'worktree' } : {}) }).then(track)
+  : await agent(`Create the feature branch for this run without touching the current checkout. Run: git fetch --quiet origin ${target} 2>/dev/null || true; then create ${featureBranch} from origin/${target} if that ref exists, otherwise from ${target}, using \`git branch\` (never git checkout or git switch in this directory — the user is working here). If ${featureBranch} already exists, leave it as it is. Return the branch name.`,
+    { label: 'prepare-branch', phase: 'Breakdown', effort: 'low' })
 if (!prepared) throw new Error(`Could not create ${featureBranch}`)
+if (prepared.conflicts && prepared.conflicts.length) {
+  return {
+    status: 'blocked',
+    featureId: feature.id,
+    featureBranch,
+    targetBranch: target,
+    stackedOn: stackOn,
+    worktreesLeft: [...worktrees],
+    summary: `The branches this feature builds on conflict with each other (${prepared.conflicts.join(', ')}), so nothing was built. Merge them by hand, or run this feature after they land in ${target}.`,
+  }
+}
 
 let rawTasks
 if (on('breakdown')) {
@@ -418,9 +450,13 @@ const taskReport = results.map((result) => ({
 // ---------------------------------------------------------------------------
 phase('Deliver')
 const blocked = failed.length > 0 || conflicts.length > 0
+// A stacked branch also carries its dependencies' commits, which their own runs reviewed.
+const featureDiff = stackOn.length
+  ? `\`git log -p ${featureBranch} --not ${stackOn.join(' ')}\` (only this feature's commits; ${stackOn.join(', ')} were reviewed by their own runs)`
+  : `\`git diff ${target}...${featureBranch}\``
 let finalReview = null
 if (!blocked && on('review')) {
-  finalReview = await agent(`Review the whole feature before it goes to a pull request: read \`git diff ${target}...${featureBranch}\`. Do not edit anything.
+  finalReview = await agent(`Review the whole feature before it goes to a pull request: read ${featureDiff}. Do not edit anything.
 ${brief}
 Done criteria:
 ${plan.doneCriteria.map((criterion) => `- ${criterion}`).join('\n')}
@@ -436,19 +472,27 @@ const hostStep = {
   gitlab: `push ${featureBranch} and open a merge request into ${target} with \`glab mr create --target-branch ${target} --source-branch ${featureBranch}\``,
   none: `do not push or open anything — the user delivers ${featureBranch} themselves`,
 }[config.delivery.host]
+const stackNote = stackOn.length
+  ? ` Start the description by saying this builds on ${stackOn.join(', ')}, which must merge first, and that until they do this ${config.delivery.host === 'gitlab' ? 'merge request' : 'pull request'} also shows their commits.`
+  : ''
+// Several runs from one /blvck-harness:run finish around the same time and record into the same
+// tracker and progress files, so each edits only its own part and re-reads before writing.
+const sharedState = siblings.length
+  ? `\n   Other features from the same batch record into these files too, possibly at the same moment: re-read each file immediately before you edit it, change only this feature's entry, and add your note as a new entry instead of rewriting existing text.`
+  : ''
 
 const delivered = await agent(`Deliver one feature. You are in your own git worktree; run \`git checkout ${featureBranch}\` first.
 ${brief}
 1. Run ${verification} on the merged branch and record the outcome honestly.
 2. Record the result in the harness state files. This repo's harness layout is "${harness.layout || 'solo'}", and this is where each concept lives (use the real files under "sources", matching their existing format${local ? `; the harness is local-only, so these paths are relative to ${repoRoot} — edit them there, and never commit or stage them` : ''}):
-${JSON.stringify(harness.resolution || {}, null, 2)}
+${JSON.stringify(harness.resolution || {}, null, 2)}${sharedState}
    ${shipBlocked ? `Mark the feature blocked, not done: ${[
     failed.length ? `tasks that never passed: ${failed.map((result) => result.task.id).join(', ')}` : '',
     conflicts.length ? `branches that conflicted on merge: ${conflicts.join(', ')}` : '',
     finalReview && finalReview.mustFix.length ? `whole-feature review must-fix: ${finalReview.mustFix.join('; ')}` : '',
   ].filter(Boolean).join('; ')}.` : 'Mark the feature done only if step 1 passed, with the verification output as evidence.'}
    ${plan.assumptions.length ? `List these decisions made without asking the user in the pull request description and the handoff note, under "Assumptions":\n${plan.assumptions.map((item) => `   - ${item}`).join('\n')}\n   ` : ''}Write a handoff note for the next session in the harness's session handoff or progress file. ${local ? `Commit only code on ${featureBranch}; the harness files stay uncommitted in ${repoRoot}.` : `Commit on ${featureBranch}.`}
-3. ${shipBlocked ? `Do not open a pull request. Push ${featureBranch} only if the remote exists, so the work is not lost.` : `If verification passed, ${hostStep}. If the CLI is missing or not signed in, push the branch anyway and return the web link where the user can open it by hand as manualPrLink.`}
+3. ${shipBlocked ? `Do not open a pull request. Push ${featureBranch} only if the remote exists, so the work is not lost.` : `If verification passed, ${hostStep}.${stackNote} If the CLI is missing or not signed in, push the branch anyway and return the web link where the user can open it by hand as manualPrLink.`}
 If a hook, guardrail, or permission rule blocks a git command, do not work around it — no alternative command, no disabling the hook. Report pushed=false and name the blocked command in notes; the user decides.
 Finish with \`git checkout --detach\`. ${WHERE}`,
   { label: 'deliver', phase: 'Deliver', schema: DELIVERED, isolation: 'worktree', ...as('deliver') }).then(track)
@@ -460,7 +504,7 @@ Finish with \`git checkout --detach\`. ${WHERE}`,
 let cleanup = null
 if (on('cleanup')) {
   phase('Clean up')
-  const keep = [featureBranch, ...failed.map((result) => result.branch), ...conflicts]
+  const keep = [featureBranch, ...stackOn, ...failed.map((result) => result.branch), ...conflicts]
   cleanup = await agent(`Clean up after a feature run without touching the user's current checkout or uncommitted work.
 - Remove exactly these worktrees, which this run created, and no others: ${[...worktrees].join(', ') || '(none reported)'}. For each one: if \`git -C <path> status --porcelain\` prints anything, keep it and list it under kept; otherwise run \`git worktree remove <path>\`, then delete the branch the runtime created for it (usually \`worktree-<directory name>\`) with \`git branch -d\` — if git refuses because the branch holds unmerged work, keep it and list it. Never use \`git branch -D\` or \`--force\`. Finish with \`git worktree prune\`.
 - Delete these task branches, which are merged into ${featureBranch}: ${results.filter((result) => !keep.includes(result.branch)).map((result) => result.branch).join(', ') || '(none)'}. \`git branch -d\` only accepts a branch merged into the checked-out branch, and the user's checkout is not ${featureBranch} — so run it from a temporary one: \`git worktree add --detach <temp dir> ${featureBranch}\`, \`git -C <temp dir> checkout ${featureBranch}\`, \`git -C <temp dir> branch -d <task branches>\`, \`git -C <temp dir> checkout --detach\`, then \`git worktree remove <temp dir>\`. A branch git still refuses holds unmerged work: keep it and list it.
@@ -476,6 +520,7 @@ return {
   featureId: feature.id,
   featureBranch,
   targetBranch: target,
+  stackedOn: stackOn,
   prUrl: delivered ? delivered.prUrl || null : null,
   manualPrLink: delivered ? delivered.manualPrLink || null : null,
   plan: { summary: plan.summary, doneCriteria: plan.doneCriteria, assumptions: plan.assumptions },

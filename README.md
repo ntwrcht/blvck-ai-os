@@ -129,7 +129,7 @@ Three commands, one for each moment:
 
 ```text
 /blvck-harness:setup   # guided walkthrough: new harness, migrate an existing one, or reconfigure
-/blvck-harness:run     # start the next feature: grilling, then the dynamic workflow or the classic ritual
+/blvck-harness:run     # start the next feature (or several in dynamic mode): grilling, then the workflow or the classic ritual
 /blvck-harness:check   # score, findings, and a fix list — whatever your files are called
 ```
 
@@ -137,7 +137,7 @@ Three commands, one for each moment:
 
 - **Mode** — classic (one agent follows the startup ritual) or dynamic (the multi-agent workflow)
 - **Visibility** — shared with your remote, or local only via `.git/info/exclude`
-- **Dynamic only** — preset (recommended, lean, custom), which stages run, the agent ceiling per stage, the persona behind each stage (tailored with agent-smith if you have it), any number of skills per stage, the repair limit, and where PRs/MRs go
+- **Dynamic only** — preset (recommended, lean, custom), which stages run, the agent ceiling per stage, the persona behind each stage (tailored with agent-smith if you have it), any number of skills per stage, the repair limit, how many features run at once, and where PRs/MRs go
 
 ### PM vaults: blvck-pm
 

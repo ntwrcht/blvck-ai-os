@@ -491,6 +491,9 @@ for BAD in \
   '.stages.review.skills = ["ok", 3]' \
   '.stages.plan.agent = "Product Owner"' \
   '.repair.maxAttempts = 4' \
+  '.batch.maxFeatures = 0' \
+  '.batch.maxFeatures = 6' \
+  '.batch = 3' \
   '.delivery.host = "bitbucket"' \
   '.delivery.targetBranch = ""' \
   'delete .version'; do
@@ -506,9 +509,13 @@ fs.writeFileSync(process.argv[2], JSON.stringify(c));
 done
 printf 'not json' > "$CFG"
 expect_exit 2 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
+# batch is optional: a 2.0.0 config written before it existed must still pass.
+node -e 'const fs = require("fs"); const c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); delete c.batch; fs.writeFileSync(process.argv[2], JSON.stringify(c));' "$TMP/good.json" "$CFG"
+expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
+grep -q "up to 3 feature workflows at a time" "$TMP/dynamic-solo/CLAUDE.md" || { echo "FAIL: Workflow Mode section does not name the features-at-once cap"; exit 1; }
 cp "$TMP/good.json" "$CFG"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
-echo "dynamic: 12 broken configs exit 2; the restored config passes"
+echo "dynamic: 15 broken configs exit 2; a config without batch and the restored config pass"
 
 # Local visibility: listed in .git/info/exclude (never .gitignore), reported by validate, and
 # refused for a team layout whose claims only work when shared.
@@ -535,7 +542,7 @@ if (!r.resolution.featureTracker.sources.includes(".harness/features.json")) { c
 echo "adapted: dynamic mode resolves the foreign tracker for the workflow"
 
 node tests/workflow-sim.mjs >/dev/null || { node tests/workflow-sim.mjs; exit 1; }
-echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, waves, local)"
+echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, waves, local, stacking, siblings)"
 
 echo "=== 10/10 PM dynamic workflow mode ==="
 

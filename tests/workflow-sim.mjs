@@ -219,6 +219,42 @@ function expect(name, condition, detail = '') {
   expect('every worktree agent is asked where it ran', calls.filter((call) => call.opts.isolation === 'worktree').every((call) => call.prompt.includes('as worktree')));
 }
 
+// 7d. A stacked feature branches from its delivered dependency, never from the target, and its
+// review, pull request, and clean-up all account for the work underneath it.
+{
+  const stacked = { ...baseArgs(defaultWorkflowConfig({ host: 'github' })), stackOn: ['feat/feat-a'] };
+  const { result, calls } = await run(stacked, standard({ 'prepare-branch': { branch: 'feat/feat-x', conflicts: [] } }));
+  const prompt = (label) => calls.find((call) => call.label === label).prompt;
+  expect('a stacked feature branches from its dependency', prompt('prepare-branch').includes('git branch feat/feat-x feat/feat-a') && !prompt('prepare-branch').includes('origin/main'));
+  expect('one dependency needs no worktree to prepare', calls.find((call) => call.label === 'prepare-branch').opts.isolation === undefined);
+  expect('the whole-feature review reads only this feature\'s commits', prompt('review:feature').includes('git log -p feat/feat-x --not feat/feat-a'));
+  expect('the pull request still targets the target branch and says what merges first', prompt('deliver').includes('gh pr create --base main') && prompt('deliver').includes('must merge first'));
+  expect('clean-up never deletes the branch underneath', /Never delete these[^\n]*feat\/feat-a/.test(prompt('cleanup')));
+  expect('the result names what it stacked on', result.status === 'delivered' && result.stackedOn[0] === 'feat/feat-a');
+
+  const two = { ...baseArgs(defaultWorkflowConfig()), stackOn: ['feat/feat-a', 'feat/feat-b'] };
+  const merged = await run(two, standard({ 'prepare-branch': { branch: 'feat/feat-x', conflicts: [], worktree: '/wt/prepare' } }));
+  const prepare = merged.calls.find((call) => call.label === 'prepare-branch');
+  expect('a second dependency is merged in from a worktree', prepare.opts.isolation === 'worktree' && prepare.prompt.includes('git merge --no-ff') && prepare.prompt.includes('feat/feat-b'));
+  expect('clean-up removes the preparing worktree', merged.calls.find((call) => call.label === 'cleanup').prompt.includes('/wt/prepare'));
+
+  const clash = await run(two, standard({ 'prepare-branch': { branch: 'feat/feat-x', conflicts: ['feat/feat-b'] } }));
+  expect('dependencies that conflict block the run and name the branch', clash.result.status === 'blocked' && clash.result.summary.includes('feat/feat-b'));
+  expect('nothing is implemented on conflicting dependencies', !clash.labels.some((label) => label.startsWith('implement') || label === 'deliver'));
+
+  const plain = await run(baseArgs(defaultWorkflowConfig()), standard());
+  expect('an unstacked feature still branches from the target', plain.calls.find((call) => call.label === 'prepare-branch').prompt.includes('origin/main'));
+  expect('one feature alone hears nothing about siblings', !plain.calls.find((call) => call.label === 'deliver').prompt.includes('Other features'));
+}
+
+// 7e. Siblings from the same batch are named to planners, and Deliver edits shared state safely.
+{
+  const batch = { ...baseArgs(defaultWorkflowConfig()), siblings: [{ id: 'feat-y', name: 'Gadgets' }] };
+  const { calls } = await run(batch, standard());
+  expect('planners know what the siblings build', calls.find((call) => call.label === 'plan').prompt.includes('feat-y: Gadgets'));
+  expect('Deliver re-reads shared state and touches only its own entry', calls.find((call) => call.label === 'deliver').prompt.includes('re-read each file immediately before you edit it'));
+}
+
 // 8. The script refuses inputs it cannot honor.
 {
   const refuses = async (argsIn) => {
@@ -232,6 +268,8 @@ function expect(name, condition, detail = '') {
   expect('a classic config is refused', await refuses({ ...baseArgs(defaultWorkflowConfig()), config: { version: 1, mode: 'classic' } }));
   expect('a missing feature is refused', await refuses({ ...baseArgs(defaultWorkflowConfig()), feature: null }));
   expect('local without repoRoot is refused', await refuses({ ...baseArgs(defaultWorkflowConfig()), local: true }));
+  expect('a stackOn that is not a list of branches is refused', await refuses({ ...baseArgs(defaultWorkflowConfig()), stackOn: 'feat/feat-a' }));
+  expect('a sibling without an id is refused', await refuses({ ...baseArgs(defaultWorkflowConfig()), siblings: [{ name: 'x' }] }));
 }
 
 if (failures) {

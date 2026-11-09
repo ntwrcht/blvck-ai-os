@@ -909,6 +909,10 @@ export const WORKFLOW_SCRIPT = path.join(SKILL_ROOT, 'workflows', 'feature.js');
 export const WORKFLOW_PRESETS = ['recommended', 'lean', 'custom'];
 export const DELIVERY_HOSTS = ['github', 'gitlab', 'none'];
 export const MAX_REPAIR_ATTEMPTS = 3;
+// How many feature workflows one /blvck-harness:run keeps going at once. Each one runs its own
+// stage ceilings, so this multiplies spend; absent means 3, the same as the default config.
+export const MAX_PARALLEL_FEATURES = 5;
+export const DEFAULT_PARALLEL_FEATURES = 3;
 
 // One row per stage the workflow knows. `required` stages carry the feature from spec to
 // delivered branch, so turning one off would leave a run that cannot finish. `maxAgents` is a
@@ -955,6 +959,7 @@ export function defaultWorkflowConfig({ preset = 'recommended', host = 'none', t
     preset,
     stages,
     repair: { maxAttempts: 2 },
+    batch: { maxFeatures: DEFAULT_PARALLEL_FEATURES },
     delivery: { host, targetBranch, branchPrefix: 'feat/' },
     grilling: { skill: 'grilling' }
   };
@@ -1016,6 +1021,14 @@ export function validateWorkflowConfig(config, label = WORKFLOW_CONFIG_PATH) {
     fail(`repair.maxAttempts must be a whole number from 0 to ${MAX_REPAIR_ATTEMPTS} (got ${JSON.stringify(attempts)})`);
   }
 
+  // Optional, so a 2.0.0 config without it stays valid and runs with the default.
+  if (config.batch !== undefined) {
+    const maxFeatures = config.batch?.maxFeatures;
+    if (!config.batch || typeof config.batch !== 'object' || Array.isArray(config.batch) || !isPositiveInteger(maxFeatures) || maxFeatures > MAX_PARALLEL_FEATURES) {
+      fail(`batch.maxFeatures must be a whole number from 1 to ${MAX_PARALLEL_FEATURES} (got ${JSON.stringify(maxFeatures)})`);
+    }
+  }
+
   const delivery = config.delivery;
   if (!delivery || typeof delivery !== 'object' || Array.isArray(delivery)) fail('dynamic mode needs a "delivery" object');
   if (!DELIVERY_HOSTS.includes(delivery.host)) {
@@ -1054,6 +1067,7 @@ export function workflowModeSection(config) {
 - **Start a feature with \`/blvck-harness:run\`.** It settles unclear requirements with you in this session first, then runs the feature workflow in the background so this session stays free.
 - **Grilling**: ${grillingSkill ? `use the \`${grillingSkill}\` skill; if it is not installed, use the plugin's built-in grilling style` : 'use the plugin\'s built-in grilling style'}
 - **Delivery**: one feature branch (\`${config.delivery.branchPrefix ?? 'feat/'}<id>\`) collects every task's worktree; ${config.delivery.host === 'none' ? 'the user opens the pull request' : `a ${config.delivery.host === 'gitlab' ? 'merge request' : 'pull request'} targets \`${config.delivery.targetBranch}\``}
+- **Several features at once**: \`/blvck-harness:run feat-a feat-b\` grills each one, then runs up to ${config.batch?.maxFeatures ?? DEFAULT_PARALLEL_FEATURES} feature workflows at a time; a feature that depends on another picked one builds on its branch after it delivers
 - **Config**: \`${WORKFLOW_CONFIG_PATH}\` — change it with \`/blvck-harness:setup\`, which also regenerates this section
 - **Reply rule**: explain results in plain language that stands on its own; never point the reader at numbered items elsewhere that they would have to scroll back to find
 

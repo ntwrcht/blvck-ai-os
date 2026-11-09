@@ -8,6 +8,29 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.1.0] - 2026-11-09
+
+### Added
+
+- **Several features from one `/blvck-harness:run`** in dynamic mode: `/blvck-harness:run feat-a feat-b feat-c`.
+  It grills every feature in the main session before anything starts, then launches one
+  background feature workflow per feature. Each one keeps its own branch, PR/MR, and result, and
+  a feature that needs input or gets blocked does not stop the others.
+- **Stacked features.** A picked feature that depends on another picked feature starts after that
+  one delivers, on a branch made from the dependency's feature branch. Its PR/MR still targets your
+  target branch and says the dependency merges first. If the dependency is blocked, the stacked
+  feature is skipped and reported.
+- **`batch.maxFeatures`** in `.claude/harness-workflow.json` (1 to 5, default 3) caps how many
+  feature workflows run at once, because each one uses its own stage ceilings. It is optional: a
+  2.0.0 config without it stays valid and runs with 3. `setup` asks for it in a new round.
+- Features in the same batch are named to each other's planners, and Deliver re-reads the shared
+  tracker and progress files right before editing them, so parallel runs do not overwrite each
+  other's entries.
+
+### Unchanged
+
+- Classic mode still runs one feature per `run`.
+
 ## [2.0.0] - 2026-10-09
 
 ### Changed — breaking

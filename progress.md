@@ -2,8 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-10-10
-**Active Feature:** none — feat-019 done. **blvck-pm 3.0.0 is released**: `main` pushed at `1d2c899`, tag `blvck-pm--v3.0.0` pushed 2026-10-10, CI validate run 38046472083 green, and the refreshed marketplace copy reports 3.0.0. blvck-pm is not installed on this machine, so `claude plugin details` could not confirm an install, and the user confirmed interactively that the `/` menu shows only setup, run, check under `/blvck-pm:`. Still untested: a research-synthesis re-run after its fixes, and a real Confluence/Drive/Jira deliver target.
+**Last Updated:** 2026-11-09
+**Active Feature:** none. feat-020 is built and committed locally as blvck-harness **2.1.0**, not yet tagged or pushed. `./init.sh` passes and `claude plugin validate . --strict` passes. No live multi-feature run has happened yet.
+
+**feat-020 in one paragraph:** `/blvck-harness:run feat-a feat-b` in dynamic mode grills every picked feature up front, then launches one `feature.js` workflow per feature, up to `batch.maxFeatures` at a time (optional config key, 1 to 5, default 3). A picked feature whose dependency is also picked waits until that dependency delivers, then branches from its feature branch (`args.stackOn`). Its PR still targets the target branch, its whole-feature review reads only its own commits, and clean-up never deletes the branch underneath. Two or more dependencies merge in a worktree, and a conflict blocks before any code is written. `args.siblings` names the other batch features to planners and makes Deliver re-read the shared tracker before editing. The user chose separate workflows over one batch workflow (2026-11-09), so the token cost of parallel features adds up and the cap is the only guard.
 
 **feat-019 in one paragraph:** three commands (setup absorbs migrate, check merges validate+score and discovers a config with `validate-vault.mjs --config`, run grills then launches), an opt-in `workflow` key in `pm-os.config.json`, and `workflows/pm-work.js` for PRD, research synthesis, competitor teardown, and PRD review. Four live runs in a scratch vault all delivered. Run 1 exposed three defects that are now fixed: it stopped on a roadmap question that belongs under "Decisions for the PM", it listed a run instruction as an assumption, and a review found problems no revise stage could fix. Writing into `.git/` asks permission (a sensitive path), so `run` falls back to passing the script inline.
 
@@ -37,6 +39,7 @@ Earlier: v1.1.0 on 2026-07-15 — tags `blvck-harness--v1.1.0`, `blvck-pm--v1.1.
 - [x] feat-015 blvck-pm 2.1.0 — per-document completeness enforced, install verified, marketplace version removed
 - [x] feat-014 blvck-pm 2.0.0 — markdown config retired with a deterministic upgrade, escalation rule inverted, completeness overrides enforced
 - [x] feat-013 blvck-pm 1.5.0 — agent-smith vendored into the plugin, lead-engineer archetype, tool/model budgets on all 8, interviewed roster
+- [x] feat-020 blvck-harness 2.1.0: several dynamic workflows from one `/blvck-harness:run`, stacked dependents, `batch.maxFeatures`
 - [x] feat-012 blvck-pm 1.4.0 — roadmap.json, create-vault.mjs + validate-vault.mjs, fixture vault, init.sh 5 → 7 steps
 - [x] feat-011 blvck-pm 1.3.0 — vision.md, completeness gates, configured output language; setup now reports its repairs
 - [x] feat-010 Flexible pm vault scoring — `## Paths` honored, role fallback, migrate adapt fork; fixed the setup/validate identity drift
@@ -77,6 +80,9 @@ Still open from before this session, unchanged:
 4. `.claude-plugin/marketplace.json` still declares its own top-level `"version": "1.1.0"` while both plugins are at 1.2.0. CI only guards the per-plugin entries, so this drifted unnoticed. Decide whether the marketplace version tracks the plugins or is versioned independently, then make the checklist say which
 
 ## Blockers / Risks
+
+- [ ] **feat-020 is proven only by simulation.** `workflow-sim.mjs` covers stacking, siblings, and the merge-conflict block, and the three mutations are caught, but the launch queue lives in `run.md` (a prompt). Nobody has run two real workflows at once, or watched the main session launch a stacked feature when its dependency finishes
+- [ ] **Parallel solo-layout PRs touch the same files.** Every feature's Deliver edits `feature_list.json` and `progress.md` on its own branch, so the second PR to merge can conflict there. Deliver is told to change only its own entry, which keeps conflicts small but does not remove them. Team layout shards state and avoids this
 
 - [ ] **feat-016's prompt paths are unexercised.** The script side is covered by six init.sh cases; the freshness rule, setup's code question, and migrate's codebase flow are model behaviour and have not been run against a real vault. `~/botnoi-voice` (4 nested repos, root CLAUDE.md) is the natural first test of migrate
 - [ ] **Symlink gap in `assertInsideRoot`** (found during feat-016, not fixed): it compares paths as text, so a symlink inside the vault pointing outside passes for every `paths` entry. Fix with `realpath` plus an init.sh case

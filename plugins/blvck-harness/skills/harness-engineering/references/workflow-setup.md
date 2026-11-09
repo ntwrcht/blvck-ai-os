@@ -118,6 +118,10 @@ A skill listed for a stage but not installed is skipped by the agent, not an err
 - **Source branch**: always one feature branch, `<branchPrefix><feature id>` (default `feat/`), which collects every task's worktree branch.
 - **Repair loop**: how many times a rejected task is sent back before the run stops and flags it — default 2, maximum 3.
 
+## Round: features at once
+
+`/blvck-harness:run` can take several features in one go: it grills each one, then runs one feature workflow per feature in the background. `batch.maxFeatures` caps how many run at the same time (1 to 5, default 3). Each workflow uses its own stage ceilings, so three features at once can run three times the implementers. Recommend 3, or 1 for a user watching token spend; 1 still lets them queue several features in one command, run one after another.
+
 ## Confirm
 
-Show the final config as a table — stage, on/off, persona, max agents, skills — plus visibility, host, target branch, and repair limit. Write nothing until the user says yes.
+Show the final config as a table — stage, on/off, persona, max agents, skills — plus visibility, host, target branch, repair limit, and features at once. Write nothing until the user says yes.
