@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-11-09
-**Active Feature:** none. feat-020 is built and committed locally as blvck-harness **2.1.0**, not yet tagged or pushed. `./init.sh` passes and `claude plugin validate . --strict` passes. No live multi-feature run has happened yet.
+**Active Feature:** none. **blvck-harness 2.1.0 is released** (feat-020): `main` pushed at `140691e`, tag `blvck-harness--v2.1.0` pushed 2026-11-09, CI validate run 42562357928 green, and `claude plugin details blvck-harness` reports 2.1.0 after a marketplace update. No live multi-feature run has happened yet.
 
 **feat-020 in one paragraph:** `/blvck-harness:run feat-a feat-b` in dynamic mode grills every picked feature up front, then launches one `feature.js` workflow per feature, up to `batch.maxFeatures` at a time (optional config key, 1 to 5, default 3). A picked feature whose dependency is also picked waits until that dependency delivers, then branches from its feature branch (`args.stackOn`). Its PR still targets the target branch, its whole-feature review reads only its own commits, and clean-up never deletes the branch underneath. Two or more dependencies merge in a worktree, and a conflict blocks before any code is written. `args.siblings` names the other batch features to planners and makes Deliver re-read the shared tracker before editing. The user chose separate workflows over one batch workflow (2026-11-09), so the token cost of parallel features adds up and the cap is the only guard.
 
