@@ -56,7 +56,7 @@ has it:
 ## Two Modes
 
 - **Classic**: one agent follows the instruction file's startup ritual, one feature at a time. No config file — its absence *is* classic, so a 1.x harness keeps working unchanged.
-- **Dynamic**: `.claude/harness-workflow.json` configures a background workflow per feature — plan, audit, breakdown, implementation in parallel git worktrees, per-task test and review, delivery to one feature branch with a PR/MR, clean-up. Each stage runs as a persona from `.claude/agents/` with the skills the user wired to it. `/blvck-harness:run` can take several features at once and runs one workflow per feature, up to `batch.maxFeatures` at a time. Every value is the user's choice in `setup`; see [Workflow Setup](references/workflow-setup.md).
+- **Dynamic**: `.claude/harness-workflow.json` configures a background workflow per feature — plan, audit, breakdown, implementation in parallel git worktrees, per-task test and review, delivery to one feature branch with a PR/MR, clean-up. Each stage runs as a persona from `.claude/agents/` at the effort and model the user set, with the skills they wired to it. Tasks agree interfaces up front and each starts as soon as the tasks it needs have merged, so most run in parallel. `/blvck-harness:run` can take several features at once and runs one workflow per feature, up to `batch.maxFeatures` at a time. Every value is the user's choice in `setup`; see [Workflow Setup](references/workflow-setup.md).
 
 Mode never changes the score: the same files score the same in either mode. The harness can also be **local only** — listed in `.git/info/exclude`, never pushed.
 

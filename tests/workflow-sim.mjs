@@ -36,8 +36,9 @@ async function run(argsIn, answer) {
     }
   };
   const parallel = async (thunks) => Promise.all(thunks.map((thunk) => thunk().catch(() => null)));
-  const result = await compiled(agent, parallel, null, () => {}, () => {}, argsIn, { total: null }, null);
-  return { result, calls, peak, labels: calls.map((call) => call.label) };
+  const logs = [];
+  const result = await compiled(agent, parallel, null, () => {}, (message) => logs.push(message), argsIn, { total: null }, null);
+  return { result, calls, peak, logs, labels: calls.map((call) => call.label) };
 }
 
 const PLAN = { summary: 'add widgets', approach: 'do it', doneCriteria: ['widgets render'], risks: [], openQuestions: [] };
@@ -57,6 +58,7 @@ function standard(overrides = {}) {
       case 'test': return pass;
       case 'review': return approve;
       case 'integrate': return { merged: [], conflicts: [] };
+      case 'verify': return { passed: true, evidence: 'all checks passed', worktree: '/wt/verify' };
       case 'deliver': return { verificationPassed: true, evidence: 'ok', recordedIn: ['feature_list.json'], pushed: true, prUrl: 'https://example/pr/1' };
       case 'cleanup': return { removedWorktrees: [], deletedBranches: [], kept: [] };
       default: throw new Error(`unexpected agent label ${label}`);
@@ -168,15 +170,107 @@ function expect(name, condition, detail = '') {
   expect('agent: null uses the default workflow agent', calls.find((call) => call.label === 'plan').opts.agentType === undefined);
 }
 
-// 6. Dependencies become waves: a dependent task starts only after the first wave is merged.
+// 6. A dependent task starts only after its dependency has passed and merged.
 {
-  const { labels } = await run(baseArgs(defaultWorkflowConfig()), standard({
+  const { labels, calls } = await run(baseArgs(defaultWorkflowConfig()), standard({
     breakdown: { tasks: [
       { id: 't01', title: 'base', spec: 's', files: ['a.js'], dependsOn: [] },
       { id: 't02', title: 'on top', spec: 's', files: ['b.js'], dependsOn: ['t01'] },
     ] },
   }));
-  expect('a dependent task starts after wave one is integrated', labels.indexOf('integrate:wave1') < labels.indexOf('implement:t02#1'));
+  const merged = labels.findIndex((label, i) => label.startsWith('integrate:') && calls[i].prompt.includes('feat/feat-x--t01'));
+  expect('a dependent task starts after its dependency is merged', merged !== -1 && merged < labels.indexOf('implement:t02#1'));
+}
+
+// 6b. No waves: a task that needs retries delays only the tasks built on it.
+{
+  const slow = (value) => () => new Promise((resolve) => setTimeout(() => resolve(value), 40));
+  const { labels } = await run(baseArgs(defaultWorkflowConfig()), standard({
+    breakdown: { tasks: [
+      { id: 't01', title: 'slow', spec: 's', files: ['a.js'], dependsOn: [] },
+      { id: 't02', title: 'quick', spec: 's', files: ['b.js'], dependsOn: [] },
+      { id: 't03', title: 'on quick', spec: 's', files: ['c.js'], dependsOn: ['t02'] },
+    ] },
+    'test:t01#1': slow({ pass: false, failures: ['broken'], ran: [] }),
+  }));
+  expect('a task on a quick dependency starts while an unrelated task is still being repaired', labels.indexOf('implement:t03#1') !== -1 && labels.indexOf('implement:t03#1') < labels.indexOf('implement:t01#2'));
+}
+
+// 6c. A task whose dependency never passes is skipped, never built on missing code, and blocks delivery.
+{
+  const strict = defaultWorkflowConfig();
+  strict.repair.maxAttempts = 0;
+  const { result, labels, calls } = await run(baseArgs(strict), standard({
+    breakdown: { tasks: [
+      { id: 't01', title: 'base', spec: 's', files: ['a.js'], dependsOn: [] },
+      { id: 't02', title: 'on top', spec: 's', files: ['b.js'], dependsOn: ['t01'] },
+    ] },
+    'test:t01#1': { pass: false, failures: ['broken'], ran: [] },
+  }));
+  const t02 = result.tasks.find((task) => task.id === 't02');
+  expect('the dependent of a failed task is skipped', t02.status === 'skipped' && !labels.includes('implement:t02#1'));
+  expect('a skipped task blocks the pull request', result.status === 'blocked' && calls.find((call) => call.label === 'deliver').prompt.includes('never started because a task they need failed: t02'));
+  expect('clean-up deletes no unmerged or never-created task branch', !/Delete these task branches[^\n]*feat\/feat-x--t0[12]/.test(calls.find((call) => call.label === 'cleanup').prompt));
+}
+
+// 6d. A dependency cycle cannot be ordered: its tasks run instead of waiting on each other forever.
+{
+  const { result } = await run(baseArgs(defaultWorkflowConfig()), standard({
+    breakdown: { tasks: [
+      { id: 't01', title: 'a', spec: 's', files: ['a.js'], dependsOn: ['t02'] },
+      { id: 't02', title: 'b', spec: 's', files: ['b.js'], dependsOn: ['t01'] },
+    ] },
+  }));
+  expect('a dependency cycle still delivers', result.status === 'delivered' && result.tasks.every((task) => task.status === 'passed'));
+}
+
+// 6e. The breakdown agrees interfaces up front, and every implementer sees them; a chain is flagged.
+{
+  const tasks = [
+    { id: 't01', title: 'repo', spec: 's', files: ['a.js'], dependsOn: [], provides: 'getUser(id): User' },
+    { id: 't02', title: 'service', spec: 's', files: ['b.js'], dependsOn: ['t01'] },
+    { id: 't03', title: 'route', spec: 's', files: ['c.js'], dependsOn: ['t02'] },
+  ];
+  const { calls, logs } = await run(baseArgs(defaultWorkflowConfig()), standard({ breakdown: { tasks } }));
+  const breakdown = calls.find((call) => call.label === 'breakdown').prompt;
+  expect('the breakdown is told to agree interfaces, keep tests with code, and free docs', breakdown.includes('Agree interfaces up front') && breakdown.includes('writes the tests for its own code') && breakdown.includes('Documentation tasks') && breakdown.includes('harness state files'));
+  expect('every implementer sees the agreed interfaces', calls.filter((call) => call.label.startsWith('implement')).every((call) => call.prompt.includes('getUser(id): User')));
+  expect('a mostly serial breakdown is logged', logs.some((message) => message.startsWith('Mostly serial')));
+  const flat = await run(baseArgs(defaultWorkflowConfig()), standard({ breakdown: { tasks: tasks.map((task) => ({ ...task, dependsOn: [] })) } }));
+  expect('a parallel breakdown is not flagged', !flat.logs.some((message) => message.startsWith('Mostly serial')));
+}
+
+// 6f. The tester works in the implementer's worktree; the final verification runs beside the review.
+{
+  const { calls, result, labels } = await run(baseArgs(defaultWorkflowConfig()), standard());
+  const test = calls.find((call) => call.label === 'test:t01#1');
+  expect('the tester reuses the implementer\'s worktree', test.opts.isolation === undefined && test.prompt.includes('cd /wt/implement:t01#1'));
+  const noPath = await run(baseArgs(defaultWorkflowConfig()), standard({ 'implement:t01#1': { status: 'done', branch: 'b', summary: 's', filesChanged: [] } }));
+  expect('without a reported worktree the tester gets its own', noPath.calls.find((call) => call.label === 'test:t01#1').opts.isolation === 'worktree');
+  expect('the final verification runs beside the whole-feature review', labels.includes('verify:feature') && labels.indexOf('verify:feature') < labels.indexOf('deliver') && result.finalCheck.passed);
+  expect('Deliver reuses the verification result', calls.find((call) => call.label === 'deliver').prompt.includes('already ran on this exact branch and passed'));
+  const failing = await run(baseArgs(defaultWorkflowConfig()), standard({ 'verify:feature': { passed: false, evidence: '2 tests failed' } }));
+  const deliver = failing.calls.find((call) => call.label === 'deliver').prompt;
+  expect('a failed final verification blocks the pull request', deliver.includes('final verification failed: 2 tests failed') && !deliver.includes('gh pr create') && failing.result.status === 'blocked');
+  const lean = await run(baseArgs(defaultWorkflowConfig({ preset: 'lean' })), standard());
+  expect('without review, Deliver runs the verification itself', !lean.labels.includes('verify:feature') && lean.calls.find((call) => call.label === 'deliver').prompt.includes('Run ./init.sh on the merged branch'));
+}
+
+// 6g. Effort and model come from the config; git-only steps follow clean-up's settings.
+{
+  const config = defaultWorkflowConfig();
+  config.stages.implement.effort = 'medium';
+  config.stages.review.model = 'opus';
+  config.stages.cleanup.model = 'haiku';
+  const { calls } = await run(baseArgs(config), standard());
+  const opts = (prefix) => calls.find((call) => call.label.startsWith(prefix)).opts;
+  expect('a stage runs at its configured effort', opts('implement').effort === 'medium');
+  expect('a stage runs on its configured model', opts('review:t01').model === 'opus' && opts('implement').model === undefined);
+  expect('git-only steps use clean-up\'s model at low effort', ['prepare-branch', 'integrate', 'cleanup'].every((label) => opts(label).model === 'haiku' && opts(label).effort === 'low'));
+  const bare = defaultWorkflowConfig();
+  for (const stage of Object.values(bare.stages)) { delete stage.effort; delete stage.model; }
+  const inherit = await run(baseArgs(bare), standard());
+  expect('without effort or model, stages inherit the session', inherit.calls.find((call) => call.label === 'plan').opts.effort === undefined && inherit.calls.find((call) => call.label === 'plan').opts.model === undefined);
 }
 
 // 7. Several planners are merged; a local harness records into the user's checkout.

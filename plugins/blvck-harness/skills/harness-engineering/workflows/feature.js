@@ -60,8 +60,22 @@ const skillLine = (name) => {
   const skills = (stages[name] && stages[name].skills) || []
   return skills.length ? `Use these skills when they are available to you: ${skills.join(', ')}. Skip any that are not installed.` : ''
 }
-// The persona a stage runs as — a subagent from .claude/agents/ — or the default workflow agent.
-const as = (name) => (stages[name] && stages[name].agent ? { agentType: stages[name].agent } : {})
+// How a stage's agents run: the persona (a subagent from .claude/agents/, or the default workflow
+// agent), and the effort and model the user set for it. Unset effort or model inherits the session.
+const as = (name) => {
+  const stage = stages[name] || {}
+  return {
+    ...(stage.agent ? { agentType: stage.agent } : {}),
+    ...(stage.effort ? { effort: stage.effort } : {}),
+    ...(stage.model ? { model: stage.model } : {}),
+  }
+}
+// Creating the branch and merging tasks are git-only, like clean-up, so they run with clean-up's
+// effort and model (low effort when none is set) but never as its persona.
+const gitOnly = {
+  effort: (stages.cleanup && stages.cleanup.effort) || 'low',
+  ...(stages.cleanup && stages.cleanup.model ? { model: stages.cleanup.model } : {}),
+}
 const styleLine = codeStyle ? `Code style rules the user set for this repository — follow every one:\n${codeStyle}` : ''
 const brief = [
   `Feature ${feature.id}: ${feature.name || ''}`,
@@ -117,6 +131,7 @@ const TASKS = {
           id: { type: 'string' },
           title: { type: 'string' },
           spec: { type: 'string' },
+          provides: { type: 'string' },
           files: { type: 'array', items: { type: 'string' } },
           dependsOn: { type: 'array', items: { type: 'string' } },
         },
@@ -169,6 +184,11 @@ const DELIVERED = {
     notes: { type: 'string' },
   },
   required: ['verificationPassed', 'evidence', 'recordedIn', 'pushed'],
+}
+const VERIFIED = {
+  type: 'object',
+  properties: { worktree: { type: 'string' }, passed: { type: 'boolean' }, evidence: { type: 'string' } },
+  required: ['passed', 'evidence'],
 }
 const CLEANED = {
   type: 'object',
@@ -263,7 +283,7 @@ ${revise.flatMap((vote) => vote.issues).map((issue) => `- ${issue}`).join('\n')}
 }
 
 // ---------------------------------------------------------------------------
-// Breakdown — tasks that own disjoint files, grouped into waves by dependency
+// Breakdown — tasks that own disjoint files and agree on interfaces, so most run at once
 // ---------------------------------------------------------------------------
 phase('Breakdown')
 // A stacked feature starts from its first dependency's branch. Further dependencies are merged
@@ -271,9 +291,9 @@ phase('Breakdown')
 const prepared = stackOn.length
   ? await agent(`Create the feature branch for this run. If ${featureBranch} already exists, leave it as it is and return it with no conflicts.
 Otherwise run \`git branch ${featureBranch} ${stackOn[0]}\`.${stackOn.length > 1 ? ` Then, in your own git worktree, run \`git checkout ${featureBranch}\` and \`git merge --no-ff\` each of ${stackOn.slice(1).join(', ')}. If a merge conflicts, run \`git merge --abort\` and list that branch under conflicts. Finish with \`git checkout --detach\`. ${WHERE}` : ' Never run git checkout or git switch in this directory — the user is working here.'}`,
-    { label: 'prepare-branch', phase: 'Breakdown', effort: 'low', schema: PREPARED, ...(stackOn.length > 1 ? { isolation: 'worktree' } : {}) }).then(track)
+    { label: 'prepare-branch', phase: 'Breakdown', ...gitOnly, schema: PREPARED, ...(stackOn.length > 1 ? { isolation: 'worktree' } : {}) }).then(track)
   : await agent(`Create the feature branch for this run without touching the current checkout. Run: git fetch --quiet origin ${target} 2>/dev/null || true; then create ${featureBranch} from origin/${target} if that ref exists, otherwise from ${target}, using \`git branch\` (never git checkout or git switch in this directory — the user is working here). If ${featureBranch} already exists, leave it as it is. Return the branch name.`,
-    { label: 'prepare-branch', phase: 'Breakdown', effort: 'low' })
+    { label: 'prepare-branch', phase: 'Breakdown', ...gitOnly })
 if (!prepared) throw new Error(`Could not create ${featureBranch}`)
 if (prepared.conflicts && prepared.conflicts.length) {
   return {
@@ -293,7 +313,12 @@ if (on('breakdown')) {
 ${brief}
 Plan:
 ${JSON.stringify(plan, null, 2)}
-Each task lists every file it will create or edit in "files". Two tasks must never share a file — if they would, make them one task. Use dependsOn only when a task needs another task's code to exist first. Give tasks short ids like t01, t02. Make as many tasks as the work genuinely splits into, and no more.`, { label: 'breakdown', phase: 'Breakdown', schema: TASKS, ...as('breakdown') })
+Each task lists every file it will create or edit in "files". Two tasks must never share a file — if they would, make them one task. Give tasks short ids like t01, t02. Make as many tasks as the work genuinely splits into, and no more.
+Tasks run at the same time unless dependsOn says otherwise, and every dependency makes the run wait, so keep dependsOn for the rare task that cannot be written or tested at all until another task's code exists:
+- Agree interfaces up front. In "provides", state exactly what a task exposes to the others (function signatures, types, table schema, endpoint shape). Every implementer sees every task's "provides", so a task that calls t01's code builds against t01's stated interface, in parallel, instead of depending on it.
+- Each task writes the tests for its own code, in its own files. Never make a task that only adds tests for another task's code.
+- Documentation tasks are written from the plan and the stated interfaces, so they depend on nothing.
+- Never make a task for the harness state files (feature tracker, progress or handoff notes, status files, evidence of the run): the Deliver stage records those.`, { label: 'breakdown', phase: 'Breakdown', schema: TASKS, ...as('breakdown') })
   rawTasks = (result && result.tasks.length) ? result.tasks : null
 }
 if (!rawTasks) {
@@ -328,6 +353,7 @@ function mergeOverlapping(tasks) {
       id,
       title: group.map((task) => task.title).join(' + '),
       spec: group.map((task) => `${task.title}: ${task.spec}`).join('\n\n'),
+      provides: group.map((task) => task.provides).filter(Boolean).join('\n'),
       files: [...new Set(group.flatMap((task) => task.files))],
       dependsOn: group.flatMap((task) => task.dependsOn),
       mergedFrom: group.map((task) => task.id),
@@ -339,27 +365,34 @@ function mergeOverlapping(tasks) {
   return merged
 }
 
-// Waves by dependency depth. A cycle (or a dependency on a task that does not exist, already
-// dropped above) cannot be ordered, so whatever is left joins the last wave rather than
-// deadlocking the run.
-function toWaves(tasks) {
-  const waves = []
+// Dependency depth, used to order tasks and to break cycles. A cycle cannot be ordered, so what
+// is left joins the last layer and its tasks stop waiting on each other instead of deadlocking.
+function toLayers(tasks) {
+  const layers = []
   const placed = new Set()
   let remaining = [...tasks]
   while (remaining.length) {
     const ready = remaining.filter((task) => task.dependsOn.every((dep) => placed.has(dep)))
-    const wave = ready.length ? ready : remaining
-    waves.push(wave)
-    wave.forEach((task) => placed.add(task.id))
+    const layer = ready.length ? ready : remaining
+    layers.push(layer)
+    layer.forEach((task) => placed.add(task.id))
     remaining = remaining.filter((task) => !placed.has(task.id))
   }
-  return waves
+  return layers
 }
 
 const tasks = mergeOverlapping(rawTasks)
-const waves = toWaves(tasks)
+const layers = toLayers(tasks)
+const layerOf = new Map()
+layers.forEach((layer, i) => layer.forEach((task) => layerOf.set(task.id, i)))
+// A task waits only on dependencies in an earlier layer, which drops the edges of any cycle.
+for (const task of tasks) task.waitsOn = task.dependsOn.filter((dep) => layerOf.get(dep) < layerOf.get(task.id))
 if (tasks.length < rawTasks.length) log(`${rawTasks.length - tasks.length} task(s) shared files with another and were merged into it`)
-log(`${tasks.length} task(s) in ${waves.length} wave(s); up to ${ceiling('implement')} implementer(s) at once`)
+log(`${tasks.length} task(s), longest dependency chain ${layers.length}; up to ${ceiling('implement')} implementer(s) at once`)
+// Real runs averaged 1.3 tasks per chain step, which is a serial run with extra overhead. Say so
+// where the user watches, so a slow run is explained by its breakdown and not mistaken for a hang.
+if (tasks.length > 2 && layers.length * 2 > tasks.length) log(`Mostly serial: ${layers.length} of ${tasks.length} tasks wait on another, so few run at once`)
+const interfaces = tasks.filter((task) => task.provides).map((task) => `- ${task.id} (${task.title}): ${task.provides}`).join('\n')
 
 // ---------------------------------------------------------------------------
 // Implement → test + review, per task, as soon as each one finishes
@@ -377,7 +410,8 @@ async function runTask(task) {
 ${brief}
 Task ${task.id}: ${task.title}
 ${task.spec}
-Files this task owns: ${task.files.length ? task.files.join(', ') : 'decide from the spec'}. Do not edit files outside that list; if you must, say which and why in your summary.
+Files this task owns: ${task.files.length ? task.files.join(', ') : 'decide from the spec'}. Do not edit files outside that list; if you must, say which and why in your summary. Write the tests for this task's code yourself.
+${interfaces ? `Interfaces the tasks agreed on. Other tasks may be building theirs right now, so code against what is stated here rather than waiting for their code:\n${interfaces}` : ''}
 ${skillLine('implement')}
 ${styleLine}
 Git: ${attempt === 1 ? `run \`git checkout -B ${branch} ${featureBranch}\`` : `run \`git checkout ${branch}\``} first. Commit all of your work to ${branch}. When finished, run \`git checkout --detach\` so the branch is free for the next stage. ${WHERE}
@@ -390,14 +424,15 @@ ${feedback ? `This is attempt ${attempt}. The previous attempt was rejected for 
     }
 
     const checks = await parallel([
-      () => (on('test') ? testSlot(() => agent(`Test one task's work. You are in your own git worktree; run \`git checkout --detach ${branch}\` first.
+      // Testing in the implementer's worktree skips a new checkout and a fresh dependency install.
+      () => (on('test') ? testSlot(() => agent(`Test one task's work. ${built.worktree ? `Work in the implementer's worktree: run \`cd ${built.worktree}\` and \`git checkout --detach ${branch}\` first. If that directory no longer exists, run \`git worktree add --detach <a new directory under .claude/worktrees/> ${branch}\` and work there.` : `You are in your own git worktree; run \`git checkout --detach ${branch}\` first.`}
 ${brief}
 Task ${task.id}: ${task.title}
 ${task.spec}
 What the implementer says changed: ${built.summary}
 ${skillLine('test')}
 Run ${verification} and any tests that cover this task. A done criterion with no test is a failure to report, not a test for you to add — the developer owns the task branch. Report every failure precisely enough that someone else can fix it. ${WHERE}`,
-        { label: `test:${task.id}#${attempt}`, phase: 'Test', schema: TESTED, isolation: 'worktree', ...as('test') }).then(track)) : Promise.resolve({ pass: true, failures: [], ran: [] })),
+        { label: `test:${task.id}#${attempt}`, phase: 'Test', schema: TESTED, ...(built.worktree ? {} : { isolation: 'worktree' }), ...as('test') }).then(track)) : Promise.resolve({ pass: true, failures: [], ran: [] })),
       () => (on('review') ? reviewSlot(() => agent(`Review one task's code. Read it with \`git diff ${featureBranch}...${branch}\`; do not check anything out and do not edit anything.
 ${brief}
 Task ${task.id}: ${task.title}
@@ -420,22 +455,59 @@ ${styleLine}`,
   return { task, branch, status: 'failed', attempts: maxAttempts, history }
 }
 
-const results = []
+// Merges into the feature branch one batch at a time: a task that passes while a merge is running
+// joins the next batch. Two merge agents on one branch at once would race.
 const conflicts = []
-for (let w = 0; w < waves.length; w++) {
-  const waveResults = await Promise.all(waves[w].map(runTask))
-  results.push(...waveResults)
-  const passing = waveResults.filter((result) => result.status === 'passed')
-  if (passing.length === 0) continue
-  // Later waves start from the feature branch, so each wave lands there before the next begins.
+let pendingMerges = []
+let merging = false
+let mergeRound = 0
+function land(branch) {
+  return new Promise((resolve) => {
+    pendingMerges.push({ branch, resolve })
+    pumpMerges()
+  })
+}
+async function pumpMerges() {
+  if (merging || pendingMerges.length === 0) return
+  merging = true
+  const batch = pendingMerges
+  pendingMerges = []
+  mergeRound += 1
+  const branches = batch.map((item) => item.branch)
   const integrated = await agent(`Merge finished task branches into the feature branch. You are in your own git worktree.
 Run \`git checkout ${featureBranch}\`, then for each branch below run \`git merge --no-ff <branch>\`. If a merge conflicts, run \`git merge --abort\`, list that branch under conflicts, and continue with the next. Finish with \`git checkout --detach\` so the feature branch is free. ${WHERE}
-Branches: ${passing.map((result) => result.branch).join(', ')}`,
-    { label: `integrate:wave${w + 1}`, phase: 'Deliver', schema: INTEGRATED, isolation: 'worktree', effort: 'low' }).then(track)
-  conflicts.push(...(integrated ? integrated.conflicts : passing.map((result) => result.branch)))
+Branches: ${branches.join(', ')}`,
+    { label: `integrate:${mergeRound}`, phase: 'Deliver', schema: INTEGRATED, isolation: 'worktree', ...gitOnly }).then(track)
+  const failedMerges = integrated ? integrated.conflicts : branches
+  conflicts.push(...failedMerges)
+  merging = false
+  for (const item of batch) item.resolve(!failedMerges.includes(item.branch))
+  pumpMerges()
 }
 
+// Each task starts the moment its own dependencies have passed and merged, so a task that needs
+// a retry delays only the tasks built on it, never an unrelated one.
+const byId = new Map(tasks.map((task) => [task.id, task]))
+const scheduled = new Map()
+function schedule(task) {
+  if (!scheduled.has(task.id)) {
+    scheduled.set(task.id, (async () => {
+      const deps = await Promise.all(task.waitsOn.map((dep) => schedule(byId.get(dep))))
+      const missing = deps.filter((dep) => !dep.landed).map((dep) => dep.task.id)
+      if (missing.length) {
+        return { task, branch: taskBranch(task), status: 'skipped', attempts: 0, landed: false, history: [{ attempt: 0, result: 'skipped', problems: [`never started: it needs ${missing.join(', ')}, which did not pass or merge`] }] }
+      }
+      const result = await runTask(task)
+      result.landed = result.status === 'passed' ? await land(result.branch) : false
+      return result
+    })())
+  }
+  return scheduled.get(task.id)
+}
+const results = await Promise.all(tasks.map(schedule))
+
 const failed = results.filter((result) => result.status === 'failed')
+const skipped = results.filter((result) => result.status === 'skipped')
 const taskReport = results.map((result) => ({
   id: result.task.id,
   title: result.task.title,
@@ -449,23 +521,32 @@ const taskReport = results.map((result) => ({
 // Deliver — final verification on the merged branch, record evidence, open the PR/MR
 // ---------------------------------------------------------------------------
 phase('Deliver')
-const blocked = failed.length > 0 || conflicts.length > 0
+const blocked = failed.length > 0 || skipped.length > 0 || conflicts.length > 0
 // A stacked branch also carries its dependencies' commits, which their own runs reviewed.
 const featureDiff = stackOn.length
   ? `\`git log -p ${featureBranch} --not ${stackOn.join(' ')}\` (only this feature's commits; ${stackOn.join(', ')} were reviewed by their own runs)`
   : `\`git diff ${target}...${featureBranch}\``
 let finalReview = null
+let finalCheck = null
 if (!blocked && on('review')) {
-  finalReview = await agent(`Review the whole feature before it goes to a pull request: read ${featureDiff}. Do not edit anything.
+  // The whole-feature review only reads the diff, so the final verification runs beside it
+  // instead of after it, and Deliver reuses its result.
+  ;[finalReview, finalCheck] = await parallel([
+    () => agent(`Review the whole feature before it goes to a pull request: read ${featureDiff}. Do not edit anything.
 ${brief}
 Done criteria:
 ${plan.doneCriteria.map((criterion) => `- ${criterion}`).join('\n')}
 ${skillLine('review')}
 Each task was reviewed alone; look for what only shows up together — duplicated logic, mismatched interfaces, a done criterion no task covered.${codeStyle ? ' A break of the code style rules is mustFix.' : ''}
 ${styleLine}`,
-    { label: 'review:feature', phase: 'Review', schema: REVIEWED, ...as('review') })
+      { label: 'review:feature', phase: 'Review', schema: REVIEWED, ...as('review') }),
+    () => agent(`Run the final verification of a merged feature branch. You are in your own git worktree; run \`git checkout --detach ${featureBranch}\` first. Do not edit anything.
+Run ${verification} and report honestly whether it passed, with the decisive output lines as evidence. ${WHERE}`,
+      { label: 'verify:feature', phase: 'Deliver', schema: VERIFIED, isolation: 'worktree', ...as('test') }).then(track),
+  ])
 }
-const shipBlocked = blocked || Boolean(finalReview && !finalReview.approve && finalReview.mustFix.length)
+const verifyFailed = Boolean(finalCheck && !finalCheck.passed)
+const shipBlocked = blocked || verifyFailed || Boolean(finalReview && !finalReview.approve && finalReview.mustFix.length)
 
 const hostStep = {
   github: `push ${featureBranch} and open a pull request into ${target} with \`gh pr create --base ${target} --head ${featureBranch}\``,
@@ -483,13 +564,15 @@ const sharedState = siblings.length
 
 const delivered = await agent(`Deliver one feature. You are in your own git worktree; run \`git checkout ${featureBranch}\` first.
 ${brief}
-1. Run ${verification} on the merged branch and record the outcome honestly.
+1. ${finalCheck ? `${verification} already ran on this exact branch and ${finalCheck.passed ? 'passed' : 'failed'}. Evidence: ${finalCheck.evidence}. Use that result; run it again only if you change anything other than the harness state files.` : `Run ${verification} on the merged branch and record the outcome honestly.`}
 2. Record the result in the harness state files. This repo's harness layout is "${harness.layout || 'solo'}", and this is where each concept lives (use the real files under "sources", matching their existing format${local ? `; the harness is local-only, so these paths are relative to ${repoRoot} — edit them there, and never commit or stage them` : ''}):
 ${JSON.stringify(harness.resolution || {}, null, 2)}${sharedState}
    ${shipBlocked ? `Mark the feature blocked, not done: ${[
     failed.length ? `tasks that never passed: ${failed.map((result) => result.task.id).join(', ')}` : '',
+    skipped.length ? `tasks never started because a task they need failed: ${skipped.map((result) => result.task.id).join(', ')}` : '',
     conflicts.length ? `branches that conflicted on merge: ${conflicts.join(', ')}` : '',
     finalReview && finalReview.mustFix.length ? `whole-feature review must-fix: ${finalReview.mustFix.join('; ')}` : '',
+    verifyFailed ? `final verification failed: ${finalCheck.evidence}` : '',
   ].filter(Boolean).join('; ')}.` : 'Mark the feature done only if step 1 passed, with the verification output as evidence.'}
    ${plan.assumptions.length ? `List these decisions made without asking the user in the pull request description and the handoff note, under "Assumptions":\n${plan.assumptions.map((item) => `   - ${item}`).join('\n')}\n   ` : ''}Write a handoff note for the next session in the harness's session handoff or progress file. ${local ? `Commit only code on ${featureBranch}; the harness files stay uncommitted in ${repoRoot}.` : `Commit on ${featureBranch}.`}
 3. ${shipBlocked ? `Do not open a pull request. Push ${featureBranch} only if the remote exists, so the work is not lost.` : `If verification passed, ${hostStep}.${stackNote} If the CLI is missing or not signed in, push the branch anyway and return the web link where the user can open it by hand as manualPrLink.`}
@@ -507,11 +590,11 @@ if (on('cleanup')) {
   const keep = [featureBranch, ...stackOn, ...failed.map((result) => result.branch), ...conflicts]
   cleanup = await agent(`Clean up after a feature run without touching the user's current checkout or uncommitted work.
 - Remove exactly these worktrees, which this run created, and no others: ${[...worktrees].join(', ') || '(none reported)'}. For each one: if \`git -C <path> status --porcelain\` prints anything, keep it and list it under kept; otherwise run \`git worktree remove <path>\`, then delete the branch the runtime created for it (usually \`worktree-<directory name>\`) with \`git branch -d\` — if git refuses because the branch holds unmerged work, keep it and list it. Never use \`git branch -D\` or \`--force\`. Finish with \`git worktree prune\`.
-- Delete these task branches, which are merged into ${featureBranch}: ${results.filter((result) => !keep.includes(result.branch)).map((result) => result.branch).join(', ') || '(none)'}. \`git branch -d\` only accepts a branch merged into the checked-out branch, and the user's checkout is not ${featureBranch} — so run it from a temporary one: \`git worktree add --detach <temp dir> ${featureBranch}\`, \`git -C <temp dir> checkout ${featureBranch}\`, \`git -C <temp dir> branch -d <task branches>\`, \`git -C <temp dir> checkout --detach\`, then \`git worktree remove <temp dir>\`. A branch git still refuses holds unmerged work: keep it and list it.
+- Delete these task branches, which are merged into ${featureBranch}: ${results.filter((result) => result.landed && !keep.includes(result.branch)).map((result) => result.branch).join(', ') || '(none)'}. \`git branch -d\` only accepts a branch merged into the checked-out branch, and the user's checkout is not ${featureBranch} — so run it from a temporary one: \`git worktree add --detach <temp dir> ${featureBranch}\`, \`git -C <temp dir> checkout ${featureBranch}\`, \`git -C <temp dir> branch -d <task branches>\`, \`git -C <temp dir> checkout --detach\`, then \`git worktree remove <temp dir>\`. A branch git still refuses holds unmerged work: keep it and list it.
 - Never delete these — they hold the delivered or unfinished work: ${keep.join(', ')}
 - Remove temporary files or folders this run created outside git (build scratch, logs) if you can identify them with certainty; leave anything you are unsure about and list it under kept.
 - If a hook or permission rule blocks a command, do not work around it; list what it blocked under kept.`,
-    { label: 'cleanup', phase: 'Clean up', schema: CLEANED, effort: 'low', ...as('cleanup') })
+    { label: 'cleanup', phase: 'Clean up', schema: CLEANED, ...gitOnly, ...as('cleanup') })
 }
 
 const status = shipBlocked || !delivered || !delivered.verificationPassed ? 'blocked' : 'delivered'
@@ -526,6 +609,7 @@ return {
   plan: { summary: plan.summary, doneCriteria: plan.doneCriteria, assumptions: plan.assumptions },
   tasks: taskReport,
   finalReview,
+  finalCheck,
   delivery: delivered,
   cleanup,
 }

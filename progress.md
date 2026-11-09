@@ -3,7 +3,9 @@
 ## Current State
 
 **Last Updated:** 2026-11-09
-**Active Feature:** none. **blvck-harness 2.1.0 is released** (feat-020): `main` pushed at `140691e`, tag `blvck-harness--v2.1.0` pushed 2026-11-09, CI validate run 42562357928 green, and `claude plugin details blvck-harness` reports 2.1.0 after a marketplace update. No live multi-feature run has happened yet.
+**Active Feature:** none. **blvck-harness 2.2.0** (feat-021) is built and committed on `main`, not yet pushed or tagged: verify it with a live run first. 2.1.0 is released (tag `blvck-harness--v2.1.0`, CI run 42562357928 green).
+
+**feat-021 in one paragraph:** the user saw implement #1 then test #1 with no second implementer. 30 real journals showed why: 110 tasks in 87 waves, so runs were serial, and a retried task held up its wave. The breakdown now agrees interfaces (`provides`), keeps tests with their code, frees docs tasks, and makes no harness-state tasks; waves are replaced by per-task scheduling with a merge queue; the tester reuses the implementer's worktree; the final verification runs beside the feature review; stages take optional `effort` and `model`. Replaying the real breakdowns: the scheduler alone saves 1%, the mechanical breakdown rules 16%. Anything beyond that depends on the agent following the interface rule, which only a live run can show.
 
 **feat-020 in one paragraph:** `/blvck-harness:run feat-a feat-b` in dynamic mode grills every picked feature up front, then launches one `feature.js` workflow per feature, up to `batch.maxFeatures` at a time (optional config key, 1 to 5, default 3). A picked feature whose dependency is also picked waits until that dependency delivers, then branches from its feature branch (`args.stackOn`). Its PR still targets the target branch, its whole-feature review reads only its own commits, and clean-up never deletes the branch underneath. Two or more dependencies merge in a worktree, and a conflict blocks before any code is written. `args.siblings` names the other batch features to planners and makes Deliver re-read the shared tracker before editing. The user chose separate workflows over one batch workflow (2026-11-09), so the token cost of parallel features adds up and the cap is the only guard.
 
@@ -80,6 +82,9 @@ Still open from before this session, unchanged:
 4. `.claude-plugin/marketplace.json` still declares its own top-level `"version": "1.1.0"` while both plugins are at 1.2.0. CI only guards the per-plugin entries, so this drifted unnoticed. Decide whether the marketplace version tracks the plugins or is versioned independently, then make the checklist say which
 
 ## Blockers / Risks
+
+- [ ] **feat-021's main speed-up is agent behavior.** The scheduler is proven by simulation, but the replay shows it alone saves 1%. The gain depends on the breakdown agent agreeing interfaces instead of chaining tasks. Re-run a past feature on 2.2.0 and compare its "longest dependency chain" log with the 2.1.0 journal
+- [ ] **Medium-effort implementers may retry more.** Retries were already a quarter of all steps (57 extra attempts in 30 runs). If the retry rate rises on 2.2.0, raise implement to `high`
 
 - [ ] **feat-020 is proven only by simulation.** `workflow-sim.mjs` covers stacking, siblings, and the merge-conflict block, and the three mutations are caught, but the launch queue lives in `run.md` (a prompt). Nobody has run two real workflows at once, or watched the main session launch a stacked feature when its dependency finishes
 - [ ] **Parallel solo-layout PRs touch the same files.** Every feature's Deliver edits `feature_list.json` and `progress.md` on its own branch, so the second PR to merge can conflict there. Deliver is told to change only its own entry, which keeps conflicts small but does not remove them. Team layout shards state and avoids this

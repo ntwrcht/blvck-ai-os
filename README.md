@@ -137,7 +137,7 @@ Three commands, one for each moment:
 
 - **Mode** — classic (one agent follows the startup ritual) or dynamic (the multi-agent workflow)
 - **Visibility** — shared with your remote, or local only via `.git/info/exclude`
-- **Dynamic only** — preset (recommended, lean, custom), which stages run, the agent ceiling per stage, the persona behind each stage (tailored with agent-smith if you have it), any number of skills per stage, the repair limit, how many features run at once, and where PRs/MRs go
+- **Dynamic only** — preset (recommended, lean, custom), which stages run, the agent ceiling, effort, and model per stage, the persona behind each stage (tailored with agent-smith if you have it), any number of skills per stage, the repair limit, how many features run at once, and where PRs/MRs go
 
 ### PM vaults: blvck-pm
 

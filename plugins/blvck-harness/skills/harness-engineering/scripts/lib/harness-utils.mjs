@@ -913,6 +913,9 @@ export const MAX_REPAIR_ATTEMPTS = 3;
 // stage ceilings, so this multiplies spend; absent means 3, the same as the default config.
 export const MAX_PARALLEL_FEATURES = 5;
 export const DEFAULT_PARALLEL_FEATURES = 3;
+// Effort is the main control for how long an agent thinks. Unset means the stage inherits the
+// session's level, which made every agent of a run as slow as the user's own chat.
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 // One row per stage the workflow knows. `required` stages carry the feature from spec to
 // delivered branch, so turning one off would leave a run that cannot finish. `maxAgents` is a
@@ -935,15 +938,18 @@ export const WORKFLOW_STAGES = {
 // have agent-smith write a roster tailored to the project.
 export const DEFAULT_AGENTS = ['product-owner', 'tech-lead', 'developer', 'qa-engineer'];
 
+// Effort follows Anthropic's guidance: high where judgment shapes the run (the plan, the task
+// split that decides how much runs in parallel, the review), medium for well-specified building
+// and checking, low plus Haiku for git-only work.
 const RECOMMENDED_STAGES = {
-  plan: { enabled: true, agents: 1, agent: 'product-owner', skills: ['codebase-design'] },
-  audit: { enabled: true, agents: 1, agent: 'tech-lead', skills: ['scrutinize'] },
-  breakdown: { enabled: true, agents: 1, agent: 'tech-lead', skills: ['codebase-design'] },
-  implement: { enabled: true, agents: 10, agent: 'developer', skills: ['tdd'] },
-  test: { enabled: true, agents: 5, agent: 'qa-engineer', skills: ['tdd', 'debug'] },
-  review: { enabled: true, agents: 5, agent: 'tech-lead', skills: ['scrutinize', 'security-audit'] },
-  deliver: { enabled: true, agents: 1, agent: 'tech-lead', skills: [] },
-  cleanup: { enabled: true, agents: 1, agent: null, skills: [] }
+  plan: { enabled: true, agents: 1, agent: 'product-owner', effort: 'high', skills: ['codebase-design'] },
+  audit: { enabled: true, agents: 1, agent: 'tech-lead', effort: 'medium', skills: ['scrutinize'] },
+  breakdown: { enabled: true, agents: 1, agent: 'tech-lead', effort: 'high', skills: ['codebase-design'] },
+  implement: { enabled: true, agents: 10, agent: 'developer', effort: 'medium', skills: ['tdd'] },
+  test: { enabled: true, agents: 5, agent: 'qa-engineer', effort: 'medium', skills: ['tdd', 'debug'] },
+  review: { enabled: true, agents: 5, agent: 'tech-lead', effort: 'high', skills: ['scrutinize', 'security-audit'] },
+  deliver: { enabled: true, agents: 1, agent: 'tech-lead', effort: 'medium', skills: [] },
+  cleanup: { enabled: true, agents: 1, agent: null, effort: 'low', model: 'haiku', skills: [] }
 };
 
 // Lean keeps parallel implementation but drops the second opinions: no plan audit and no
@@ -1014,6 +1020,13 @@ export function validateWorkflowConfig(config, label = WORKFLOW_CONFIG_PATH) {
     if (stage.agent !== undefined && stage.agent !== null && (typeof stage.agent !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(stage.agent))) {
       fail(`stages.${name}.agent must be a subagent name in lowercase-hyphen form, or null for the default workflow agent (got ${JSON.stringify(stage.agent)})`);
     }
+    // Both optional: absent inherits the session, so a 2.1.0 config runs exactly as before.
+    if (stage.effort !== undefined && stage.effort !== null && !EFFORT_LEVELS.includes(stage.effort)) {
+      fail(`stages.${name}.effort must be one of ${EFFORT_LEVELS.join(', ')}, or null to inherit the session (got ${JSON.stringify(stage.effort)})`);
+    }
+    if (stage.model !== undefined && stage.model !== null && (typeof stage.model !== 'string' || !/^[a-z0-9][a-z0-9.\-\[\]]*$/.test(stage.model))) {
+      fail(`stages.${name}.model must be a model alias such as haiku, sonnet, or opus, a full model id, or null to inherit the session (got ${JSON.stringify(stage.model)})`);
+    }
   }
 
   const attempts = config.repair?.maxAttempts;
@@ -1057,8 +1070,9 @@ const SECTION_END = '<!-- blvck-harness:workflow-mode:end -->';
 export function workflowModeSection(config) {
   const rows = Object.keys(WORKFLOW_STAGES).map((name) => {
     const stage = config.stages[name];
-    if (!stage || !stage.enabled) return `| ${name} | off | — | — |`;
-    return `| ${name} | ${stage.agent ? `\`${stage.agent}\`` : 'default'} | ${stage.agents} | ${stage.skills.length ? stage.skills.map((skill) => `\`${skill}\``).join(', ') : '—'} |`;
+    if (!stage || !stage.enabled) return `| ${name} | off | — | — | — |`;
+    const runsAs = [stage.effort || 'session effort', stage.model || null].filter(Boolean).join(', ');
+    return `| ${name} | ${stage.agent ? `\`${stage.agent}\`` : 'default'} | ${stage.agents} | ${runsAs} | ${stage.skills.length ? stage.skills.map((skill) => `\`${skill}\``).join(', ') : '—'} |`;
   });
   const grillingSkill = config.grilling?.skill;
   return `${SECTION_START}
@@ -1066,6 +1080,7 @@ export function workflowModeSection(config) {
 
 - **Start a feature with \`/blvck-harness:run\`.** It settles unclear requirements with you in this session first, then runs the feature workflow in the background so this session stays free.
 - **Grilling**: ${grillingSkill ? `use the \`${grillingSkill}\` skill; if it is not installed, use the plugin's built-in grilling style` : 'use the plugin\'s built-in grilling style'}
+- **Tasks run in parallel** unless one truly needs another's code: the breakdown agrees interfaces up front, and a task starts as soon as the tasks it needs have passed and merged. Creating the branch and merging tasks run with clean-up's effort and model
 - **Delivery**: one feature branch (\`${config.delivery.branchPrefix ?? 'feat/'}<id>\`) collects every task's worktree; ${config.delivery.host === 'none' ? 'the user opens the pull request' : `a ${config.delivery.host === 'gitlab' ? 'merge request' : 'pull request'} targets \`${config.delivery.targetBranch}\``}
 - **Several features at once**: \`/blvck-harness:run feat-a feat-b\` grills each one, then runs up to ${config.batch?.maxFeatures ?? DEFAULT_PARALLEL_FEATURES} feature workflows at a time; a feature that depends on another picked one builds on its branch after it delivers
 - **Config**: \`${WORKFLOW_CONFIG_PATH}\` — change it with \`/blvck-harness:setup\`, which also regenerates this section
@@ -1075,8 +1090,8 @@ export function workflowModeSection(config) {
 
 Each stage runs as the agent named here (definitions in \`.claude/agents/\`), using these skills when they are installed.
 
-| Stage | Agent | Max agents | Skills |
-|---|---|---|---|
+| Stage | Agent | Max agents | Effort, model | Skills |
+|---|---|---|---|---|
 ${rows.join('\n')}
 ${SECTION_END}
 `;

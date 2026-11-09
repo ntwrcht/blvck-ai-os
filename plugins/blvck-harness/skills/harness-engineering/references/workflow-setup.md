@@ -46,6 +46,18 @@ Plan, implement, and deliver are required — the run cannot finish without them
 
 Ceilings, never targets: parallel stages scale to the number of independent tasks, and a feature that splits into three tasks runs three implementers whatever the ceiling says. Limits: plan and audit 1–5 (extra agents are independent angles or skeptic votes), implement/test/review 1–16, breakdown/deliver/clean up 1. Recommended: implement 10, test 5, review 5, everything else 1.
 
+## Round: effort and model per stage
+
+Effort decides how long each agent thinks, so it sets most of a run's speed and cost. A stage with no `effort` inherits the session's level: a user who chats at `xhigh` would run every implementer at `xhigh` too. Offer the recommended levels, which follow Anthropic's effort guidance:
+
+| Stage | Effort | Why |
+|---|---|---|
+| plan, breakdown, review | `high` | Judgment shapes the run here: the breakdown decides how many tasks run at once, and review is the last gate |
+| audit, implement, test, deliver | `medium` | Grilling, the plan, and the agreed interfaces make this work well specified |
+| clean up | `low`, model `haiku` | Git commands only; creating the branch and merging tasks follow these settings too |
+
+`model` is optional per stage: an alias (`haiku`, `sonnet`, `opus`) or a full model id; leave it out to inherit the session's model. Suggest a model only for clean-up unless the user asks. Set `null` (or remove the key) for either to inherit the session. Say plainly that `low` saves the most time but can skip checks on long tasks, which is why test stays at `medium`.
+
 ## Round: personas
 
 Each stage runs as a subagent from `.claude/agents/`:
@@ -124,4 +136,4 @@ A skill listed for a stage but not installed is skipped by the agent, not an err
 
 ## Confirm
 
-Show the final config as a table — stage, on/off, persona, max agents, skills — plus visibility, host, target branch, repair limit, and features at once. Write nothing until the user says yes.
+Show the final config as a table — stage, on/off, persona, max agents, effort and model, skills — plus visibility, host, target branch, repair limit, and features at once. Write nothing until the user says yes.

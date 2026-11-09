@@ -8,6 +8,36 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.2.0] - 2026-11-09
+
+### Changed
+
+- **Tasks run in parallel in practice, not only in principle.** In 30 real runs, 110 tasks fell
+  into 87 waves, so a run built almost one task at a time and a retried task held up its whole
+  wave. The breakdown now agrees each task's interface up front (`provides`), and every
+  implementer sees those interfaces, so a task builds against another's stated interface
+  instead of waiting for its code. Each task writes its own tests, documentation tasks depend on
+  nothing, and no task is made for harness state files, because Deliver records those.
+- **No more waves.** A task starts as soon as the tasks it needs have passed and merged, so a
+  retry delays only the tasks built on it. Merges are queued, and tasks that finish together
+  merge in one batch. A task whose dependency fails is reported as skipped and blocks the PR/MR
+  instead of being built on missing code.
+- **The tester works in the implementer's worktree** instead of a new checkout, which skips a
+  second dependency install per attempt.
+- **The final verification runs alongside the whole-feature review**, and Deliver reuses its
+  result instead of running verification a second time. A failed final verification blocks the
+  PR/MR.
+- `/workflows` now shows the longest dependency chain, and says "Mostly serial" when the
+  breakdown leaves few tasks to run at once.
+
+### Added
+
+- **Effort and model per stage** in `.claude/harness-workflow.json` (`stages.<name>.effort`,
+  `stages.<name>.model`), both optional. New configs default to plan, breakdown, and review
+  `high`; audit, implement, test, and deliver `medium`; clean-up `low` on `haiku`. Creating the
+  branch and merging tasks follow clean-up's settings. A config without these keys inherits the
+  session, exactly as 2.1.0 did. `setup` asks in a new round.
+
 ## [2.1.0] - 2026-11-09
 
 ### Added

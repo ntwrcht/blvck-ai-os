@@ -494,6 +494,9 @@ for BAD in \
   '.batch.maxFeatures = 0' \
   '.batch.maxFeatures = 6' \
   '.batch = 3' \
+  '.stages.implement.effort = "extreme"' \
+  '.stages.review.model = "Claude Opus"' \
+  '.stages.cleanup.model = 7' \
   '.delivery.host = "bitbucket"' \
   '.delivery.targetBranch = ""' \
   'delete .version'; do
@@ -513,9 +516,13 @@ expect_exit 2 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
 node -e 'const fs = require("fs"); const c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); delete c.batch; fs.writeFileSync(process.argv[2], JSON.stringify(c));' "$TMP/good.json" "$CFG"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
 grep -q "up to 3 feature workflows at a time" "$TMP/dynamic-solo/CLAUDE.md" || { echo "FAIL: Workflow Mode section does not name the features-at-once cap"; exit 1; }
+grep -q "| implement | \`developer\` | 10 | medium |" "$TMP/dynamic-solo/CLAUDE.md" || { echo "FAIL: Workflow Mode section does not show stage effort"; exit 1; }
+# effort and model are optional too: a 2.1.0 config without them inherits the session and passes.
+node -e 'const fs = require("fs"); const c = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); for (const s of Object.values(c.stages)) { delete s.effort; delete s.model; } fs.writeFileSync(process.argv[2], JSON.stringify(c));' "$TMP/good.json" "$CFG"
+expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
 cp "$TMP/good.json" "$CFG"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/dynamic-solo"
-echo "dynamic: 15 broken configs exit 2; a config without batch and the restored config pass"
+echo "dynamic: 18 broken configs exit 2; a config without batch, effort, or model and the restored config pass"
 
 # Local visibility: listed in .git/info/exclude (never .gitignore), reported by validate, and
 # refused for a team layout whose claims only work when shared.
@@ -542,7 +549,7 @@ if (!r.resolution.featureTracker.sources.includes(".harness/features.json")) { c
 echo "adapted: dynamic mode resolves the foreign tracker for the workflow"
 
 node tests/workflow-sim.mjs >/dev/null || { node tests/workflow-sim.mjs; exit 1; }
-echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, waves, local, stacking, siblings)"
+echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, per-task scheduling, local, stacking, siblings, effort)"
 
 echo "=== 10/10 PM dynamic workflow mode ==="
 
