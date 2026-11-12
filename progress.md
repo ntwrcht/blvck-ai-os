@@ -3,7 +3,9 @@
 ## Current State
 
 **Last Updated:** 2026-11-13
-**Active Feature:** none. **blvck-harness 2.3.1 is released** (feat-022): `/blvck-harness:run --brief <path>`. 2.3.0 shipped with an unparseable `argument-hint` (CI caught it); 2.3.1 quotes it. All six installs (user scope and five botnoi repos) were updated.
+**Active Feature:** none. **blvck-harness 2.4.0 is released** (feat-023): setup installs the skills the harness uses. 2.3.1 before it added `run --brief` (feat-022).
+
+**feat-023 in one paragraph:** most botnoi repos had no local skills before setup, so `run` grilled with the built-in fallback and dynamic stages skipped their skills. Setup's new step 1b scans what is installed, compares it with the blvck-skills baseline plus the stack skill (the samber Go pack for `go.mod`), and installs what is missing into the project after a yes. A local harness now also excludes `skills-lock.json`. A live run on a bare Go repo installed 54 skills and reported the installer's risk flags.
 
 **feat-022 in one paragraph:** the botnoi PM console writes handoff briefs (goal, code locations, acceptance checks, edge cases, out of scope) and wants each one to run through the harness, not a bare `claude -p`. `run --brief` imports the brief as a tracker feature in the repo's own layout, with the ticket as id, reuses an existing entry, and turns the checks and edge cases into settled grilling, so it asks only what stays open. A live headless test on a scaffolded solo repo added the right entry and asked one real question the brief got wrong. Team, adapted, and a dynamic launch from a brief are not yet tried live.
 

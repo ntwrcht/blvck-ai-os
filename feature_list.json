@@ -175,6 +175,14 @@
       "dependencies": ["feat-021"],
       "status": "done",
       "evidence": "2026-11-13: BUILT blvck-harness 2.3.0. run.md: --brief <path> (repeatable) imports a brief as a tracker feature in the repo's own layout (ticket, else id, else file name as id; an existing entry is reused, a done one is left out), re-runs the validator, and seeds grilling with the brief's checks, edge cases and out-of-scope; grilling asks only what stays open. VERIFIED: ./init.sh passes; claude plugin validate --strict passes; a live headless run on a scaffolded solo repo with a sample brief (DEMO-7) added the correct feature_list entry, carried the checks as done criteria, and asked one real question (the brief claimed subtract should return NaN like add, but add concatenates strings). NOT YET VERIFIED: team and adapted layouts live; a dynamic-mode launch from a brief; the agent skipped the step-5 validator re-run in the test, deferring it. RELEASED 2026-11-13 as 2.3.0 (tag blvck-harness--v2.3.0), but CI run 43268711734 failed: the new argument-hint was invalid YAML, which drops all of run.md's frontmatter at runtime. Fixed in 2.3.1 by quoting it; the per-plugin validate is now in the release checklist."
+    },
+    {
+      "id": "feat-023",
+      "name": "Setup installs the skills the harness uses",
+      "description": "Most botnoi repos have no local skills before setup, so run grills with the built-in fallback and stages skip their skills. Add a setup round that scans installed skills, compares them with the blvck-skills baseline plus the stack skill (samber/cc-skills-golang for Go), and installs what is missing into the project with npx skills add after a yes. Local visibility also excludes skills-lock.json.",
+      "dependencies": ["feat-022"],
+      "status": "done",
+      "evidence": "2026-11-13: BUILT blvck-harness 2.4.0. setup.md step 1b scans installed skills, compares with the blvck-skills baseline plus the stack skill, and installs what is missing with npx skills add (project scope, repeated --skill, codex/gemini agents when their files exist) after a yes. workflow-setup.md: go.mod -> samber/cc-skills-golang. localHarnessPaths adds /skills-lock.json. VERIFIED: ./init.sh passes with a new assertion that local visibility excludes skills-lock.json; plugin validate --strict passes at root and per plugin; a live headless setup on a bare Go repo (step 1 and 1b only, approval given) installed the 8 missing baseline skills and all 46 golang-* skills, skipped agent-smith because it was installed at user level, and reported the installer risk flags on scrutinize and security-audit. NOT YET VERIFIED: a repo with AGENTS.md or GEMINI.md (multi-agent install); a full setup through step 6 after the skills round."
     }
   ]
 }

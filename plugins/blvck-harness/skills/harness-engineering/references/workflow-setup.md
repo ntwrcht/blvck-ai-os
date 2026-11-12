@@ -90,7 +90,7 @@ done
 
 `npx skills add` installs into `.agents/skills/` or `.claude/skills/` (`-g`: the same under `~`); the blvck-skills installer uses `.claude/skills/`; the plugin form shows up in this session's skill list as `blvck-skills:<name>`. Count all of them. Leave out any skill with `disable-model-invocation: true` and say why: an agent cannot invoke it, so wiring it to a stage does nothing.
 
-Recommended map from `ntwrcht/blvck-skills` — offer only what is installed, and when most of it is missing suggest `npx skills add github:ntwrcht/blvck-skills` (or `--skill <names>` for just these):
+Recommended map from `ntwrcht/blvck-skills` — offer only what is installed. Setup's skills round (step 1b of `/blvck-harness:setup`) installs what is missing when the user agrees; if this round still finds most of it missing, suggest `npx -y skills add github:ntwrcht/blvck-skills --skill <name> …` (repeat `--skill`):
 
 | Stage | Always | When it applies |
 |---|---|---|
@@ -106,6 +106,7 @@ Recommended map from `ntwrcht/blvck-skills` — offer only what is installed, an
 
 | Detected | Skill |
 |---|---|
+| `go.mod` | the `golang-*` skills from `samber/cc-skills-golang` (`golang-code-style`, `golang-testing`, `golang-error-handling` and the rest of the pack) |
 | `angular.json` / `@angular/core` | `angular-engineer` |
 | `next` in package.json | `next-engineer` |
 | `pyproject.toml` / `requirements.txt` | `python-engineer` |

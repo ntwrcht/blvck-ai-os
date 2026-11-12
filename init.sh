@@ -530,6 +530,7 @@ mkdir -p "$TMP/local" && git -C "$TMP/local" init -q
 node "$SCRIPTS/create-harness.mjs" --target "$TMP/local" --mode dynamic --visibility local >/dev/null
 grep -q '^/CLAUDE.md$' "$TMP/local/.git/info/exclude" || { echo "FAIL: harness not excluded"; exit 1; }
 grep -q '^/.claude/agents/developer.md$' "$TMP/local/.git/info/exclude" || { echo "FAIL: personas not excluded"; exit 1; }
+grep -q '^/skills-lock.json$' "$TMP/local/.git/info/exclude" || { echo "FAIL: skills lock file not excluded"; exit 1; }
 [ ! -e "$TMP/local/.gitignore" ] || { echo "FAIL: local visibility wrote a .gitignore"; exit 1; }
 [ -z "$(git -C "$TMP/local" status --porcelain)" ] || { echo "FAIL: local harness shows in git status"; exit 1; }
 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/local" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{if(JSON.parse(s).visibility!=="local"){console.error("FAIL: visibility not reported");process.exit(1)}})'

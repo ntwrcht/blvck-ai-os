@@ -1125,7 +1125,7 @@ export function localHarnessPaths({ layout, agentFile }) {
   const state = layout === 'team' ? ['features/'] : ['feature_list.json', 'progress.md', 'session-handoff.md'];
   return [
     `/${agentFile}`, ...state.map((entry) => `/${entry}`), '/init.sh', `/${MAP_FILENAME}`, `/${WORKFLOW_CONFIG_PATH}`,
-    ...DEFAULT_AGENTS.map((name) => `/.claude/agents/${name}.md`), '/.claude/skills/', '/.agents/'
+    ...DEFAULT_AGENTS.map((name) => `/.claude/agents/${name}.md`), '/.claude/skills/', '/.agents/', '/skills-lock.json'
   ];
 }
 

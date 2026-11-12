@@ -8,6 +8,24 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.4.0] - 2026-11-13
+
+### Added
+
+- **Setup installs the skills the harness uses.** A new skills round runs on every setup path.
+  It scans what the repo already has, compares it with the baseline from `ntwrcht/blvck-skills`
+  (`grilling`, `agent-smith`, `codebase-design`, `domain-modeling`, `scrutinize`,
+  `security-audit`, `tdd`, `debug`, `code-to-docs`) plus the stack skill, and offers to install
+  what is missing into the project with `npx skills add`. Go repos get the
+  `samber/cc-skills-golang` pack. Nothing is installed without a yes, and declining keeps the
+  built-in fallbacks.
+
+### Changed
+
+- A local-visibility harness also excludes `skills-lock.json`, the lock file `npx skills add`
+  writes, alongside `.claude/skills/` and `.agents/`.
+- The stack skills table names `samber/cc-skills-golang` for `go.mod` repos.
+
 ## [2.3.1] - 2026-11-13
 
 ### Fixed

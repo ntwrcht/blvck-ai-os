@@ -21,6 +21,24 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/scripts/validate-harn
 
 Exit 2 from the validator means an existing map or workflow config is broken: show the error and fix it with the user before anything else.
 
+## 1b. Skills the harness uses
+
+Every path runs this round. On **reconfigure**, run it only when something below is missing. The harness leans on skills: `/blvck-harness:run` grills with `grilling`, persona tailoring uses `agent-smith`, and dynamic stages call the rest. A repo without them gets the built-in fallbacks, which work but are thinner.
+
+1. Find what is installed and model-invocable, with the scan in [workflow-setup.md](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references/workflow-setup.md) under "Round: skills per stage". Count user-level and plugin skills too.
+2. Compare it with the baseline from `ntwrcht/blvck-skills`: `grilling`, `agent-smith`, `codebase-design`, `domain-modeling`, `scrutinize`, `security-audit`, `tdd`, `debug`, `code-to-docs`. Add the stack skill or pack from that file's **Stack skills** table. A Go repo (`go.mod`) gets the `samber/cc-skills-golang` pack.
+3. If nothing is missing, say so in one line and move on.
+4. Otherwise list what is missing and recommend installing it into this project, not user-level, so the repo carries its own set. Show the exact commands. Repeat `--skill` for each name, and add `--agent codex` or `--agent gemini-cli` when the repo has `AGENTS.md` or `GEMINI.md`:
+
+   ```bash
+   npx -y skills add github:ntwrcht/blvck-skills --skill grilling --skill tdd … --agent claude-code -y
+   npx -y skills add github:samber/cc-skills-golang --skill '*' --agent claude-code -y   # Go repos only
+   ```
+
+5. Run them only after the user says yes, then scan again and report what landed. A skill that failed to install is reported, never retried silently. The user may decline, and setup continues with the fallbacks.
+
+The installed files are `.claude/skills/`, `.agents/` and `skills-lock.json`. With **local** visibility (step 4), the scaffold adds all three to `.git/info/exclude`. With **shared** visibility, they show in `git status` for the user to commit or ignore. Say which applies.
+
 ## 2. New harness: layout and scaffold
 
 1. **Layout.** Run `git shortlog -sn --no-merges | head -5`. One committer → recommend **solo**; several → recommend **team** (one-writer-per-file avoids merge conflicts on shared state). `$ARGUMENTS` may already name it.
