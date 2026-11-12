@@ -8,6 +8,14 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.3.1] - 2026-11-13
+
+### Fixed
+
+- `/blvck-harness:run` frontmatter parses again. The 2.3.0 `argument-hint` was not valid YAML,
+  so the command loaded with every frontmatter field dropped, including
+  `disable-model-invocation`. The hint is now quoted.
+
 ## [2.3.0] - 2026-11-13
 
 ### Added

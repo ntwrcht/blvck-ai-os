@@ -1,6 +1,6 @@
 ---
 description: Start the next feature, or several at once in dynamic mode — grill unclear requirements, then run them (dynamic workflows or classic ritual)
-argument-hint: [feature-id ...] [--brief <path> ...]
+argument-hint: "[feature-id ...] [--brief <path> ...]"
 disable-model-invocation: true
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 ---

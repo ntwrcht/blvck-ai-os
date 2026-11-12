@@ -66,7 +66,7 @@ For each plugin with user-visible changes:
    `plugin.json` wins, but two copies drift silently). The top-level field proved the point: it
    sat at `1.1.0` while the plugins reached `2.0.0` and nothing noticed, because the guard only
    checked the entries. It is now removed, and CI checks both
-4. Run `./init.sh` and `claude plugin validate . --strict`
+4. Run `./init.sh`, `claude plugin validate . --strict`, and `claude plugin validate ./plugins/<plugin> --strict`. The root check does not parse command frontmatter; only the per-plugin one catches a YAML error there (2.3.0 shipped one)
 5. Commit, then `cd plugins/<plugin> && claude plugin tag --push`
 6. Verify a real install picks up the new version: `claude plugin details <plugin>`
 

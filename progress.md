@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-11-13
-**Active Feature:** none. **blvck-harness 2.3.0 is built, not released** (feat-022): `/blvck-harness:run --brief <path>`. Not yet committed, tagged or pushed; the user approves the release.
+**Active Feature:** none. **blvck-harness 2.3.1 is released** (feat-022): `/blvck-harness:run --brief <path>`. 2.3.0 shipped with an unparseable `argument-hint` (CI caught it); 2.3.1 quotes it. All six installs (user scope and five botnoi repos) were updated.
 
 **feat-022 in one paragraph:** the botnoi PM console writes handoff briefs (goal, code locations, acceptance checks, edge cases, out of scope) and wants each one to run through the harness, not a bare `claude -p`. `run --brief` imports the brief as a tracker feature in the repo's own layout, with the ticket as id, reuses an existing entry, and turns the checks and edge cases into settled grilling, so it asks only what stays open. A live headless test on a scaffolded solo repo added the right entry and asked one real question the brief got wrong. Team, adapted, and a dynamic launch from a brief are not yet tried live.
 
