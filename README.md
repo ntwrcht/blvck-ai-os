@@ -130,6 +130,7 @@ Three commands, one for each moment:
 ```text
 /blvck-harness:setup   # guided walkthrough: new harness, migrate an existing one, or reconfigure
 /blvck-harness:run     # start the next feature (or several in dynamic mode): grilling, then the workflow or the classic ritual
+/blvck-harness:run --brief path/to/brief.md   # start from a written brief: it becomes a tracker feature and settles the grilling
 /blvck-harness:check   # score, findings, and a fix list — whatever your files are called
 ```
 

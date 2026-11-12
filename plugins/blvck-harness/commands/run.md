@@ -1,10 +1,12 @@
 ---
 description: Start the next feature, or several at once in dynamic mode — grill unclear requirements, then run them (dynamic workflows or classic ritual)
-argument-hint: [feature-id ...]
+argument-hint: [feature-id ...] [--brief <path> ...]
 disable-model-invocation: true
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
 ---
 Start work on one feature in the current repository, or on several at once in dynamic mode.
+
+`$ARGUMENTS` can name tracker features, or hand over briefs with `--brief <path>` (repeatable). A brief is a Markdown file someone already wrote for one unit of work: its goal, where in the code, acceptance checks, edge cases, and what is out of scope. It becomes a tracker feature (step 2) and settles most of the grilling (step 3).
 
 ## 1. Read the harness
 
@@ -21,11 +23,25 @@ Read the tracker from `resolution.featureTracker.sources` (adapted layouts inclu
 - **Classic mode** runs one feature. If `$ARGUMENTS` names more than one, say classic mode works one feature at a time, and ask which to start.
 - **Dynamic mode** can run several. If `$ARGUMENTS` names features, use them; otherwise recommend the first ready one and offer to add more. A picked feature may also depend on another picked feature that is not done yet: it is **stacked** and starts after that one delivers (step 4b). Refuse a feature whose dependencies are neither done nor picked, and name the missing one.
 
+### Briefs
+
+For each `--brief <path>`, before listing features:
+
+1. Read the brief. A missing or unreadable file stops the run with its path. The brief may live outside this repository.
+2. Take the feature id from the brief's frontmatter `ticket`, else `id`, else the file name without its date and extension. The name is the frontmatter `title` (or the first heading) without the id.
+3. If the tracker already holds that id, use that entry and do not add a second one. If it is done, say so and leave it out of the run.
+4. Otherwise add it to the tracker in its own layout: solo appends to `feature_list.json`; team writes `features/<id>/status.json` from the team template; adapted writes through the map's `shape.fields` to the declared source. If the adapted shape cannot hold a new entry safely, show the entry and ask where it goes. Use `status: "not-started"`, no dependencies unless the brief names a tracker feature it needs, and a description of the brief's goal in one or two sentences ending with `Brief: <path>`.
+5. Run the validator again. Exit 2 means the entry broke the tracker: undo it and show the error.
+
+A brief's feature is picked for this run. Its branch follows this repository's convention (`delivery.branchPrefix` plus the id in dynamic mode), not a branch the brief names.
+
 Every picked feature gets its own feature branch, so a dynamic batch opens one PR/MR per feature. In **team** layout, check nobody else has claimed each one, then write the user's `owner` and the branch into each `status.json` and commit the claims together (ask before pushing them).
 
 ## 3. Grill
 
 Settle every requirement an agent would otherwise have to guess, here in this session — workflow agents cannot ask the user anything.
+
+A feature that came from a brief starts with its answers already given: its acceptance checks are the done criteria, its edge cases are settled `Q: … A: …` lines, and its out-of-scope list is a constraint. Read the code it cites first. Then ask only about what is still open: a check that is not binary, a path or line that no longer matches the code, a contradiction between the brief and the code or another picked feature, or a requirement it leaves out. When nothing is open, say the brief settles it and continue without asking. Its grilling text is the brief's settled lines plus any new answers, and names the brief's path.
 
 - If `.claude/harness-workflow.json` names `grilling.skill` and that skill is available, use it.
 - Otherwise follow the built-in [grilling style](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references/grilling-default.md).

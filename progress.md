@@ -2,8 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-11-09
-**Active Feature:** none. **blvck-harness 2.2.0 is released** (feat-021): `main` pushed at `d115fb6`, tag `blvck-harness--v2.2.0` pushed 2026-11-09, CI run 42563646971 green. The plugin is installed per project (local scope), so each botnoi project was updated with `claude plugin update blvck-harness` from inside it; all five report 2.2.0. A live re-run by the user is the next check.
+**Last Updated:** 2026-11-13
+**Active Feature:** none. **blvck-harness 2.3.0 is built, not released** (feat-022): `/blvck-harness:run --brief <path>`. Not yet committed, tagged or pushed; the user approves the release.
+
+**feat-022 in one paragraph:** the botnoi PM console writes handoff briefs (goal, code locations, acceptance checks, edge cases, out of scope) and wants each one to run through the harness, not a bare `claude -p`. `run --brief` imports the brief as a tracker feature in the repo's own layout, with the ticket as id, reuses an existing entry, and turns the checks and edge cases into settled grilling, so it asks only what stays open. A live headless test on a scaffolded solo repo added the right entry and asked one real question the brief got wrong. Team, adapted, and a dynamic launch from a brief are not yet tried live.
 
 **feat-021 in one paragraph:** the user saw implement #1 then test #1 with no second implementer. 30 real journals showed why: 110 tasks in 87 waves, so runs were serial, and a retried task held up its wave. The breakdown now agrees interfaces (`provides`), keeps tests with their code, frees docs tasks, and makes no harness-state tasks; waves are replaced by per-task scheduling with a merge queue; the tester reuses the implementer's worktree; the final verification runs beside the feature review; stages take optional `effort` and `model`. Replaying the real breakdowns: the scheduler alone saves 1%, the mechanical breakdown rules 16%. Anything beyond that depends on the agent following the interface rule, which only a live run can show.
 

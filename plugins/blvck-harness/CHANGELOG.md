@@ -8,6 +8,18 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.3.0] - 2026-11-13
+
+### Added
+
+- **`/blvck-harness:run --brief <path>`** starts work from a brief someone already wrote, such as
+  a handoff brief from a PM tool. The brief becomes a tracker feature in the repository's own
+  layout (solo, team or adapted), with its ticket as the id, and an existing entry is reused
+  instead of duplicated. Its acceptance checks become the done criteria and its edge cases
+  become settled answers, so grilling asks only what the brief leaves open: a check that is not
+  binary, a cited path that no longer matches the code, or a contradiction. When nothing is
+  open, the run starts without asking. Repeat `--brief` to run several in dynamic mode.
+
 ## [2.2.0] - 2026-11-09
 
 ### Changed
