@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-11-23
-**Active Feature:** none. **blvck-harness 2.5.0 is built and verified, not yet committed or tagged** (feat-024): guarded mode and the run preflight. 2.4.0 (feat-023) is released.
+**Active Feature:** none. **blvck-harness 2.5.0 is released** (feat-024, commit `39f5bb6`, tag `blvck-harness--v2.5.0` pushed, `claude plugin details` reports 2.5.0): guarded mode and the run preflight. The user is testing it live on a real repo; the live points below are still open until they report back.
 
 **feat-024 in one paragraph:** session history on the botnoi repos (56 workflow records, 27 Oct to 19 Nov) showed dynamic runs delivered 6 of 33 on their own at a median 93 minutes and 1.7M tokens, still skipped progress and db-test steps, and stalled on repo rules (push guard, commit cap, the init.sh `cd "$(dirname "$0")"` line under local visibility, stale bases). Anthropic's best-practices page says anything that must happen every time belongs in a hook. Guarded mode keeps one agent and moves the steps into command hooks: `hooks/gate.mjs` in `.git/blvck-harness/`, wired from `.claude/settings.local.json`, blocks stop, commit, and push until verification passes on the current code, tracker and progress changed, and N fresh-context reviewer subagents ran on the current code (PostToolUse on `Agent`, matched by `subagent_type`). `block --human` and the stuck counter turn dead ends into a "Needs you" list. `preflight-run.mjs` runs before guarded and dynamic runs. Not yet tried in a live session: the hooks firing for real, and a long `init.sh` inside the 900s hook timeout.
 
