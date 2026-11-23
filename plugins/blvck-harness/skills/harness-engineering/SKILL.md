@@ -27,7 +27,7 @@ This skill is knowledge, not an entry point — it is hidden from the `/` menu o
 | The user wants to… | Command |
 |---|---|
 | Create a harness, migrate an existing setup, switch mode, or change stages, personas, skills, delivery, or visibility | `/blvck-harness:setup` |
-| Start the next feature (grilling, then the dynamic workflow or the classic ritual) | `/blvck-harness:run` |
+| Start the next feature (grilling, a preflight of what would block it, then the guarded session, the dynamic workflow, or the classic ritual) | `/blvck-harness:run` |
 | Know how healthy the harness is, and what to fix first | `/blvck-harness:check` |
 
 `setup` and `run` write files, so only the user can start them. `check` only reads and may be used directly.
@@ -56,6 +56,7 @@ has it:
 ## Two Modes
 
 - **Classic**: one agent follows the instruction file's startup ritual, one feature at a time. No config file — its absence *is* classic, so a 1.x harness keeps working unchanged.
+- **Guarded**: one agent builds the feature in this session, and command hooks (installed into `.claude/settings.local.json`, script in `.git/blvck-harness/`) refuse to let it stop, commit, or push until verification passes on the current code, the tracker and progress log are updated, and fresh-context reviewer subagents have read the final code. What only the user can clear becomes a recorded blocker with the action they must take, and the same gates failing repeatedly becomes one too. Preflight lists what would block a run before it starts.
 - **Dynamic**: `.claude/harness-workflow.json` configures a background workflow per feature — plan, audit, breakdown, implementation in parallel git worktrees, per-task test and review, delivery to one feature branch with a PR/MR, clean-up. Each stage runs as a persona from `.claude/agents/` at the effort and model the user set, with the skills they wired to it. Tasks agree interfaces up front and each starts as soon as the tasks it needs have merged, so most run in parallel. `/blvck-harness:run` can take several features at once and runs one workflow per feature, up to `batch.maxFeatures` at a time. Every value is the user's choice in `setup`; see [Workflow Setup](references/workflow-setup.md).
 
 Mode never changes the score: the same files score the same in either mode. The harness can also be **local only** — listed in `.git/info/exclude`, never pushed.
@@ -76,7 +77,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/create-harness.mjs --target /path/to/project   
 node ${CLAUDE_SKILL_DIR}/scripts/create-harness.mjs --target /path/to/project --layout team  # team
 ```
 
-Options: `--mode dynamic`, `--preset recommended|lean|custom`, `--host github|gitlab|none`, `--target-branch BRANCH`, `--visibility local`, `--no-agents`, `--agent-file AGENTS.md`, `--package-manager npm|pnpm|yarn|bun`, `--commands "cmd one,cmd two"`, `--feature-slug first-feature`, `--jira-key KEY-123`, `--owner name`, `--force` (only after confirming overwrites are acceptable).
+Options: `--mode dynamic|guarded`, `--preset recommended|lean|custom`, `--host github|gitlab|none`, `--target-branch BRANCH`, `--visibility local`, `--no-agents`, `--agent-file AGENTS.md`, `--package-manager npm|pnpm|yarn|bun`, `--commands "cmd one,cmd two"`, `--feature-slug first-feature`, `--jira-key KEY-123`, `--owner name`, `--force` (only after confirming overwrites are acceptable).
 
 Then replace placeholder feature entries with the project's real first features.
 

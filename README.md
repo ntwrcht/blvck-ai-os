@@ -44,6 +44,7 @@ Both follow the same design principle: **very few commands, capability in scaffo
 ## Key Features
 
 - **Five-subsystem engineering harness** — instructions, state, verification, scope, and session lifecycle, scored by 25 automated checks (`/blvck-harness:check`).
+- **Guarded mode: one agent that cannot skip steps** — `/blvck-harness:run` settles requirements with you, lists anything that would block the run (a failing baseline, a hook that refuses `git push`, a stale branch) so you clear it first, then the session builds the feature itself. Command hooks in `.claude/settings.local.json` refuse to let it finish, commit, or push until verification passes, the tracker and progress are updated, and fresh-context reviewer subagents have read the final code. Anything only you can clear comes back as a blocker with the action to take, instead of a loop.
 - **Dynamic workflow, if you want it** — `/blvck-harness:run` settles unclear requirements with you, then a background workflow plans, splits the feature into independent tasks, builds them in parallel git worktrees, tests and reviews each one as it finishes, and opens a PR/MR from one feature branch. Product owner, tech lead, developer, and QA personas run the stages; you choose the stages, how many agents each gets, and which skills they use. Classic one-agent mode stays the default.
 - **Code style you set once** — setup reads your codebase's conventions and asks how agents should comment (why, not what), name things, and whether references like ticket ids may appear in code (by default, never — they belong in commits). Every agent follows the answers; in dynamic mode a violation is a review blocker.
 - **Scores your structure, not just ours** — already have a harness under your own file names and your own wording? Declare where the five concepts live in `.harness-map.json` and the same 25 checks grade it, up to 100/100, naming the file behind each concept. Declaring a path never passes a check on its own: the file still has to exist and still has to carry its meaning in real structure.
@@ -69,6 +70,7 @@ blvck-ai-os/
 │   │       ├── SKILL.md                   # background knowledge (hidden from the / menu)
 │   │       ├── scripts/                   # create-harness.mjs, validate-harness.mjs (Node)
 │   │       ├── workflows/feature.js       # the dynamic workflow /blvck-harness:run launches
+│   │       ├── hooks/gate.mjs             # guarded mode's Stop, commit, push, and review gates
 │   │       ├── templates/                 # solo/ and team/ scaffolds + four stage personas
 │   │       └── references/                # harness design patterns + role classification
 │   └── blvck-pm/
@@ -129,14 +131,14 @@ Three commands, one for each moment:
 
 ```text
 /blvck-harness:setup   # guided walkthrough: new harness, migrate an existing one, or reconfigure
-/blvck-harness:run     # start the next feature (or several in dynamic mode): grilling, then the workflow or the classic ritual
+/blvck-harness:run     # start the next feature (or several in dynamic mode): grilling, preflight, then the guarded session, the workflow, or the classic ritual
 /blvck-harness:run --brief path/to/brief.md   # start from a written brief: it becomes a tracker feature and settles the grilling
 /blvck-harness:check   # score, findings, and a fix list — whatever your files are called
 ```
 
 `setup` inspects what exists first and picks the path: a new harness (solo for one committer, team for parallel humans), a migration of a setup in another shape, or a reconfigure of an existing one. It then asks, with a recommendation each time:
 
-- **Mode** — classic (one agent follows the startup ritual) or dynamic (the multi-agent workflow)
+- **Mode** — classic (one agent follows the startup ritual), guarded (one agent, with hooks that enforce verification, bookkeeping, and independent review), or dynamic (the multi-agent workflow)
 - **Visibility** — shared with your remote, or local only via `.git/info/exclude`
 - **Dynamic only** — preset (recommended, lean, custom), which stages run, the agent ceiling, effort, and model per stage, the persona behind each stage (tailored with agent-smith if you have it), any number of skills per stage, the repair limit, how many features run at once, and where PRs/MRs go
 

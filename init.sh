@@ -19,10 +19,12 @@ expect_exit () {
   fi
 }
 
-echo "=== 1/10 Script syntax ==="
+echo "=== 1/11 Script syntax ==="
 node --check "$SCRIPTS/create-harness.mjs"
 node --check "$SCRIPTS/validate-harness.mjs"
 node --check "$SCRIPTS/lib/harness-utils.mjs"
+node --check "$SCRIPTS/preflight-run.mjs"
+node --check plugins/blvck-harness/skills/harness-engineering/hooks/gate.mjs
 node --check "$PM_SCRIPTS/create-vault.mjs"
 node --check "$PM_SCRIPTS/validate-vault.mjs"
 node --check "$PM_SCRIPTS/lib/vault-utils.mjs"
@@ -30,12 +32,12 @@ node --check tests/workflow-sim.mjs
 node --check tests/pm-workflow-sim.mjs
 echo "OK"
 
-echo "=== 2/10 JSON validity (manifests, templates, trackers, fixtures) ==="
+echo "=== 2/11 JSON validity (manifests, templates, trackers, fixtures) ==="
 find . -name '*.json' -not -path './.git/*' -not -path '*/node_modules/*' -print0 \
   | xargs -0 -I{} node -e "JSON.parse(require('fs').readFileSync('{}','utf8'))" \
   && echo "OK"
 
-echo "=== 3/10 Scaffold + validate round-trip (solo and team) ==="
+echo "=== 3/11 Scaffold + validate round-trip (solo and team) ==="
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -68,7 +70,7 @@ if node "$SCRIPTS/validate-harness.mjs" --target "$TMP/team" >/dev/null 2>&1; th
 fi
 echo "team: seeded findings correctly rejected (exit 1)"
 
-echo "=== 4/10 Adapted layout scores a foreign structure ==="
+echo "=== 4/11 Adapted layout scores a foreign structure ==="
 cp -R tests/fixtures/foreign-harness "$TMP/foreign"
 expect_exit 0 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/foreign"
 echo "adapted: foreign-shaped harness scores (exit 0)"
@@ -113,7 +115,7 @@ if (native.overall !== mapped.overall) {
 ' "$TMP/native.json" "$TMP/mapped.json"
 echo "adapted: team layout expressed as a map scores identically"
 
-echo "=== 5/10 Adapted layout cannot be gamed ==="
+echo "=== 5/11 Adapted layout cannot be gamed ==="
 
 # Declaring a path is an assertion, not a pass: point the map at a file that is not there and
 # the run must fail rather than quietly falling back to the built-in name.
@@ -168,7 +170,7 @@ if (result.unscored !== true) {
 ' "$TMP/empty.json"
 echo "empty: reports unscored rather than a floor score (exit 1)"
 
-echo "=== 6/10 PM vault round-trip (scaffold, then a filled vault) ==="
+echo "=== 6/11 PM vault round-trip (scaffold, then a filled vault) ==="
 
 # The fixture's current-focus.md carries a placeholder date rather than a real one. The
 # freshness check is genuinely time-dependent, so a hardcoded date would pass today and fail
@@ -199,7 +201,7 @@ if (result.overall !== 100) {
 ' "$TMP/pm.json"
 echo "pm: filled vault scores 100/100 (exit 0)"
 
-echo "=== 7/10 PM vault cannot be gamed ==="
+echo "=== 7/11 PM vault cannot be gamed ==="
 
 # Same rule as the harness map: a declared path is an assertion, and a broken one fails the run
 # rather than costing a few points. Without this a typo'd config reads as a passing vault.
@@ -335,7 +337,7 @@ if (result.unscored !== true) {
 ' "$TMP/pm-empty.json"
 echo "pm: an empty directory reports unscored (exit 1)"
 
-echo "=== 8/10 PM codebase registry ==="
+echo "=== 8/11 PM codebase registry ==="
 
 # Repos are built here rather than committed as fixtures: a nested .git cannot live inside this
 # repo's history. Each case starts from the filled fixture, so a regression shows as a score or
@@ -438,7 +440,7 @@ registry "$TMP/pm-code" '{"billing-api":"CODE/billing-api"}'
 expect_exit 2 node "$PM_SCRIPTS/validate-vault.mjs" --target "$TMP/pm-code"
 echo "pm: an unknown scope, an unknown key, or a non-array registry is a config error (exit 2)"
 
-echo "=== 9/10 Dynamic workflow mode ==="
+echo "=== 9/11 Dynamic workflow mode ==="
 
 # Mode decides how work runs, never how the harness scores: a dynamic scaffold must score exactly
 # what a classic one does, in both layouts, and classic output must not change at all.
@@ -552,7 +554,7 @@ echo "adapted: dynamic mode resolves the foreign tracker for the workflow"
 node tests/workflow-sim.mjs >/dev/null || { node tests/workflow-sim.mjs; exit 1; }
 echo "workflow: orchestration simulation passes (stages, ceilings, repair limit, per-task scheduling, local, stacking, siblings, effort)"
 
-echo "=== 10/10 PM dynamic workflow mode ==="
+echo "=== 10/11 PM dynamic workflow mode ==="
 
 # Mode decides how PM work runs, never how the vault scores: the same vault scores the same in
 # classic and dynamic, and a classic scaffold carries nothing of dynamic mode.
@@ -704,6 +706,156 @@ for MUT in mut-ceiling mut-review mut-ask; do
   fi
 done
 echo "pm-workflow: orchestration simulation passes and catches a broken ceiling or a skipped stop"
+
+echo "=== 11/11 Guarded mode (one agent, hook gates, preflight) ==="
+
+# Same rule as dynamic: guarded mode must score exactly what classic does, in both layouts.
+GATE_SRC=plugins/blvck-harness/skills/harness-engineering/hooks/gate.mjs
+for LAYOUT in solo team; do
+  G_DIR="$TMP/guarded-$LAYOUT"; mkdir -p "$G_DIR"; git -C "$G_DIR" init -q
+  node "$SCRIPTS/create-harness.mjs" --target "$G_DIR" --layout $LAYOUT --owner ci --mode guarded --host gitlab >/dev/null
+  if [ "$LAYOUT" = team ]; then
+    D="$(find "$G_DIR/features" -mindepth 1 -maxdepth 1 -type d | head -1)"
+    cp plugins/blvck-harness/skills/harness-engineering/templates/team/progress-entry.md "$D/progress/$(date +%F)-ci.md"
+  fi
+  node "$SCRIPTS/validate-harness.mjs" --target "$TMP/classic-$LAYOUT" --json > "$TMP/c.json"
+  node "$SCRIPTS/validate-harness.mjs" --target "$G_DIR" --json > "$TMP/g.json"
+  node -e '
+const c = require(process.argv[1]), g = require(process.argv[2]);
+if (c.overall !== g.overall) { console.error(`FAIL: classic ${c.overall} vs guarded ${g.overall}`); process.exit(1); }
+if (g.workflow.mode !== "guarded") { console.error("FAIL: guarded mode not reported"); process.exit(1); }
+' "$TMP/c.json" "$TMP/g.json"
+  grep -q "## Workflow Mode: guarded" "$G_DIR/CLAUDE.md" || { echo "FAIL: no guarded Workflow Mode section"; exit 1; }
+  cmp -s "$GATE_SRC" "$G_DIR/.git/blvck-harness/gate.mjs" || { echo "FAIL: gate script not installed in the git dir"; exit 1; }
+  [ -f "$G_DIR/.claude/agents/tech-lead.md" ] || { echo "FAIL: guarded mode did not copy the reviewer persona"; exit 1; }
+  [ -f "$G_DIR/.claude/agents/developer.md" ] && { echo "FAIL: guarded mode copied stage personas it never uses"; exit 1; }
+  [ -z "$(git -C "$G_DIR" status --porcelain -- .claude/settings.local.json)" ] || { echo "FAIL: settings.local.json is visible to git"; exit 1; }
+done
+echo "guarded: scores what classic does (solo and team); gate script, hooks, and reviewer persona installed; hooks invisible to git"
+
+# Installing the gates keeps the user's own settings and hooks, and twice gives the same file.
+G="$TMP/guarded-solo"
+node -e '
+const fs = require("fs"), f = process.argv[1], s = JSON.parse(fs.readFileSync(f, "utf8"));
+s.permissions = { allow: ["Bash(ls:*)"] };
+s.hooks.PreToolUse.push({ matcher: "Bash", hooks: [{ type: "command", command: "my-guard.sh" }] });
+fs.writeFileSync(f, JSON.stringify(s, null, 2));
+' "$G/.claude/settings.local.json"
+node "$SCRIPTS/create-harness.mjs" --target "$G" --layout solo --mode guarded --host gitlab >/dev/null
+cp "$G/.claude/settings.local.json" "$TMP/settings-once.json"
+node "$SCRIPTS/create-harness.mjs" --target "$G" --layout solo --mode guarded --host gitlab >/dev/null
+cmp -s "$TMP/settings-once.json" "$G/.claude/settings.local.json" || { echo "FAIL: installing the gates twice changed settings.local.json"; exit 1; }
+node -e '
+const s = require(process.argv[1]), all = Object.values(s.hooks).flat().flatMap((g) => g.hooks);
+const gates = all.filter((h) => h.command.includes("blvck-harness/gate.mjs"));
+if (gates.length !== 3) { console.error(`FAIL: expected 3 gate hooks, found ${gates.length}`); process.exit(1); }
+if (!all.some((h) => h.command === "my-guard.sh") || !s.permissions) { console.error("FAIL: the user hooks or permissions were lost"); process.exit(1); }
+' "$G/.claude/settings.local.json"
+[ "$(grep -c 'blvck-harness:gates:start' "$G/.git/info/exclude")" = 1 ] || { echo "FAIL: exclude block written twice"; exit 1; }
+echo "guarded: gate install keeps the user's settings and is idempotent"
+
+# A guarded config the gate cannot trust exits 2, like every other config error.
+GBASE='{"version":1,"mode":"guarded","gates":{"verify":true,"bookkeeping":true,"review":{"enabled":true,"agents":2,"agent":"tech-lead"},"stuckAfter":3},"delivery":{"host":"none","targetBranch":"main"}}'
+BAD=0
+for MUT in 'c.gates.verify=false' 'delete c.gates' 'c.gates.review.agents=6' 'c.gates.review.agents=0' 'c.gates.review.agent="Tech Lead"' 'c.gates.stuckAfter=8' 'c.gates.bookkeeping="yes"' 'delete c.delivery' 'c.mode="guard"'; do
+  mkdir -p "$TMP/badg/.claude"; cp "$G/CLAUDE.md" "$G/feature_list.json" "$G/progress.md" "$G/init.sh" "$TMP/badg/"
+  node -e "const c=JSON.parse(process.argv[1]); $MUT; require('fs').writeFileSync(process.argv[2], JSON.stringify(c))" "$GBASE" "$TMP/badg/.claude/harness-workflow.json"
+  expect_exit 2 node "$SCRIPTS/validate-harness.mjs" --target "$TMP/badg"
+  BAD=$((BAD + 1))
+done
+expect_exit 2 node "$SCRIPTS/create-harness.mjs" --target "$TMP/dynamic-solo" --layout solo --mode guarded
+# An existing dynamic harness switches in place: only the config and its section change.
+SW="$TMP/switch"; mkdir -p "$SW"; git -C "$SW" init -q
+node "$SCRIPTS/create-harness.mjs" --target "$SW" --layout solo --mode dynamic --host gitlab --target-branch develop >/dev/null
+echo "my own rule" >> "$SW/CLAUDE.md"; echo "- my log" >> "$SW/progress.md"; cp "$SW/feature_list.json" "$SW/progress.md" "$SW/init.sh" "$TMP/"
+node "$SCRIPTS/create-harness.mjs" --target "$SW" --layout solo --mode guarded --switch-mode >/dev/null
+for F in feature_list.json progress.md init.sh; do cmp -s "$TMP/$F" "$SW/$F" || { echo "FAIL: switching mode rewrote $F"; exit 1; }; done
+grep -q "my own rule" "$SW/CLAUDE.md" && grep -q "## Workflow Mode: guarded" "$SW/CLAUDE.md" || { echo "FAIL: switch lost the user's text or kept the dynamic section"; exit 1; }
+[ "$(grep -c 'blvck-harness:workflow-mode:start' "$SW/CLAUDE.md")" = 1 ] || { echo "FAIL: switch left two Workflow Mode sections"; exit 1; }
+node -e '
+const c = require(process.argv[1]);
+if (c.mode !== "guarded" || c.stages || c.delivery.host !== "gitlab" || c.delivery.targetBranch !== "develop") { console.error("FAIL: switched config did not keep delivery or kept stages"); process.exit(1); }
+' "$SW/.claude/harness-workflow.json"
+[ -f "$SW/.git/blvck-harness/gate.mjs" ] || { echo "FAIL: switch did not install the gate"; exit 1; }
+node "$SCRIPTS/validate-harness.mjs" --target "$SW" >/dev/null
+mkdir -p "$TMP/nogit"; expect_exit 2 node "$SCRIPTS/create-harness.mjs" --target "$TMP/nogit" --layout solo --mode guarded
+echo "guarded: $BAD broken gate configs exit 2; a mode mismatch exits 2 unless --switch-mode, which switches dynamic in place and keeps every other file; a non-repo exits 2"
+
+# The gates themselves, driven the way Claude Code drives them: hook JSON on stdin.
+git -C "$G" -c user.email=ci@ci -c user.name=ci add -A >/dev/null
+git -C "$G" -c user.email=ci@ci -c user.name=ci commit -qm harness
+gate () { CLAUDE_PROJECT_DIR="$G" node "$G/.git/blvck-harness/gate.mjs" "$@"; }
+hook () { echo "$2" | gate "$1"; }
+want () { # want <label> <expected substring or "allow"> <output>
+  if [ "$2" = allow ]; then case "$3" in *'"decision":"block"'*|*'"permissionDecision":"deny"'*) echo "FAIL: $1 should be allowed: $3"; exit 1;; esac
+  else case "$3" in *"$2"*) ;; *) echo "FAIL: $1 expected $2, got: $3"; exit 1;; esac; fi
+}
+want "stop with no run" allow "$(hook stop '{}')"
+gate start --feature feat-001 --verify '! test -f broken' --tracker feature_list.json --progress progress.md >/dev/null
+want "stop before any code" allow "$(hook stop '{}')"
+echo code > "$G/app.txt"; touch "$G/broken"
+want "stop on failing verification" '"decision":"block"' "$(hook stop '{}')"
+want "commit on failing verification" '"permissionDecision":"deny"' "$(hook pre-bash '{"tool_input":{"command":"git -C . commit -am wip"}}')"
+want "unrelated bash" allow "$(hook pre-bash '{"tool_input":{"command":"ls -la"}}')"
+rm "$G/broken"
+want "commit once verification passes" allow "$(hook pre-bash '{"tool_input":{"command":"git commit -am wip"}}')"
+want "stop without bookkeeping" 'tracker is unchanged' "$(hook stop '{}')"
+echo "- feat-001 built" >> "$G/progress.md"; sed -i.bak 's/"not-started"/"done"/' "$G/feature_list.json"; rm -f "$G/feature_list.json.bak"
+want "push without review" '"permissionDecision":"deny"' "$(hook pre-bash '{"tool_input":{"command":"glab mr create --fill"}}')"
+hook post-agent '{"tool_input":{"subagent_type":"Explore"}}' >/dev/null
+hook post-agent '{"tool_input":{"subagent_type":"tech-lead"}}' >/dev/null
+want "stop with 1 of 2 reviews" '1 of 2' "$(hook stop '{}')"
+echo more >> "$G/app.txt"
+hook post-agent '{"tool_input":{"subagent_type":"tech-lead"}}' >/dev/null
+want "a review of older code does not count" '1 of 2' "$(hook stop '{}')"
+hook post-agent '{"tool_input":{"subagent_type":"tech-lead"}}' >/dev/null
+want "stop once every gate passes" 'every gate passed' "$(hook stop '{}')"
+want "push once every gate passes" allow "$(hook pre-bash '{"tool_input":{"command":"git push -u origin feat/feat-001"}}')"
+echo "guarded: gates block stop, commit, and push until verification, bookkeeping, and review of the current code pass"
+
+# Stuck turns into a blocker for the user before Claude Code's own 8-block cap, and every
+# escape is recorded: ask allows one stop, block needs the action the user must take.
+gate start --feature feat-002 --replace --verify 'false' --tracker feature_list.json --progress progress.md >/dev/null
+echo again >> "$G/app.txt"
+for N in 1 2 3; do want "stuck attempt $N" "attempt $N of 3" "$(hook stop '{}')"; done
+want "stuck becomes a blocker" 'is stuck. It needs you' "$(hook stop '{}')"
+want "commit while blocked" 'blocked until the user clears' "$(hook pre-bash '{"tool_input":{"command":"git commit -m x"}}')"
+gate clear >/dev/null
+gate ask "Which tenant?" >/dev/null
+want "stop after ask" allow "$(hook stop '{}')"
+want "ask is spent after one stop" '"decision":"block"' "$(hook stop '{}')"
+expect_exit 2 gate block "TiDB is down"
+gate block "TiDB staging is unreachable" --human "Connect the VPN" >/dev/null
+want "stop on a recorded blocker" 'Connect the VPN' "$(hook stop '{}')"
+gate status | grep -q "Needs the user" || { echo "FAIL: status does not list blockers"; exit 1; }
+gate end >/dev/null
+echo "guarded: stuck runs become blockers with an action; ask and block are recorded escapes"
+
+# Preflight names what would stop a run, with the action, before it starts.
+node "$SCRIPTS/preflight-run.mjs" --target "$G" --verify 'false' --no-fetch --json > "$TMP/pf.json" && { echo "FAIL: a failing baseline passed preflight"; exit 1; }
+node -e '
+const r = require(process.argv[1]);
+if (!r.mustFix.some((f) => f.id === "baseline" && f.action)) { console.error("FAIL: baseline finding missing"); process.exit(1); }
+if (!r.passed.includes("gates")) { console.error("FAIL: installed gates not seen"); process.exit(1); }
+' "$TMP/pf.json"
+node -e '
+const fs = require("fs"), f = process.argv[1], s = JSON.parse(fs.readFileSync(f, "utf8"));
+s.hooks.PreToolUse.push({ matcher: "Bash", hooks: [{ type: "command", command: "echo git push is blocked by git-guardrails" }] });
+fs.writeFileSync(f, JSON.stringify(s));
+' "$G/.claude/settings.local.json"
+node -e '
+const fs = require("fs"), f = process.argv[1], c = JSON.parse(fs.readFileSync(f, "utf8"));
+c.delivery.host = "github"; fs.writeFileSync(f, JSON.stringify(c));
+' "$G/.claude/harness-workflow.json"
+node "$SCRIPTS/preflight-run.mjs" --target "$G" --verify 'true' --no-fetch --json > "$TMP/pf.json"
+node -e '
+const r = require(process.argv[1]);
+if (!r.warnings.some((f) => f.id === "push-hook")) { console.error("FAIL: a hook that blocks git push was not reported"); process.exit(1); }
+' "$TMP/pf.json"
+/bin/rm -f "$G/.claude/settings.local.json"
+expect_exit 1 node "$SCRIPTS/preflight-run.mjs" --target "$G" --skip-verify --no-fetch
+expect_exit 2 node "$SCRIPTS/preflight-run.mjs" --target "$TMP/nogit" --no-fetch
+echo "preflight: a failing baseline and missing gates must be fixed; a push-blocking hook warns; a non-repo exits 2"
 
 echo "=== Verification Complete ==="
 echo ""

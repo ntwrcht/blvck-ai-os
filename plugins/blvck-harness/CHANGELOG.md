@@ -8,6 +8,36 @@ plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Because `version` is pinned in `plugin.json`, users only receive changes when it is
 bumped here and there. Pushing commits alone ships nothing.
 
+## [2.5.0] - 2026-11-23
+
+### Added
+
+- **Guarded mode** (`mode: "guarded"`). One agent builds the feature in the session, and command
+  hooks enforce the steps instructions alone did not: the agent cannot stop, commit, or push
+  until verification passes on the current code, the tracker and progress log are updated, and
+  `gates.review.agents` fresh-context `gates.review.agent` subagents have reviewed the final
+  code. A review of older code does not count. Setup recommends it for most feature work.
+- **Local gate install.** The gate script lives in `.git/blvck-harness/gate.mjs` and its three
+  hooks in `.claude/settings.local.json`, merged with the user's own settings and kept out of
+  git. Nothing is committed. Installing twice gives the same file.
+- **Blockers for the user.** `gate.mjs block "<what>" --human "<action>"` records what only the
+  user can clear, and `ask` allows one stop for a question. When the same gates fail
+  `gates.stuckAfter` times on the same code, the gate turns it into a blocker before Claude
+  Code's own 8-block cap ends the loop silently. `clear`, `status`, and `end` manage the run.
+- **Preflight** (`scripts/preflight-run.mjs`), run by `/blvck-harness:run` in guarded and
+  dynamic modes before any work. Must fix: a baseline verification that already fails, guarded
+  gates that are not installed. Warnings: uncommitted changes, a branch behind its target, a
+  hook that refuses `git push`, a host CLI that is not signed in, and a local-harness `init.sh`
+  that changes to its own folder (so worktree verification checks the main checkout). Each
+  finding names the action the user must take.
+
+### Changed
+
+- `create-harness.mjs` refuses to render a Workflow Mode section from a config whose `mode`
+  differs from `--mode`, instead of rendering one mode's section from another mode's keys.
+  `--switch-mode` switches an existing harness in place (dynamic to guarded, or back): the config
+  gets the new mode's defaults, keeps its delivery and grilling, and no other file is rewritten.
+
 ## [2.4.0] - 2026-11-13
 
 ### Added

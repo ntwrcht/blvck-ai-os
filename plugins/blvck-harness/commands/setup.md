@@ -17,7 +17,7 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/scripts/validate-harn
 | No harness (`unscored`, no agent files) | **New** — continue at step 2 |
 | An agent setup in some other shape | **Migrate** — follow [migration.md](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references/migration.md) (convert, or adapt in place with `.harness-map.json`), then continue at step 3 |
 | A blvck harness with no `.claude/harness-workflow.json` (classic, or 1.x) | **Upgrade or fill gaps** — offer dynamic mode; continue at step 3 |
-| A blvck harness with a workflow config | **Reconfigure** — show the current config as a table, ask what to change, continue at step 3 with only those rounds |
+| A blvck harness with a workflow config | **Reconfigure** — show the current config as a table, ask what to change, continue at step 3 with only those rounds. A dynamic harness: offer guarded mode, which keeps one agent and enforces its steps with hooks |
 
 Exit 2 from the validator means an existing map or workflow config is broken: show the error and fix it with the user before anything else.
 
@@ -51,7 +51,7 @@ Read [code-style.md](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references
 
 ## 4. Mode, visibility, and the dynamic rounds
 
-Read [workflow-setup.md](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references/workflow-setup.md) and run its rounds in order: mode → visibility → (dynamic only) preset → stages → agents per stage → personas → skills per stage → grilling → delivery → confirm. Skip a round whose answer is already settled.
+Read [workflow-setup.md](${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/references/workflow-setup.md) and run its rounds in order: mode → visibility → (guarded only) gates → (dynamic only) preset → stages → agents per stage → personas → skills per stage → grilling → delivery → confirm. Skip a round whose answer is already settled.
 
 ## 5. Write
 
@@ -60,12 +60,13 @@ After the user confirms:
 ```bash
 node ${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/scripts/create-harness.mjs --target . \
   --layout <solo|team> --agent-file CLAUDE.md \
-  [--mode dynamic --preset <recommended|lean|custom> --host <github|gitlab|none> --target-branch <branch>] \
+  [--mode dynamic --preset <recommended|lean|custom> | --mode guarded] [--host <github|gitlab|none> --target-branch <branch>] \
   [--visibility local] [--no-agents] [--jira-key KEY]
 ```
 
 - Existing files are skipped, never overwritten, unless the user approved `--force` for a named file.
-- Then apply the user's choices that differ from the preset by editing `.claude/harness-workflow.json`, and re-run the same command (add `--no-agents`) so the instruction file's **Workflow Mode** section is re-rendered from the config.
+- Then apply the user's choices that differ from the preset by editing `.claude/harness-workflow.json`, and re-run the same command (add `--no-agents`) so the instruction file's **Workflow Mode** section is re-rendered from the config. To switch mode on an existing config (dynamic to guarded, or back), add `--switch-mode`: the config gets the new mode's defaults, keeps its delivery and grilling, and the Workflow Mode section is re-rendered. No other file is rewritten. Then apply the user's gate or stage choices as above.
+- Guarded mode installs its gates on every run of the scaffold: the script into `.git/blvck-harness/gate.mjs` and three hooks into `.claude/settings.local.json`, merged with what is there and kept out of git. Say so, and that a fresh clone has no gates until setup runs there.
 - Personas tailored with agent-smith are written before this step, under the default names, with `--no-agents` on the scaffold.
 - Write the `## Code Style` section between its markers, as code-style.md shows (replace an existing block, never add a second).
 - Replace the placeholder features with the user's real ones, and fix `init.sh` so its commands match how the project builds and tests.
@@ -76,4 +77,4 @@ Run `./init.sh` — repair it until it passes; a harness whose verification fail
 
 ## 7. Report
 
-In plain language that stands on its own: what was created or changed, the layout, mode, visibility, and code style rules, and how to use it day to day — `/blvck-harness:run` to start a feature, `/blvck-harness:check` for a health check. For dynamic mode, include the stage table so the user sees who does what.
+In plain language that stands on its own: what was created or changed, the layout, mode, visibility, and code style rules, and how to use it day to day — `/blvck-harness:run` to start a feature, `/blvck-harness:check` for a health check. For dynamic mode, include the stage table so the user sees who does what. For guarded mode, list the gates and where the hooks live.

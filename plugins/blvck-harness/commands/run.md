@@ -1,5 +1,5 @@
 ---
-description: Start the next feature, or several at once in dynamic mode — grill unclear requirements, then run them (dynamic workflows or classic ritual)
+description: Start the next feature, or several at once in dynamic mode — grill unclear requirements, list what would block the run, then run it (guarded single agent, dynamic workflows, or classic ritual)
 argument-hint: "[feature-id ...] [--brief <path> ...]"
 disable-model-invocation: true
 allowed-tools: Read(${CLAUDE_PLUGIN_ROOT}/**)
@@ -20,7 +20,7 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/scripts/validate-harn
 
 Read the tracker from `resolution.featureTracker.sources` (adapted layouts included — the real file is named there). List features that are not done and whose dependencies are all done.
 
-- **Classic mode** runs one feature. If `$ARGUMENTS` names more than one, say classic mode works one feature at a time, and ask which to start.
+- **Classic and guarded modes** run one feature. If `$ARGUMENTS` names more than one, say this mode works one feature at a time, and ask which to start.
 - **Dynamic mode** can run several. If `$ARGUMENTS` names features, use them; otherwise recommend the first ready one and offer to add more. A picked feature may also depend on another picked feature that is not done yet: it is **stacked** and starts after that one delivers (step 4b). Refuse a feature whose dependencies are neither done nor picked, and name the missing one.
 
 ### Briefs
@@ -49,6 +49,22 @@ A feature that came from a brief starts with its answers already given: its acce
 Read the code and tracker first so you only ask what they cannot answer. End with the confirmed requirements as `Q: … A: …` lines plus checkable done criteria.
 
 With several features, grill all of them now, one at a time and labelled by feature id, before anything launches. A stacked feature starts later with no chance to ask, so settle its questions here too. Ask where two picked features meet (a shared file, an API one exposes and the other uses) once, and add the answer to both features' requirements.
+
+## 3b. Preflight (guarded and dynamic)
+
+Find what would stop the run halfway, while the user is still here to clear it:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/scripts/preflight-run.mjs --target . --verify "<verification command>"
+```
+
+Use the verification command from step 4b's `verification` rule. In guarded mode, refresh the gate first (step 4c, item 1), because preflight checks it.
+
+- Show every finding as a checklist: the problem, then what the user must do. Group **must fix** before **warnings**.
+- **Exit 1** (must fix): do not start. Ask the user to clear each item, then run the preflight again. Common causes are a baseline verification that needs a database or service that is down, and guarded gates that are not installed (`/blvck-harness:setup` installs them).
+- **Warnings**: ask whether to clear them first or go ahead. A hook that refuses `git push` means the user pushes the branch at the end; never suggest removing it.
+- **Exit 2**: the config is broken. Show the error and suggest `/blvck-harness:setup`.
+- Ask too about what no script can see: a commit-count or branch rule the repo enforces, a test that needs live credentials. Each one the user names goes into the grilling text as a constraint.
 
 ## 4a. Classic mode
 
@@ -94,6 +110,38 @@ Launch order:
 3. Each time a workflow finishes (step 5), launch from the queue: first any stacked feature whose picked dependencies have all **delivered**, then the next ready one, keeping no more than `batch.maxFeatures` running.
 
 Tell the user what is running and what is queued, that it all runs in the background, that they can keep chatting here, and that `/workflows` shows live progress.
+
+## 4c. Guarded mode
+
+This session builds the feature itself. Command hooks hold the gates, so the agent cannot finish, commit, or push early, whatever it decides.
+
+1. Refresh the gate from the plugin, then install-check it with the preflight (step 3b):
+
+   ```bash
+   G="$(git rev-parse --absolute-git-dir)"; mkdir -p "$G/blvck-harness" && cp "${CLAUDE_PLUGIN_ROOT}/skills/harness-engineering/hooks/gate.mjs" "$G/blvck-harness/gate.mjs"
+   ```
+
+2. Create the feature branch `<delivery.branchPrefix><id>` from `delivery.targetBranch` and switch to it.
+3. Start the run. `--tracker` and `--progress` take the files from `resolution.featureTracker.sources` and `resolution.progressLog.sources` (comma-separated; a team layout passes the feature's `status.json` and its `progress/` folder):
+
+   ```bash
+   node "$G/blvck-harness/gate.mjs" start --feature <id> --verify "<verification command>" --tracker <paths> --progress <paths>
+   ```
+
+4. Build it: follow the instruction file's Working Rules and the grilling's done criteria, with tests.
+5. Review: when the code is done, start `gates.review.agents` subagents of type `gates.review.agent` in one message, each with fresh context and a different lens (correctness and done criteria, tests and edge cases, security and data). Give each the diff command (`git diff <targetBranch>...HEAD` plus uncommitted changes) and the grilling text, never your own summary of the change. Fix every must-fix, then review again: the gate counts reviews of the current code only.
+6. Bookkeeping: update the tracker entry (status and evidence: the commands run and their results) and the progress log, then commit. Push and open the PR/MR when `delivery.host` is set.
+7. Stop. The Stop hook runs verification and checks the rest. When it sends you back, do what it names.
+
+Escapes, both recorded and shown to the user:
+
+- A question only the user can answer: `node "$G/blvck-harness/gate.mjs" ask "<question>"`, then ask it and stop.
+- Something only the user can clear (a service that is down, missing access, a rule outside the repo): `node "$G/blvck-harness/gate.mjs" block "<what is stuck>" --human "<what the user must do>"`, then stop. Never use it for work you could do yourself.
+- If the same gates fail `gates.stuckAfter` times on the same code, the gate turns that into a blocker itself and lets you stop.
+
+When the user says a blocker is cleared, run `node "$G/blvck-harness/gate.mjs" clear` and continue. `status` shows the gates at any time. Run `end` only when the user asks to drop the run.
+
+Report as in step 5: what was built and how it was verified, the review findings and what changed because of them, the PR/MR link, and a **Needs you** checklist of every blocker with its action.
 
 ## 5. When a workflow finishes
 

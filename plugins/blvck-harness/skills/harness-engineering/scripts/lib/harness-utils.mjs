@@ -971,6 +971,31 @@ export function defaultWorkflowConfig({ preset = 'recommended', host = 'none', t
   };
 }
 
+// Guarded mode: one agent builds the feature, and command hooks refuse to let it stop, commit, or
+// push until verification, bookkeeping, and an independent review are done.
+export const WORKFLOW_MODES = ['classic', 'dynamic', 'guarded'];
+export const MAX_GUARD_REVIEWERS = 5;
+// Claude Code ends a Stop-hook loop on its own after 8 blocks in a row. The gate hands a stuck
+// run to the user before that, so the user learns why instead of the loop just ending.
+export const MAX_STUCK_AFTER = 7;
+export const GATE_SCRIPT = path.join(SKILL_ROOT, 'hooks', 'gate.mjs');
+export const GATE_HOOK_SETTINGS = '.claude/settings.local.json';
+
+export function defaultGuardedConfig({ host = 'none', targetBranch = 'main' } = {}) {
+  return {
+    version: 1,
+    mode: 'guarded',
+    gates: {
+      verify: true,
+      bookkeeping: true,
+      review: { enabled: true, agents: 2, agent: 'tech-lead' },
+      stuckAfter: 3
+    },
+    delivery: { host, targetBranch, branchPrefix: 'feat/' },
+    grilling: { skill: 'grilling' }
+  };
+}
+
 function isPositiveInteger(value) {
   return Number.isInteger(value) && value > 0;
 }
@@ -988,10 +1013,16 @@ export function validateWorkflowConfig(config, label = WORKFLOW_CONFIG_PATH) {
       ? 'missing "version". If this is not a harness workflow config, rename it'
       : `unsupported "version" ${JSON.stringify(config.version)} — this build understands 1`);
   }
-  if (config.mode !== 'classic' && config.mode !== 'dynamic') {
-    fail(`"mode" must be "classic" or "dynamic" (got ${JSON.stringify(config.mode)})`);
+  if (!WORKFLOW_MODES.includes(config.mode)) {
+    fail(`"mode" must be one of ${WORKFLOW_MODES.join(', ')} (got ${JSON.stringify(config.mode)})`);
   }
   if (config.mode === 'classic') return;
+  if (config.mode === 'guarded') {
+    validateGates(config.gates, fail);
+    validateDelivery(config.delivery, fail);
+    validateGrilling(config, fail);
+    return;
+  }
 
   if (config.preset !== undefined && !WORKFLOW_PRESETS.includes(config.preset)) {
     fail(`"preset" must be one of ${WORKFLOW_PRESETS.join(', ')} (got ${JSON.stringify(config.preset)})`);
@@ -1042,8 +1073,12 @@ export function validateWorkflowConfig(config, label = WORKFLOW_CONFIG_PATH) {
     }
   }
 
-  const delivery = config.delivery;
-  if (!delivery || typeof delivery !== 'object' || Array.isArray(delivery)) fail('dynamic mode needs a "delivery" object');
+  validateDelivery(config.delivery, fail);
+  validateGrilling(config, fail);
+}
+
+function validateDelivery(delivery, fail) {
+  if (!delivery || typeof delivery !== 'object' || Array.isArray(delivery)) fail('this mode needs a "delivery" object');
   if (!DELIVERY_HOSTS.includes(delivery.host)) {
     fail(`delivery.host must be one of ${DELIVERY_HOSTS.join(', ')} (got ${JSON.stringify(delivery.host)})`);
   }
@@ -1053,12 +1088,34 @@ export function validateWorkflowConfig(config, label = WORKFLOW_CONFIG_PATH) {
   if (delivery.branchPrefix !== undefined && typeof delivery.branchPrefix !== 'string') {
     fail('delivery.branchPrefix must be a string');
   }
+}
 
+function validateGrilling(config, fail) {
   if (config.grilling !== undefined) {
     const skill = config.grilling?.skill;
     if (!config.grilling || typeof config.grilling !== 'object' || (skill !== null && (typeof skill !== 'string' || !skill.trim()))) {
       fail('grilling.skill must be a skill name, or null for the built-in grilling style');
     }
+  }
+}
+
+// Verification cannot be turned off: a guarded run that skips it guards nothing, which is the
+// failure this mode exists to stop.
+function validateGates(gates, fail) {
+  if (!gates || typeof gates !== 'object' || Array.isArray(gates)) fail('guarded mode needs a "gates" object');
+  if (gates.verify !== true) fail('gates.verify must be true — verification is the one gate guarded mode cannot run without');
+  if (typeof gates.bookkeeping !== 'boolean') fail('gates.bookkeeping must be true or false');
+  const review = gates.review;
+  if (!review || typeof review !== 'object' || Array.isArray(review)) fail('gates.review must be an object');
+  if (typeof review.enabled !== 'boolean') fail('gates.review.enabled must be true or false');
+  if (!isPositiveInteger(review.agents) || review.agents > MAX_GUARD_REVIEWERS) {
+    fail(`gates.review.agents must be a whole number from 1 to ${MAX_GUARD_REVIEWERS} (got ${JSON.stringify(review.agents)})`);
+  }
+  if (typeof review.agent !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(review.agent)) {
+    fail(`gates.review.agent must be a subagent name in lowercase-hyphen form (got ${JSON.stringify(review.agent)})`);
+  }
+  if (!isPositiveInteger(gates.stuckAfter) || gates.stuckAfter > MAX_STUCK_AFTER) {
+    fail(`gates.stuckAfter must be a whole number from 1 to ${MAX_STUCK_AFTER} (got ${JSON.stringify(gates.stuckAfter)})`);
   }
 }
 
@@ -1068,6 +1125,7 @@ const SECTION_END = '<!-- blvck-harness:workflow-mode:end -->';
 // The instruction file's view of the config. Subagents read CLAUDE.md on their own, so the
 // skills table here is what wires each stage — the config is the source, this is the render.
 export function workflowModeSection(config) {
+  if (config.mode === 'guarded') return guardedModeSection(config);
   const rows = Object.keys(WORKFLOW_STAGES).map((name) => {
     const stage = config.stages[name];
     if (!stage || !stage.enabled) return `| ${name} | off | — | — | — |`;
@@ -1095,6 +1153,102 @@ Each stage runs as the agent named here (definitions in \`.claude/agents/\`), us
 ${rows.join('\n')}
 ${SECTION_END}
 `;
+}
+
+function guardedModeSection(config) {
+  const { gates } = config;
+  const grillingSkill = config.grilling?.skill;
+  const host = config.delivery.host;
+  return `${SECTION_START}
+## Workflow Mode: guarded
+
+- **Start a feature with \`/blvck-harness:run\`.** It settles unclear requirements with you, lists anything that would block the run so you can clear it first, then this session builds the feature itself
+- **Grilling**: ${grillingSkill ? `use the \`${grillingSkill}\` skill; if it is not installed, use the plugin's built-in grilling style` : 'use the plugin\'s built-in grilling style'}
+- **Gates** (command hooks in \`${GATE_HOOK_SETTINGS}\`, so they run every time): the agent cannot finish, commit, or push until verification passes on the current code${gates.bookkeeping ? ', the feature tracker and progress log are updated' : ''}${gates.review.enabled ? `, and ${gates.review.agents} \`${gates.review.agent}\` subagent${gates.review.agents > 1 ? 's' : ''} with fresh context ${gates.review.agents > 1 ? 'have' : 'has'} reviewed the final code` : ''}
+- **Stuck**: what only you can clear is recorded as a blocker with the action you need to take. The same unmet gates ${gates.stuckAfter} times in a row also become a blocker, so the run stops and asks instead of looping
+- **Delivery**: one feature branch (\`${config.delivery.branchPrefix ?? 'feat/'}<id>\`); ${host === 'none' ? 'the user opens the pull request' : `a ${host === 'gitlab' ? 'merge request' : 'pull request'} targets \`${config.delivery.targetBranch}\``}
+- **Config**: \`${WORKFLOW_CONFIG_PATH}\` — change it with \`/blvck-harness:setup\`, which also regenerates this section
+${SECTION_END}
+`;
+}
+
+// Hook entries the gate needs. Each one names the script by its place in the git directory, so
+// nothing is committed and a fresh clone has no gates until setup runs there.
+export function gateHookEntries() {
+  const gate = (event) => ({ type: 'command', command: `node "$(git -C "$CLAUDE_PROJECT_DIR" rev-parse --absolute-git-dir)/blvck-harness/gate.mjs" ${event}`, timeout: 900 });
+  return {
+    Stop: [{ hooks: [gate('stop')] }],
+    PreToolUse: [{ matcher: 'Bash', hooks: [gate('pre-bash')] }],
+    PostToolUse: [{ matcher: 'Agent', hooks: [gate('post-agent')] }]
+  };
+}
+
+const isGateHook = (hook) => typeof hook?.command === 'string' && hook.command.includes('blvck-harness/gate.mjs');
+
+// Adds the gate hooks to settings.local.json and leaves every other setting and hook as it was.
+// Running it twice gives the same file, because old gate entries are removed before adding.
+export function mergeGateHooks(settings) {
+  const next = settings && typeof settings === 'object' && !Array.isArray(settings) ? { ...settings } : {};
+  const hooks = next.hooks && typeof next.hooks === 'object' ? { ...next.hooks } : {};
+  for (const [event, groups] of Object.entries(hooks)) {
+    if (!Array.isArray(groups)) continue;
+    const kept = groups
+      .map((group) => ({ ...group, hooks: Array.isArray(group.hooks) ? group.hooks.filter((hook) => !isGateHook(hook)) : group.hooks }))
+      .filter((group) => !Array.isArray(group.hooks) || group.hooks.length);
+    if (kept.length) hooks[event] = kept;
+    else delete hooks[event];
+  }
+  for (const [event, groups] of Object.entries(gateHookEntries())) hooks[event] = [...(hooks[event] || []), ...groups];
+  next.hooks = hooks;
+  return next;
+}
+
+export function hasGateHooks(settings) {
+  const hooks = settings?.hooks || {};
+  return ['Stop', 'PreToolUse', 'PostToolUse'].every((event) =>
+    Array.isArray(hooks[event]) && hooks[event].some((group) => Array.isArray(group.hooks) && group.hooks.some(isGateHook)));
+}
+
+const HOOKS_EXCLUDE_START = '# blvck-harness:gates:start';
+const HOOKS_EXCLUDE_END = '# blvck-harness:gates:end';
+
+// Installs the gate script into .git/, its hooks into settings.local.json, and excludes that file.
+// The exclude uses its own block, so the local-visibility block still means only that.
+export async function installGates(root) {
+  const gitDir = path.join(root, '.git');
+  if (!await isDirectory(gitDir)) {
+    throw new HarnessMapError('guarded mode needs a git repository with a .git directory: its gates live in .git/blvck-harness/');
+  }
+  const results = [];
+  const scriptTarget = path.join(gitDir, 'blvck-harness', 'gate.mjs');
+  const script = await readText(GATE_SCRIPT);
+  const before = await exists(scriptTarget) ? await readText(scriptTarget) : null;
+  if (before !== script) await writeText(scriptTarget, script);
+  results.push({ path: scriptTarget, status: before === null ? 'written' : before === script ? 'skipped' : 'updated', reason: 'gate script' });
+
+  const settingsPath = path.join(root, GATE_HOOK_SETTINGS);
+  let settings = {};
+  if (await exists(settingsPath)) {
+    try {
+      settings = JSON.parse(await readText(settingsPath));
+    } catch (error) {
+      throw new HarnessMapError(`${GATE_HOOK_SETTINGS} is not valid JSON, so the gate hooks cannot be added safely: ${error.message}`);
+    }
+  }
+  const merged = mergeGateHooks(settings);
+  const text = `${JSON.stringify(merged, null, 2)}\n`;
+  const hadSettings = await exists(settingsPath);
+  const previous = hadSettings ? await readText(settingsPath) : null;
+  if (previous !== text) await writeText(settingsPath, text);
+  results.push({ path: settingsPath, status: !hadSettings ? 'written' : previous === text ? 'skipped' : 'updated', reason: 'gate hooks' });
+
+  const excludePath = path.join(gitDir, 'info', 'exclude');
+  const current = await exists(excludePath) ? await readText(excludePath) : '';
+  if (!current.includes(HOOKS_EXCLUDE_START)) {
+    await writeText(excludePath, `${current.replace(/\n*$/, current ? '\n\n' : '')}${HOOKS_EXCLUDE_START}\n/${GATE_HOOK_SETTINGS}\n${HOOKS_EXCLUDE_END}\n`);
+    results.push({ path: excludePath, status: 'updated', reason: `${GATE_HOOK_SETTINGS} kept out of git` });
+  }
+  return results;
 }
 
 // Inserts or replaces the marked block. Placed before Definition of Done when there is no block

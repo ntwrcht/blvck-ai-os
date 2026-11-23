@@ -2,8 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-11-13
-**Active Feature:** none. **blvck-harness 2.4.0 is released** (feat-023): setup installs the skills the harness uses. 2.3.1 before it added `run --brief` (feat-022).
+**Last Updated:** 2026-11-23
+**Active Feature:** none. **blvck-harness 2.5.0 is built and verified, not yet committed or tagged** (feat-024): guarded mode and the run preflight. 2.4.0 (feat-023) is released.
+
+**feat-024 in one paragraph:** session history on the botnoi repos (56 workflow records, 27 Oct to 19 Nov) showed dynamic runs delivered 6 of 33 on their own at a median 93 minutes and 1.7M tokens, still skipped progress and db-test steps, and stalled on repo rules (push guard, commit cap, the init.sh `cd "$(dirname "$0")"` line under local visibility, stale bases). Anthropic's best-practices page says anything that must happen every time belongs in a hook. Guarded mode keeps one agent and moves the steps into command hooks: `hooks/gate.mjs` in `.git/blvck-harness/`, wired from `.claude/settings.local.json`, blocks stop, commit, and push until verification passes on the current code, tracker and progress changed, and N fresh-context reviewer subagents ran on the current code (PostToolUse on `Agent`, matched by `subagent_type`). `block --human` and the stuck counter turn dead ends into a "Needs you" list. `preflight-run.mjs` runs before guarded and dynamic runs. Not yet tried in a live session: the hooks firing for real, and a long `init.sh` inside the 900s hook timeout.
 
 **feat-023 in one paragraph:** most botnoi repos had no local skills before setup, so `run` grilled with the built-in fallback and dynamic stages skipped their skills. Setup's new step 1b scans what is installed, compares it with the blvck-skills baseline plus the stack skill (the samber Go pack for `go.mod`), and installs what is missing into the project after a yes. A local harness now also excludes `skills-lock.json`. A live run on a bare Go repo installed 54 skills and reported the installer's risk flags.
 

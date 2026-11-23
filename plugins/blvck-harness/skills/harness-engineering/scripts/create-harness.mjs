@@ -12,12 +12,14 @@ import {
   WORKFLOW_CONFIG_PATH,
   WORKFLOW_PRESETS,
   copyTemplate,
+  defaultGuardedConfig,
   defaultWorkflowConfig,
   detectLayout,
   detectPackageManager,
   detectProject,
   exists,
   initScriptFromCommands,
+  installGates,
   localHarnessPaths,
   parseArgs,
   readText,
@@ -33,8 +35,8 @@ const args = parseArgs(process.argv.slice(2));
 
 if (args.help) {
   console.log(`Usage: node scripts/create-harness.mjs [--target DIR] [--layout solo|team] [--agent-file AGENTS.md|CLAUDE.md] [--package-manager npm|pnpm|yarn|bun] [--commands "cmd one,cmd two"] [--feature-slug slug] [--jira-key KEY-123] [--owner name]
-       [--mode classic|dynamic] [--preset recommended|lean|custom] [--host github|gitlab|none] [--target-branch main]
-       [--visibility shared|local] [--no-agents] [--force]
+       [--mode classic|dynamic|guarded] [--preset recommended|lean|custom] [--host github|gitlab|none] [--target-branch main]
+       [--visibility shared|local] [--switch-mode] [--no-agents] [--force]
 
 Creates a minimal production harness.
 
@@ -52,6 +54,10 @@ instruction file (inserted into an existing one, so a 1.x harness upgrades in pl
 --mode dynamic also copies the four default stage personas (product-owner, tech-lead,
 developer, qa-engineer) into .claude/agents/, skipping any that exist; --no-agents skips them
 for a user who brings their own roster.
+--mode guarded writes the config with gates on, copies the tech-lead persona (the reviewer),
+and installs the gate: the script in .git/blvck-harness/, hooks in .claude/settings.local.json.
+--switch-mode replaces an existing config of another mode with this mode's defaults, keeping its
+delivery and grilling; nothing else is rewritten. Without it, a mode mismatch exits 2.
 --visibility local lists the harness in .git/info/exclude so it never reaches the remote.
 
 Existing files are skipped unless --force is set.
@@ -66,7 +72,7 @@ function usage(message) {
 }
 
 const mode = args.mode ?? 'classic';
-if (mode !== 'classic' && mode !== 'dynamic') usage(`--mode must be classic or dynamic (got ${JSON.stringify(mode)})`);
+if (!['classic', 'dynamic', 'guarded'].includes(mode)) usage(`--mode must be classic, dynamic, or guarded (got ${JSON.stringify(mode)})`);
 const preset = args.preset ?? 'recommended';
 if (!WORKFLOW_PRESETS.includes(preset)) usage(`--preset must be one of ${WORKFLOW_PRESETS.join(', ')}`);
 const host = args.host ?? 'none';
@@ -172,10 +178,15 @@ if (isTeam) {
 
 // The config is only ever written in dynamic mode; its absence is what "classic" means, so a
 // classic scaffold stays byte-identical to what 1.x produced.
-if (mode === 'dynamic') {
+let config = null;
+if (mode !== 'classic') {
   const configPath = path.join(target, WORKFLOW_CONFIG_PATH);
-  let config = defaultWorkflowConfig({ preset: preset === 'custom' ? 'recommended' : preset, host, targetBranch: args.targetBranch || 'main' });
-  if (preset === 'custom') config.preset = 'custom';
+  if (mode === 'guarded') {
+    config = defaultGuardedConfig({ host, targetBranch: args.targetBranch || 'main' });
+  } else {
+    config = defaultWorkflowConfig({ preset: preset === 'custom' ? 'recommended' : preset, host, targetBranch: args.targetBranch || 'main' });
+    if (preset === 'custom') config.preset = 'custom';
+  }
   if (force || !await exists(configPath)) {
     await writeText(configPath, `${JSON.stringify(config, null, 2)}\n`);
     results.push({ path: configPath, status: 'written' });
@@ -186,7 +197,24 @@ if (mode === 'dynamic') {
     } catch (error) {
       usage(`${WORKFLOW_CONFIG_PATH} exists but is not usable: ${error.message}`);
     }
-    results.push({ path: configPath, status: 'skipped', reason: 'exists — section rendered from it' });
+    // Switching mode replaces only the config, keeping where work is delivered and how grilling runs.
+    // Without --switch-mode a mismatch stops, so a typo never rewrites the user's config.
+    if (config.mode !== mode && !args.switchMode) {
+      usage(`${WORKFLOW_CONFIG_PATH} says mode "${config.mode}", not "${mode}". Pass --switch-mode to change it; every other file is left as it is`);
+    }
+    if (config.mode !== mode) {
+      const previous = config.mode;
+      const fresh = mode === 'guarded'
+        ? defaultGuardedConfig({ host, targetBranch: args.targetBranch || 'main' })
+        : defaultWorkflowConfig({ preset: preset === 'custom' ? 'recommended' : preset, host, targetBranch: args.targetBranch || 'main' });
+      if (config.delivery && !args.host && !args.targetBranch) fresh.delivery = { ...fresh.delivery, ...config.delivery };
+      if (config.grilling) fresh.grilling = config.grilling;
+      config = fresh;
+      await writeText(configPath, `${JSON.stringify(config, null, 2)}\n`);
+      results.push({ path: configPath, status: 'updated', reason: `mode switched from ${previous}; delivery and grilling kept` });
+    } else {
+      results.push({ path: configPath, status: 'skipped', reason: 'exists — section rendered from it' });
+    }
   }
   // The section is a render of the config, so it is refreshed even when the instruction file
   // itself was skipped. That refresh is what makes setup's reconfigure path a single command.
@@ -201,8 +229,9 @@ if (mode === 'dynamic') {
   }
 }
 
-if (mode === 'dynamic' && !args.noAgents) {
-  for (const name of DEFAULT_AGENTS) {
+if (mode !== 'classic' && !args.noAgents) {
+  const personas = mode === 'guarded' ? (config.gates.review.enabled ? [config.gates.review.agent].filter((name) => DEFAULT_AGENTS.includes(name)) : []) : DEFAULT_AGENTS;
+  for (const name of personas) {
     results.push(await copyTemplate(`agents/${name}.md`, path.join(target, '.claude', 'agents', `${name}.md`), {}, { force }));
   }
 }
@@ -210,6 +239,15 @@ if (mode === 'dynamic' && !args.noAgents) {
 if (visibility === 'local') {
   try {
     results.push(await writeLocalExclude(target, localHarnessPaths({ layout, agentFile })));
+  } catch (error) {
+    if (error instanceof HarnessMapError) usage(error.message);
+    throw error;
+  }
+}
+
+if (mode === 'guarded') {
+  try {
+    results.push(...await installGates(target));
   } catch (error) {
     if (error instanceof HarnessMapError) usage(error.message);
     throw error;

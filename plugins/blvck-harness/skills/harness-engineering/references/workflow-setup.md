@@ -9,9 +9,10 @@ Everything chosen here lands in `.claude/harness-workflow.json`. Absent file = c
 | Mode | What it is | Recommend when |
 |---|---|---|
 | **Classic** | One agent follows the startup ritual, one feature at a time | Small repos, tight token budgets, or a user new to harnesses |
+| **Guarded** | `/blvck-harness:run` grills the user and lists what would block the run, then this session builds the feature. Command hooks refuse to let it finish, commit, or push until verification passes, the tracker and progress are updated, and fresh-context subagents have reviewed the final code | Most feature work: one agent keeps the whole design in context, and the hooks stop the skipped steps that instructions alone do not |
 | **Dynamic** | `/blvck-harness:run` grills the user here, then a background workflow plans, splits, builds in parallel worktrees, tests, reviews, and opens a PR/MR | Features that split into independent parts, and a user who wants the main session free while work runs |
 
-Say plainly: dynamic runs several agents per feature and costs more tokens than classic.
+Recommend **guarded** unless the user's features really split into parallel parts. Anthropic's guidance is to make anything that must happen every time a hook, because CLAUDE.md is advice the agent may decide does not apply. Say plainly: dynamic runs several agents per feature and costs the most tokens; guarded adds only the review subagents.
 
 ## Round: visibility
 
@@ -21,6 +22,17 @@ Say plainly: dynamic runs several agents per feature and costs more tokens than 
 | **Local only** | `--visibility local` writes the harness paths (instruction file, state files, `init.sh`, map, workflow config, stage personas, `.claude/skills/`, `.agents/`) into `.git/info/exclude` — nothing git can see, nothing pushed, and no `.gitignore` entry announcing it |
 
 Refuse local for a **team** layout: claims and status only work when teammates can see them. If any of those paths are already tracked by git, excluding them does nothing until they are untracked — say so, and only run `git rm --cached <path>` with explicit approval, explaining that the next push removes them from the remote.
+
+## Round: gates (guarded only)
+
+| Gate | Default | Choice |
+|---|---|---|
+| Verification passes on the current code | on | Always on: a guarded run without it guards nothing |
+| Tracker and progress log updated | on | Off only when another tool records progress |
+| Independent review | on, 2 `tech-lead` subagents | 1 to 5 reviewers; any persona from `.claude/agents/` |
+| Stuck after | 3 | Times the same gates may fail on the same code before the gate hands it to the user as a blocker (1 to 7; Claude Code ends the loop itself after 8) |
+
+The hooks go into `.claude/settings.local.json`, which is personal and kept out of git, and the script into `.git/blvck-harness/`. Nothing is committed, so each person who wants the gates runs setup in their own clone.
 
 ## Round: preset (dynamic only)
 
